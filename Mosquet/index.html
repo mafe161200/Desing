@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Hub | Plataforma</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,800&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <!-- LIBRERÍA DE RECORTE DE IMÁGENES -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card" style="text-align: left;">
+            <h1 class="mixed-title logo-large" style="margin-bottom: 30px;">
+                <span class="logo-typographic">Design</span>
+            </h1>
+            <h2>Acceso al Sistema</h2>
+            <p style="margin-bottom: 24px;">Inicia sesión en la plataforma</p>
+            <form id="loginForm" class="login-form">
+                <div class="field">
+                    <label>Usuario</label>
+                    <input type="text" id="usernameInput" class="custom-input" placeholder="Ej: admin o Camilo" required>
+                </div>
+                <div class="field">
+                    <label>Contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="passwordInput" class="custom-input" placeholder="••••••••" required>
+                        <button type="button" id="togglePasswordBtn" class="toggle-password-btn" aria-label="Mostrar contraseña">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="loginError" class="login-error">Usuario o contraseña incorrectos.</div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Ingresar al workspace</button>
+                
+                <div class="login-hint">
+                    Consulta el archivo <strong>users.js</strong> para ver credenciales.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="appContainer" class="main-container" style="display: none;">
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="mixed-title">
+                    <span class="logo-typographic">Design</span>
+                </h1>
+                <p class="header-subtitle">Gestión de Solicitudes<br>y Entregables de Diseño</p>
+            </div>
+            
+            <div class="top-actions">
+                <div class="user-profile" id="userProfileBtn" title="Configurar Perfil">
+                    <img id="userAvatar" src="" alt="Avatar" class="user-avatar">
+                    <span id="currentUserName">Usuario</span>
+                </div>
+                <button id="btnLogout" class="btn-text" style="font-size: 0.75rem; margin-left: 0px; border-right: 1px solid var(--border-light); padding-right: 15px;">(Salir)</button>
+                
+                <button id="btnNewTask" class="btn btn-primary">
+                    <i data-lucide="plus-circle"></i> Nueva Solicitud
+                </button>
+                <button id="btnManageTeam" class="btn btn-secondary admin-only">
+                    <i data-lucide="users"></i> Equipo
+                </button>
+                <button id="btnManageReq" class="btn btn-secondary admin-only">
+                    <i data-lucide="building-2"></i> Solicitantes
+                </button>
+            </div>
+        </header>
+
+        <div class="layout-grid">
+            
+            <aside class="sidebar-col">
+                <div class="card sidebar-card card-accent-blue">
+                    <div class="card-header">
+                        <h2><i data-lucide="user-focus" class="icon-blue"></i> Mis Tareas</h2>
+                    </div>
+                    <div class="sidebar-content">
+                        <ul id="sidebarList" class="request-list"></ul>
+                    </div>
+                </div>
+
+                <div class="card sidebar-card card-accent-blue" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2><i data-lucide="check-circle-2" class="icon-blue"></i> Realizadas <span class="badge-count badge-blue" id="countRealizadas">0</span></h2>
+                    </div>
+                    <div class="sidebar-content">
+                        <ul id="sidebarCompletedList" class="request-list"></ul>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="main-board">
+                <section class="card board-section card-accent-blue">
+                    <div class="card-header card-header-flex">
+                        <div>
+                            <h2>
+                                <i data-lucide="clock" class="icon-blue"></i> Prioridad de Entregas 
+                                <span class="badge-count badge-blue" id="countPrioridades">0</span>
+                            </h2>
+                            <p class="subtitle">Trabajo activo, ordenado por proximidad de entrega.</p>
+                        </div>
+                        <div id="draftActions" class="draft-actions">
+                            <button id="btnUndo" class="btn btn-secondary">Deshacer</button>
+                            <button id="btnSave" class="btn btn-success">Guardar Cambios</button>
+                        </div>
+                    </div>
+
+                    <div class="inline-filters-bar">
+                        <div class="inline-filter-item">
+                            <div class="input-with-icon">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="filterDate" class="date-range-picker custom-input" placeholder="Fecha entrega...">
+                            </div>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterRequester" class="native-select-hidden">
+                                <option value="Todos">Solicitante: Todos</option>
+                            </select>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterAssignee" class="native-select-hidden">
+                                <option value="Todos">Asignación: Todos</option>
+                            </select>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterStatus" class="native-select-hidden">
+                                <option value="Todos">Estado: Todos</option>
+                                <option value="En cola">En cola</option>
+                                <option value="En curso">En curso</option>
+                            </select>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterSort" class="native-select-hidden">
+                                <option value="asc">Orden: Más próximas</option>
+                                <option value="desc">Orden: Más lejanas</option>
+                            </select>
+                        </div>
+                        <button id="clearFilters" class="btn-text" title="Limpiar filtros">
+                            <i data-lucide="x-circle"></i>
+                        </button>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="task-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px; text-align: center;"><i data-lucide="check-square" style="width:16px; color:var(--text-muted)"></i></th>
+                                    <th>Solicitud</th>
+                                    <th>Asignación</th>
+                                    <th>Fechas (Rec - Ent)</th>
+                                    <th>Estado</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablePrioridades"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+
+        </div>
+    </div>
+
+    <!-- Modal Tarea -->
+    <div id="modalTask" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i data-lucide="file-edit" class="icon-blue"></i> Nueva Solicitud</h2>
+                <button class="close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="taskForm" class="task-form">
+                <div class="form-grid">
+                    <div class="field full-width">
+                        <label>Nombre de la solicitud</label>
+                        <input type="text" id="taskName" class="custom-input" placeholder="Ej. Banner Redes..." required>
+                    </div>
+                    <div class="field">
+                        <label>Solicitante</label>
+                        <select id="requesterSelect" class="native-select-hidden" required></select>
+                    </div>
+                    <div class="field">
+                        <label>Asignar a</label>
+                        <select id="assignee" class="native-select-hidden" required></select>
+                    </div>
+                    <div class="field">
+                        <label>Fecha de entrega</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar-check"></i>
+                            <input type="text" id="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." required>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Estado inicial</label>
+                        <select id="status" class="native-select-hidden" required>
+                            <option value="En cola" selected>En cola</option>
+                            <option value="En curso">En curso</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Añadir Solicitud</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Equipo -->
+    <div id="modalTeam" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i data-lucide="users" class="icon-blue"></i> Gestión de Equipo (Usuarios)</h2>
+                <button class="close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                    Al añadir a un miembro, se creará un usuario de Editor con la contraseña: <strong>Nombre_DH2026!</strong>
+                </p>
+                <div class="input-group">
+                    <input type="text" id="newMemberInput" class="custom-input" placeholder="Nombre del colaborador...">
+                    <button id="addMemberBtn" class="btn btn-primary">Añadir</button>
+                </div>
+                <div id="membersList" class="members-tags"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Solicitantes -->
+    <div id="modalRequesters" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i data-lucide="building-2" class="icon-blue"></i> Áreas Solicitantes</h2>
+                <button class="close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                <div class="input-group">
+                    <input type="text" id="newRequesterInput" class="custom-input" placeholder="Nombre o área...">
+                    <button id="addRequesterBtn" class="btn btn-primary">Añadir</button>
+                </div>
+                <div id="requestersList" class="members-tags"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Mi Perfil -->
+    <div id="modalProfile" class="modal-overlay">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h2><i data-lucide="user-cog" class="icon-blue"></i> Personalizar Perfil</h2>
+                <button class="close-modal" id="closeProfileModalBtn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                
+                <div id="avatarPreviewContainer" style="text-align: center; margin-bottom: 10px;">
+                    <img id="previewAvatar" src="" class="user-avatar" style="width: 80px; height: 80px; border-width: 3px;">
+                    <div style="margin-top: 8px;">
+                        <button type="button" id="btnRemoveAvatar" class="btn-text" style="color: var(--danger); font-size: 0.75rem;">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Eliminar foto
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="cropperWrapper" style="display: none; width: 100%; max-height: 350px; margin-bottom: 16px; text-align: center; border-radius: 8px; overflow: hidden;">
+                    <img id="cropperImage" src="" style="max-width: 100%; max-height: 350px; display: block;">
+                </div>
+
+                <form id="profileForm" style="display: flex; flex-direction: column; gap: 16px;">
+                    
+                    <div class="field" style="border-bottom: 1px solid var(--border-light); padding-bottom: 16px;">
+                        <label>Tu color de perfil exclusivo</label>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; margin-bottom: 12px;">Elige el color con el que verás tus tareas. Los demás usuarios se asignarán automáticamente con colores contrastantes.</p>
+                        <div class="color-picker-group" id="colorPickerGroup">
+                            <div class="color-swatch" data-color="#2563eb" style="background-color: #2563eb;"></div>
+                            <div class="color-swatch" data-color="#4f46e5" style="background-color: #4f46e5;"></div>
+                            <div class="color-swatch" data-color="#7c3aed" style="background-color: #7c3aed;"></div>
+                            <div class="color-swatch" data-color="#c026d3" style="background-color: #c026d3;"></div>
+                            <div class="color-swatch" data-color="#db2777" style="background-color: #db2777;"></div>
+                            <div class="color-swatch" data-color="#e11d48" style="background-color: #e11d48;"></div>
+                            <div class="color-swatch" data-color="#dc2626" style="background-color: #dc2626;"></div>
+                            <div class="color-swatch" data-color="#ea580c" style="background-color: #ea580c;"></div>
+                            <div class="color-swatch" data-color="#b45309" style="background-color: #b45309;"></div>
+                            <div class="color-swatch" data-color="#059669" style="background-color: #059669;"></div>
+                            <div class="color-swatch" data-color="#16a34a" style="background-color: #16a34a;"></div>
+                            <div class="color-swatch" data-color="#0d9488" style="background-color: #0d9488;"></div>
+                            <div class="color-swatch" data-color="#0891b2" style="background-color: #0891b2;"></div>
+                            <div class="color-swatch" data-color="#0284c7" style="background-color: #0284c7;"></div>
+                            <div class="color-swatch" data-color="#475569" style="background-color: #475569;"></div>
+                        </div>
+                    </div>
+
+                    <div class="field" id="fileFieldGroup">
+                        <label>Subir foto desde tu PC</label>
+                        <input type="file" id="avatarFileInput" class="custom-input" accept="image/png, image/jpeg, image/webp">
+                    </div>
+                    
+                    <div id="urlDivider" style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 600;">O</div>
+                    
+                    <div class="field" id="urlFieldGroup">
+                        <label>Usar enlace (URL)</label>
+                        <input type="url" id="avatarUrlInput" class="custom-input" placeholder="https://ejemplo.com/mifoto.jpg">
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Si dejas ambos vacíos, se usarán tus iniciales.</p>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 10px;">
+                        <button type="button" id="btnCancelCrop" class="btn btn-secondary" style="display: none; flex: 1; justify-content: center;">Cancelar Recorte</button>
+                        <button type="submit" id="btnSaveProfile" class="btn btn-primary" style="flex: 2; justify-content: center;">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="users.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
