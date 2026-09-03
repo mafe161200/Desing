@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: 'unsafe-inline' 'unsafe-eval' data: blob:;">
-    <title>Design Hub | Plataforma</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: 'unsafe-inline' 'unsafe-eval' data: blob: wss:;">
+    <title>Design Hub | Plataforma Colaborativa</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +13,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Cliente de Supabase para Sincronización en Tiempo Real -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,7 +28,7 @@
                 <span class="logo-typographic">Design</span>
             </h1>
             <h2>Acceso al Sistema</h2>
-            <p style="margin-bottom: 24px;">Inicia sesión en la plataforma</p>
+            <p style="margin-bottom: 24px;">Inicia sesión en la plataforma colaborativa</p>
             <form id="loginForm" class="login-form">
                 <div class="field">
                     <label for="usernameInput">Usuario</label>
@@ -45,7 +47,7 @@
                 <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Ingresar al workspace</button>
                 
                 <div class="login-hint">
-                    Consulta el archivo <strong>users.js</strong> para ver credenciales. <br>
+                    Consulta el archivo <strong>users.js</strong> para ver credenciales de prueba.
                 </div>
             </form>
         </div>
@@ -61,6 +63,10 @@
             </div>
             
             <div class="top-actions">
+                <div class="connection-status" id="connectionStatus" title="Estado de sincronización">
+                    <span class="status-dot"></span> <span id="statusText">Modo Local</span>
+                </div>
+
                 <div class="user-profile" id="userProfileBtn" title="Configurar Perfil" tabindex="0" role="button">
                     <img id="userAvatar" src="" alt="Avatar del usuario" class="user-avatar">
                     <span id="currentUserName">Usuario</span>
