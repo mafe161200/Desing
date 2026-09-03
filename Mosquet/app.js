@@ -9,6 +9,19 @@ const escapeHTML = (str) => {
     }[tag] || tag)) : '';
 };
 
+// Configuración de Supabase (Pega aquí tus llaves de Project Settings -> API)
+const SUPABASE_URL = ""; 
+const SUPABASE_ANON_KEY = ""; 
+let supabaseClient = null;
+
+if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase !== 'undefined') {
+    try {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch(e) {
+        console.warn("Supabase no inicializado, fallback a LocalStorage.", e);
+    }
+}
+
 // Clase estática para Feedback de Interfaz
 class UI {
     static showToast(message, type = 'info') {
@@ -30,10 +43,24 @@ class UI {
             if(toast.parentElement) toast.remove();
         }, 3200);
     }
+
+    static updateConnectionStatus(isOnline) {
+        const el = document.getElementById('connectionStatus');
+        const txt = document.getElementById('statusText');
+        if (!el || !txt) return;
+        
+        if (isOnline) {
+            el.classList.add('online');
+            txt.textContent = 'En línea (Nube)';
+        } else {
+            el.classList.remove('online');
+            txt.textContent = 'Modo Local';
+        }
+    }
 }
 
 /* =========================================
-   CAPA DE SERVICIOS (BACKEND Y AUTH)
+   CAPA DE SERVICIOS (PERSISTENCIA Y AUTH)
    ========================================= */
 const DataService = {
     getUsers: async () => {
@@ -45,7 +72,7 @@ const DataService = {
                 if (Array.isArray(parsed)) users = parsed;
             }
         } catch(e) {
-            console.warn("Error leyendo db_users de localStorage, se usarán los valores base.", e);
+            console.warn("Error leyendo db_users de localStorage", e);
         }
 
         let baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
@@ -70,7 +97,6 @@ const DataService = {
 
         const finalUsers = Array.from(allUsersMap.values());
         localStorage.setItem('db_users', JSON.stringify(finalUsers));
-        
         return finalUsers;
     },
     saveUsers: async (users) => {
@@ -85,6 +111,18 @@ const DataService = {
     },
     
     getTasks: async () => {
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient.from('tasks').select('*');
+                if (!error && data) {
+                    UI.updateConnectionStatus(true);
+                    return data;
+                }
+            } catch(e) {
+                console.warn("Fallo en Supabase, usando LocalStorage como respaldo", e);
+            }
+        }
+        UI.updateConnectionStatus(false);
         try {
             return JSON.parse(localStorage.getItem('db_tasks')) || [];
         } catch(e) {
@@ -92,7 +130,18 @@ const DataService = {
             return [];
         }
     },
-    saveTasks: async (tasks) => localStorage.setItem('db_tasks', JSON.stringify(tasks)),
+
+    saveTasks: async (tasks) => {
+        localStorage.setItem('db_tasks', JSON.stringify(tasks));
+        if (supabaseClient) {
+            try {
+                const { error } = await supabaseClient.from('tasks').upsert(tasks);
+                if (error) console.error("Error sincronizando en Supabase", error);
+            } catch(e) {
+                console.error("Excepción en sincronización remota", e);
+            }
+        }
+    },
     
     getMembers: async () => {
         try {
@@ -333,6 +382,7 @@ const App = {
         this.setupEventListeners();
         this.renderAll();
         this.setupCrossTabSync();
+        this.setupRealtimeSubscription();
     },
 
     showLogin() {
@@ -378,6 +428,19 @@ const App = {
                 this.renderAll();
             }
         });
+    },
+
+    setupRealtimeSubscription() {
+        if (supabaseClient) {
+            supabaseClient
+                .channel('public:tasks')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
+                    UI.showToast("Actualización en tiempo real recibida", "info");
+                    await this.loadData();
+                    this.renderAll();
+                })
+                .subscribe();
+        }
     },
 
     updateAvatarUI() {
