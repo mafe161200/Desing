@@ -38,7 +38,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; letter-spacing: normal; }
 
 body, input, select, button, textarea { font-family: 'Montserrat', sans-serif; }
-body { background-color: var(--bg-main); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body { background-color: var(--bg-main); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
@@ -137,7 +137,10 @@ input[type="file"]::file-selector-button:hover { background: var(--primary-hover
 .switch-track { width: 28px; height: 16px; background: rgba(0, 0, 0, 0.12); border-radius: 10px; position: relative; transition: background-color 0.25s ease; flex-shrink: 0; }
 .status-switch.curso .switch-track { background: var(--status-curso); }
 .status-switch.cola .switch-track { background: var(--status-cola); }
-.switch-thumb { width: 12px; height: 12px; background: #ffffff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.switch-thumb {
+    width: 12px; height: 12px; background: #ffffff; border-radius: 50%; position: absolute;
+    top: 2px; left: 2px; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
 .status-switch.curso .switch-thumb { transform: translateX(12px); }
 
 /* CUSTOM DROPDOWNS GENERALES */
@@ -279,23 +282,36 @@ html body .row-highlight { background: var(--status-curso-bg) !important; outlin
 .remove-member { cursor: pointer; color: var(--text-muted); background: transparent; border: none; display: flex; outline: none; }
 .remove-member:hover, .remove-member:focus-visible { color: var(--danger); }
 
-/* PANEL LATERAL DE NOTAS (Off-canvas Drawer) */
+/* PANEL LATERAL DE NOTAS (Off-canvas Drawer y Chat Bubbles) */
 .notes-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.4); backdrop-filter: blur(2px); z-index: 9998; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
 .notes-overlay.active { opacity: 1; pointer-events: all; }
-.notes-panel { position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100vh; background: var(--card-bg); box-shadow: -4px 0 25px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
+.notes-panel { position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100vh; background: var(--bg-main); box-shadow: -4px 0 25px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
 .notes-panel.open { right: 0; }
-.notes-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-light); background: var(--bg-subtle); }
+.notes-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-light); background: var(--card-bg); }
 .notes-header h2 { font-size: 1rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: center; gap: 8px; margin:0;}
-.notes-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; background: var(--bg-main); }
-.note-item { background: var(--card-bg); padding: 14px; border-radius: 12px; border: 1px solid var(--border-light); box-shadow: 0 2px 4px rgba(0,0,0,0.02); animation: popIn 0.2s ease-out; }
-.note-author { font-size: 0.75rem; font-weight: 700; color: var(--primary-cold); margin-bottom: 4px; display: flex; justify-content: space-between;}
-.note-date { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; }
-.note-text { font-size: 0.85rem; color: var(--text-main); line-height: 1.4; word-break: break-word;}
-.notes-footer { padding: 20px; border-top: 1px solid var(--border-light); background: var(--card-bg); }
+.notes-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+
+/* Burbujas de Chat Mejoradas */
+.chat-msg { display: flex; flex-direction: column; max-width: 85%; animation: popIn 0.2s ease-out; }
+.chat-msg.mine { align-self: flex-end; align-items: flex-end; }
+.chat-msg.other { align-self: flex-start; align-items: flex-start; }
+
+.chat-bubble { padding: 10px 14px; border-radius: 16px; font-size: 0.85rem; line-height: 1.4; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.chat-msg.mine .chat-bubble { background: var(--primary-cold); color: #ffffff; border-bottom-right-radius: 4px; }
+.chat-msg.other .chat-bubble { background: var(--card-bg); color: var(--text-dark); border: 1px solid var(--border-light); border-bottom-left-radius: 4px; }
+
+.chat-meta { font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 6px; font-weight: 500; }
+
+.notes-footer { padding: 16px 20px 20px 20px; border-top: 1px solid var(--border-light); background: var(--card-bg); }
+
+/* Quick Emojis */
+.emoji-bar { display: flex; gap: 6px; margin-bottom: 10px; }
+.quick-emoji { background: var(--bg-subtle); border: 1px solid var(--border-light); border-radius: 20px; padding: 4px 8px; cursor: pointer; font-size: 1rem; transition: 0.2s; outline: none; }
+.quick-emoji:hover { background: var(--border-light); transform: scale(1.1); }
 
 /* UTILIDAD ALERTAS (Badge Notificaciones) */
 .position-relative { position: relative; }
-.notification-badge { position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; background-color: var(--danger); border-radius: 50%; border: 2px solid var(--card-bg); display: none; }
+.notification-badge { position: absolute; top: 0px; right: 0px; width: 10px; height: 10px; background-color: var(--danger); border-radius: 50%; border: 2px solid var(--card-bg); display: none; }
 .notification-badge.active { display: block; animation: popIn 0.3s ease-out; }
 
 /* MEDIA QUERIES PARA MÓVILES */
