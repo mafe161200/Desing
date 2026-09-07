@@ -71,6 +71,10 @@
                 </div>
                 
                 <div class="header-divider hide-mobile"></div>
+
+                <button id="btnToggleNotes" class="btn-icon position-relative" aria-label="Notas del Equipo" title="Notas del Equipo">
+                    <i data-lucide="message-square"></i>
+                </button>
                 
                 <button id="btnLogout" class="btn-icon header-logout-btn" aria-label="Cerrar sesión" title="Cerrar sesión">
                     <i data-lucide="log-out"></i>
@@ -187,6 +191,24 @@
         </div>
     </div>
 
+    <!-- PANEL LATERAL DE NOTAS -->
+    <div id="notesPanelOverlay" class="notes-overlay"></div>
+    <div id="notesPanel" class="notes-panel">
+        <div class="notes-header">
+            <h2><i data-lucide="message-square" class="icon-primary"></i> Anotaciones del Equipo</h2>
+            <button id="btnCloseNotes" class="btn-icon"><i data-lucide="x"></i></button>
+        </div>
+        <div class="notes-body" id="notesList">
+            <!-- Notas renderizadas aquí -->
+        </div>
+        <div class="notes-footer">
+            <form id="noteForm" style="display:flex; gap: 8px;">
+                <input type="text" id="noteInput" class="custom-input" placeholder="Escribe una nota rápida..." required>
+                <button type="submit" class="btn btn-primary btn-icon" style="color: white;"><i data-lucide="send"></i></button>
+            </form>
+        </div>
+    </div>
+
     <!-- Barra Inferior Flotante (Sticky Unsaved Changes) -->
     <div id="unsavedChangesBar" class="unsaved-bar">
         <div class="unsaved-bar-content">
@@ -220,13 +242,20 @@
                         <select id="assignee" class="native-select-hidden" required></select>
                     </div>
                     <div class="field">
-                        <label for="dateDelivered">Fecha de entrega</label>
+                        <label for="dateReceived">Fecha de solicitud (Recepción)</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" id="dateReceived" class="date-picker modal-date custom-input" placeholder="Seleccionar...">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="dateDelivered">Fecha de entrega esperada</label>
                         <div class="input-with-icon">
                             <i data-lucide="calendar-check"></i>
                             <input type="text" id="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." required>
                         </div>
                     </div>
-                    <div class="field">
+                    <div class="field full-width">
                         <label for="status">Estado inicial</label>
                         <select id="status" class="native-select-hidden" required>
                             <option value="En cola" selected>En cola</option>
@@ -255,9 +284,16 @@
                         <label for="editTaskName">Nombre de la solicitud</label>
                         <input type="text" id="editTaskName" class="custom-input" required>
                     </div>
-                    <div class="field full-width">
+                    <div class="field">
                         <label for="editRequesterSelect">Solicitante</label>
                         <select id="editRequesterSelect" class="native-select-hidden" required></select>
+                    </div>
+                    <div class="field">
+                        <label for="editDateReceived">Fecha de recepción</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" id="editDateReceived" class="date-picker modal-date custom-input" required>
+                        </div>
                     </div>
                 </div>
                 <div class="form-actions">
@@ -332,7 +368,7 @@
                     
                     <div class="field" style="border-bottom: 1px solid var(--border-light); padding-bottom: 16px;">
                         <label>Tu color de perfil exclusivo</label>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; margin-bottom: 12px;">Elige el color con el que verás tus tareas. Los demás usuarios se asignarán automáticamente con colores contrastantes.</p>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; margin-bottom: 12px;">Elige el color con el que verás tus tareas.</p>
                         <div class="color-picker-group" id="colorPickerGroup" role="radiogroup" aria-label="Selecciona un color de tema">
                             <div class="color-swatch" data-color="#4f46e5" style="background-color: #4f46e5;" role="radio" tabindex="0"></div>
                             <div class="color-swatch" data-color="#2563eb" style="background-color: #2563eb;" role="radio" tabindex="0"></div>
