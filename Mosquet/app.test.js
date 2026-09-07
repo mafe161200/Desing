@@ -23,11 +23,11 @@ describe('DataService Tests (Mocked Storage)', () => {
 });
 
 describe('Security / Sanitization Tests', () => {
-    test('escapeHTML previene inyección de scripts básicos', () => {
-        const maliciousString = "<script>alert('xss')</script>";
+    test('escapeHTML previene inyección de scripts básicos y permite símbolos', () => {
+        const maliciousString = "<script>alert('xss')</script> <3";
         const safeString = escapeHTML(maliciousString);
         expect(safeString).not.toContain("<script>");
-        expect(safeString).toBe("&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;");
+        expect(safeString).toBe("&lt;script&gt;alert(&#39;xss&#39;)&lt;&#x2F;script&gt; &lt;3");
     });
     
     test('escapeHTML maneja strings vacíos o nulls de forma segura', () => {
