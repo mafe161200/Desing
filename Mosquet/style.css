@@ -12,10 +12,10 @@
     --primary-cold: #4f46e5;   /* Indigo 600 */
     --primary-hover: #4338ca;  /* Indigo 700 */
 
-    /* Sistema de Estados con Contraste Matemático */
-    --status-cola: #b45309;        /* Amber 700 */
-    --status-cola-bg: #fffbeb;     /* Amber 50 */
-    --status-cola-border: #fde68a; /* Amber 200 */
+    /* Sistema de Estados - Modificado "En Cola" a Pizarra/Gris (Slate) */
+    --status-cola: #475569;        /* Slate 700 */
+    --status-cola-bg: #f1f5f9;     /* Slate 100 */
+    --status-cola-border: #cbd5e1; /* Slate 300 */
 
     --status-curso: #1d4ed8;       /* Blue 700 */
     --status-curso-bg: #eff6ff;    /* Blue 50 */
@@ -42,7 +42,7 @@ body { background-color: var(--bg-main); color: var(--text-main); line-height: 1
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
-/* TOAST NOTIFICATIONS (Z-Index Supremo) */
+/* TOAST NOTIFICATIONS */
 .toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 9999999; pointer-events: none; }
 .toast { background: #ffffff; color: var(--text-dark); padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 0.85rem; border-left: 4px solid var(--primary-cold); animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards; pointer-events: all; }
 .toast.success { border-left-color: var(--success); }
@@ -64,16 +64,8 @@ body { background-color: var(--bg-main); color: var(--text-main); line-height: 1
     border-radius: 20px;
     border: 1px solid var(--border-light);
 }
-.connection-status .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: var(--text-muted);
-}
-.connection-status.online .status-dot {
-    background-color: var(--success);
-    box-shadow: 0 0 8px var(--success);
-}
+.connection-status .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-muted); }
+.connection-status.online .status-dot { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
 
 /* OVERLAY LOGIN */
 .auth-overlay { position: fixed; inset: 0; background: var(--bg-main); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -119,7 +111,6 @@ body { background-color: var(--bg-main); color: var(--text-main); line-height: 1
 .btn-success { background: var(--success); color: #ffffff; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25); }
 .btn-success:hover { background: var(--success-hover); transform: translateY(-1px); }
 
-/* Botones icono */
 .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
 .btn-icon:hover, .btn-icon:focus-visible { outline: none; }
 .btn-icon.delete:hover { color: var(--danger); background: #fef2f2; }
@@ -146,68 +137,24 @@ input[type="file"]::file-selector-button:hover { background: var(--primary-hover
 
 /* COMPONENTE: TOGGLE SWITCH BINARIO PARA ESTADO */
 .status-switch {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 10px 4px 6px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    border: 1px solid transparent;
-    outline: none;
+    display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 700; cursor: pointer; user-select: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent; outline: none;
 }
-.status-switch:focus-visible {
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3);
-}
+.status-switch:focus-visible { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3); }
 
-.status-switch.cola {
-    background-color: var(--status-cola-bg);
-    color: var(--status-cola);
-    border-color: var(--status-cola-border);
-}
+.status-switch.cola { background-color: var(--status-cola-bg); color: var(--status-cola); border-color: var(--status-cola-border); }
+.status-switch.curso { background-color: var(--status-curso-bg); color: var(--status-curso); border-color: var(--status-curso-border); }
 
-.status-switch.curso {
-    background-color: var(--status-curso-bg);
-    color: var(--status-curso);
-    border-color: var(--status-curso-border);
-}
-
-.switch-track {
-    width: 28px;
-    height: 16px;
-    background: rgba(0, 0, 0, 0.12);
-    border-radius: 10px;
-    position: relative;
-    transition: background-color 0.25s ease;
-    flex-shrink: 0;
-}
-
-.status-switch.curso .switch-track {
-    background: var(--status-curso);
-}
-
-.status-switch.cola .switch-track {
-    background: var(--status-cola);
-}
+.switch-track { width: 28px; height: 16px; background: rgba(0, 0, 0, 0.12); border-radius: 10px; position: relative; transition: background-color 0.25s ease; flex-shrink: 0; }
+.status-switch.curso .switch-track { background: var(--status-curso); }
+.status-switch.cola .switch-track { background: var(--status-cola); }
 
 .switch-thumb {
-    width: 12px;
-    height: 12px;
-    background: #ffffff;
-    border-radius: 50%;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    width: 12px; height: 12px; background: #ffffff; border-radius: 50%; position: absolute;
+    top: 2px; left: 2px; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
-
-.status-switch.curso .switch-thumb {
-    transform: translateX(12px);
-}
+.status-switch.curso .switch-thumb { transform: translateX(12px); }
 
 /* CUSTOM DROPDOWNS GENERALES */
 html body .native-select-hidden { display: none; }
@@ -316,10 +263,19 @@ html body .row-highlight { background: var(--status-curso-bg) !important; outlin
 
 .custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--status-entregado); border-radius: 4px;}
 
-/* Modales */
-.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px;}
+/* Modales (Corregido Doble Scroll) */
+.modal-overlay { 
+    position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); 
+    display: none; align-items: flex-start; justify-content: center; z-index: 1000; padding: 40px 16px;
+    overflow-y: auto; /* Scroll principal en el fondo oscuro */
+}
 .modal-overlay.active { display: flex; }
-.modal-content { background: var(--card-bg); width: 100%; max-width: 600px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: popIn 0.2s ease-out; max-height: 90vh; overflow-y: auto; overflow-x: hidden; position: relative; }
+.modal-content { 
+    background: var(--card-bg); width: 100%; max-width: 600px; border-radius: 16px; 
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: popIn 0.2s ease-out; 
+    margin: auto; overflow: visible; /* Dropdowns ahora pueden escapar libremente */
+    position: relative; 
+}
 @keyframes popIn { from { transform: scale(0.98); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 .modal-header { display: flex; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border-light); background: var(--bg-subtle); border-radius: 16px 16px 0 0; position: sticky; top: 0; z-index: 10; }
 .modal-header h2 { font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text-dark);}
@@ -436,15 +392,12 @@ html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper input
 html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowUp, html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowDown { border-color: rgba(255,255,255,0.5); }
 html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowUp:after { border-bottom-color: #ffffff; }
 html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowDown:after { border-top-color: #ffffff; }
-
 html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month { color: #ffffff; fill: #ffffff; padding: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; position: absolute; top: 50%; transform: translateY(-50%); border-radius: 6px; cursor: pointer; z-index: 3; }
 html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover { background: rgba(255,255,255,0.15); }
 html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month { left: 8px; }
 html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month { right: 8px; }
-
 html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month svg, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month svg, html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month svg path, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month svg path { fill: #ffffff !important; color: #ffffff !important; }
 html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover svg, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover svg, html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover svg path, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover svg path { fill: #ffffff !important; color: #ffffff !important; }
-
 html body div.flatpickr-calendar .flatpickr-weekdays { background: var(--bg-subtle); padding: 8px 10px 4px 10px; border-bottom: 1px solid var(--border-light); }
 html body div.flatpickr-calendar span.flatpickr-weekday { font-family: 'Montserrat', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--primary-cold); text-transform: uppercase; }
 html body div.flatpickr-calendar .flatpickr-days { width: 280px; padding: 8px; }
