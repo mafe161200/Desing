@@ -5,6 +5,7 @@ lucide.createIcons();
    ========================================= */
 const escapeHTML = (str) => {
     if (!str) return '';
+    // Protege contra inyección XSS pero respeta símbolos como <3 sin doble-escape
     const entityMap = {
         '&': '&amp;',
         '<': '&lt;',
@@ -105,7 +106,9 @@ const DataService = {
         return finalUsers;
     },
     saveUsers: async (users) => {
-        try { localStorage.setItem('db_users', JSON.stringify(users)); } catch (e) {}
+        try { localStorage.setItem('db_users', JSON.stringify(users)); } catch (e) {
+            if (e.name === 'QuotaExceededError') UI.showToast("Error: Memoria llena. La imagen es muy pesada.", "error");
+        }
     },
     
     getTasks: async () => {
@@ -434,6 +437,7 @@ const App = {
             supabaseClient
                 .channel('public-changes')
                 .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
+                    
                     if (payload.table === 'notes') {
                         const panel = document.getElementById('notesPanel');
                         if(panel && !panel.classList.contains('open')) {
@@ -442,6 +446,7 @@ const App = {
                     } else {
                         UI.showToast(`Actualización Recibida`, "info");
                     }
+                    
                     await this.loadData();
                     this.renderAll();
                     this.renderNotes();
@@ -466,7 +471,7 @@ const App = {
         
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
-        if(sendBtn) sendBtn.style.backgroundColor = themeColor; // Single source of truth para el botón
+        if(sendBtn) sendBtn.style.backgroundColor = themeColor; 
     },
 
     async loadData() {
@@ -521,8 +526,8 @@ const App = {
             // Algoritmo local seguro para "hoy" YYYY-MM-DD
             const d = new Date();
             const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            const dateRecInput = document.getElementById('dateReceived');
             
+            const dateRecInput = document.getElementById('dateReceived');
             if(dateRecInput._flatpickr) dateRecInput._flatpickr.setDate(todayLocal);
             else dateRecInput.value = todayLocal;
             
@@ -678,28 +683,33 @@ const App = {
 
         this.notes.forEach(n => {
             const dateObj = new Date(n.created_at);
-            const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${(dateObj.getMonth()+1).toString().padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
+            const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
             
             const isMine = n.author === this.user.name;
             const alignClass = isMine ? 'mine' : 'other';
             const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
-            // Renderizado seguro previniendo inyección HTML pero permitiendo símbolos (como <3)
+            // Contraste Accesible (WCAG): Blanco sobre el color del usuario si es suyo. Gris sobre blanco si es de otro.
+            const bubbleStyle = isMine 
+                ? `background-color: ${authorColor}; color: #ffffff; border: none;`
+                : `background-color: var(--card-bg); color: var(--text-dark); border: 1px solid var(--border-light); border-left: 4px solid ${authorColor};`;
+            const nameStyle = isMine ? `color: var(--text-muted);` : `color: ${authorColor};`;
+
+            // Doble-escape prevenido
             container.innerHTML += `
                 <div class="chat-msg ${alignClass}">
                     <div class="chat-meta">
-                        <span style="color: ${authorColor}; font-weight: 700;">${authorText}</span> 
+                        <span style="${nameStyle} font-weight: 700;">${authorText}</span> 
                         <span>${dateStr}</span>
                     </div>
-                    <div class="chat-bubble" style="background-color: ${authorColor}15; border: 1px solid ${authorColor}30; color: var(--text-dark);">
+                    <div class="chat-bubble" style="${bubbleStyle}">
                         ${escapeHTML(n.content)}
                     </div>
                 </div>
             `;
         });
         
-        // Auto Scroll-down
         container.scrollTop = container.scrollHeight;
     },
 
@@ -760,21 +770,27 @@ const App = {
 
         let selectedTheme = this.user.theme || '#4f46e5';
 
-        swatches.forEach(swatch => {
-            swatch.addEventListener('click', (e) => {
-                swatches.forEach(s => s.classList.remove('active'));
-                e.target.classList.add('active');
-                selectedTheme = escapeHTML(e.target.getAttribute('data-color'));
-            });
-            swatch.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    swatches.forEach(s => s.classList.remove('active'));
-                    e.target.classList.add('active');
-                    selectedTheme = escapeHTML(e.target.getAttribute('data-color'));
+        const checkTakenColors = () => {
+            const takenColors = this.usersList.filter(u => u.username !== this.user.username).map(u => u.theme);
+            swatches.forEach(swatch => {
+                const c = swatch.getAttribute('data-color');
+                if (takenColors.includes(c)) {
+                    swatch.style.opacity = '0.3';
+                    swatch.style.cursor = 'not-allowed';
+                    swatch.title = 'Color en uso por otro compañero';
+                    swatch.onclick = (e) => { e.stopPropagation(); UI.showToast("Este color ya está en uso", "error"); };
+                } else {
+                    swatch.style.opacity = '1';
+                    swatch.style.cursor = 'pointer';
+                    swatch.title = '';
+                    swatch.onclick = (e) => {
+                        swatches.forEach(s => s.classList.remove('active'));
+                        swatch.classList.add('active');
+                        selectedTheme = escapeHTML(swatch.getAttribute('data-color'));
+                    };
                 }
             });
-        });
+        };
 
         const resetProfileModal = () => {
             if (this.cropperInstance) {
@@ -801,13 +817,10 @@ const App = {
             if(dbUser) {
                 dbUser.avatar = avatarData;
                 dbUser.theme = selectedTheme;
-                
                 try {
                     await DataService.saveUsers(allUsers);
                     UI.showToast("Perfil actualizado correctamente", "success");
-                } catch (e) {
-                    return; 
-                }
+                } catch (e) { return; }
             }
 
             this.usersList = await DataService.getUsers();
@@ -815,17 +828,17 @@ const App = {
             resetProfileModal();
             mProfile.classList.remove('active');
             this.renderAll(); 
+            this.renderNotes();
         };
 
         document.getElementById('userProfileBtn').addEventListener('click', () => {
             resetProfileModal();
             urlInput.value = this.user.avatar && this.user.avatar.startsWith('http') ? this.user.avatar : '';
-            
             selectedTheme = this.user.theme || '#4f46e5';
+            checkTakenColors();
             swatches.forEach(s => s.classList.remove('active'));
             const activeSwatch = document.querySelector(`.color-swatch[data-color="${selectedTheme}"]`);
             if(activeSwatch) activeSwatch.classList.add('active');
-
             mProfile.classList.add('active');
         });
 
@@ -837,9 +850,7 @@ const App = {
         btnCancelCrop.addEventListener('click', resetProfileModal);
 
         btnRemoveAvatar.addEventListener('click', () => {
-            if (confirm('¿Seguro que deseas eliminar tu foto y volver a tus iniciales?')) {
-                saveAndClose("");
-            }
+            if (confirm('¿Seguro que deseas eliminar tu foto y volver a tus iniciales?')) saveAndClose("");
         });
 
         fileInput.addEventListener('change', (e) => {
@@ -855,14 +866,9 @@ const App = {
                     btnCancelCrop.style.display = 'flex';
                     document.getElementById('btnSaveProfile').textContent = 'Confirmar y Guardar';
 
-                    if (this.cropperInstance) {
-                        this.cropperInstance.destroy();
-                    }
+                    if (this.cropperInstance) this.cropperInstance.destroy();
                     this.cropperInstance = new Cropper(cropperImage, {
-                        aspectRatio: 1,
-                        viewMode: 1,
-                        background: false,
-                        autoCropArea: 1,
+                        aspectRatio: 1, viewMode: 1, background: false, autoCropArea: 1,
                     });
                 };
                 reader.readAsDataURL(file);
@@ -907,414 +913,4 @@ const App = {
                     await DataService.saveUsers(dbUsers);
                 }
 
-                this.usersList = await DataService.getUsers();
-                input.value = ''; 
-                this.renderAll();
-                UI.showToast("Colaborador añadido", "success");
-            }
-        });
-
-        window.removeMember = async (index) => { 
-            if (confirm('¿Quitar del equipo?')) { 
-                const removedName = this.members[index];
-                this.members.splice(index, 1); 
-                
-                await DataService.removeMember(removedName);
-                await DataService.saveMembers(this.members); 
-
-                let dbUsers = await DataService.getUsers();
-                dbUsers = dbUsers.filter(u => u.username.toLowerCase() !== removedName.toLowerCase());
-                await DataService.saveUsers(dbUsers);
-
-                this.usersList = await DataService.getUsers();
-                this.renderAll(); 
-                UI.showToast("Colaborador eliminado", "success");
-            } 
-        };
-
-        document.getElementById('addRequesterForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const input = document.getElementById('newRequesterInput');
-            const name = escapeHTML(input.value.trim());
-            if (name && !this.requesters.some(r => r.toLowerCase() === name.toLowerCase())) {
-                this.requesters.push(name); 
-                
-                await DataService.addRequester(name);
-                await DataService.saveRequesters(this.requesters);
-                
-                input.value = ''; 
-                this.renderAll();
-                UI.showToast("Solicitante añadido", "success");
-            }
-        });
-        
-        window.removeRequester = async (index) => { 
-            if (confirm('¿Eliminar solicitante?')) { 
-                const removedName = this.requesters[index];
-                this.requesters.splice(index, 1); 
-                
-                await DataService.removeRequester(removedName);
-                await DataService.saveRequesters(this.requesters); 
-                
-                this.renderAll(); 
-                UI.showToast("Solicitante eliminado", "success");
-            } 
-        };
-    },
-
-    renderAll() {
-        this.renderDropdowns();
-        this.renderTags();
-        this.renderBoard();
-    },
-
-    renderDropdowns() {
-        const sAssignee = ['assignee', 'filterAssignee'];
-        sAssignee.forEach(id => {
-            const el = document.getElementById(id);
-            if(!el) return;
-            el.innerHTML = id === 'filterAssignee' ? '<option value="Todos">Asignación: Todos</option>' : '';
-            el.innerHTML += '<option value="No asignado">No asignado</option>'; 
-            this.members.forEach(m => {
-                const safeM = escapeHTML(m);
-                el.innerHTML += `<option value="${safeM}">${safeM}</option>`;
-            });
-        });
-
-        const sReq = ['requesterSelect', 'filterRequester', 'editRequesterSelect'];
-        sReq.forEach(id => {
-            const el = document.getElementById(id);
-            if(!el) return;
-            el.innerHTML = id === 'filterRequester' ? '<option value="Todos">Solicitante: Todos</option>' : '';
-            this.requesters.forEach(r => {
-                const safeR = escapeHTML(r);
-                el.innerHTML += `<option value="${safeR}">${safeR}</option>`;
-            });
-        });
-        buildCustomSelects(document.querySelector('.inline-filters-bar'));
-        buildCustomSelects(document.querySelector('#taskForm'));
-        buildCustomSelects(document.querySelector('#editTaskForm'));
-    },
-
-    renderTags() {
-        if(this.user.role !== 'admin') return;
-        
-        const mList = document.getElementById('membersList');
-        mList.innerHTML = '';
-        this.members.forEach((m) => {
-            const safeM = escapeHTML(m);
-            const hexColor = this.getColor(m);
-            mList.innerHTML += `<div class="member-chip" style="color: ${hexColor}; background-color: ${hexColor}20; border-color: ${hexColor}40;"><span>${safeM}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeM}" onclick="removeMember('${this.members.indexOf(m)}')"><i data-lucide="x"></i></button></div>`;
-        });
-
-        const rList = document.getElementById('requestersList');
-        rList.innerHTML = '';
-        this.requesters.forEach((r, i) => {
-            const safeR = escapeHTML(r);
-            rList.innerHTML += `<div class="member-chip"><span>${safeR}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeR}" onclick="removeRequester(${i})"><i data-lucide="x"></i></button></div>`;
-        });
-        lucide.createIcons();
-    },
-
-    getColor(name) {
-        if (!name || name === 'No asignado') return '#94a3b8';
-        
-        const userClean = name.toLowerCase().trim();
-        const dbUser = this.usersList.find(u => 
-            u && (
-                (u.name && u.name.toLowerCase().trim() === userClean) || 
-                (u.username && u.username.toLowerCase().trim() === userClean)
-            )
-        );
-        
-        if (dbUser && dbUser.theme) {
-            return dbUser.theme;
-        }
-
-        const allColors = ['#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488', '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c', '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'];
-        let hash = 0;
-        for (let i = 0; i < name.length; i++) {
-            hash = name.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        return allColors[Math.abs(hash) % allColors.length];
-    },
-
-    updateTask(id, field, value, shouldRender = false) {
-        const t = this.tasks.find(x => x.id === id);
-        if (t) {
-            t[field] = escapeHTML(value);
-            this.markAsUnsaved(); 
-            this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
-            if(shouldRender) this.renderBoard(); 
-        }
-    },
-
-    renderBoard() {
-        const sList = document.getElementById('sidebarList');
-        const sCompList = document.getElementById('sidebarCompletedList');
-        const tBody = document.getElementById('tablePrioridades');
-        
-        // Algoritmo local exacto para evitar desfases horarios
-        const d = new Date();
-        const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        
-        if (this.fpInstances) {
-            const instances = Array.isArray(this.fpInstances) ? this.fpInstances : [this.fpInstances];
-            instances.forEach(fp => {
-                if (fp && typeof fp.destroy === 'function') fp.destroy();
-            });
-        }
-        this.fpInstances = [];
-
-        sList.innerHTML = ''; sCompList.innerHTML = ''; tBody.innerHTML = '';
-
-        const fAssignee = document.getElementById('filterAssignee').value;
-        const fRequester = document.getElementById('filterRequester').value;
-        const fStatus = document.getElementById('filterStatus').value;
-        
-        const fSortEl = document.getElementById('filterSort');
-        const fSort = fSortEl ? fSortEl.value : 'asc';
-        const sortModifier = fSort === 'desc' ? -1 : 1;
-
-        let filtered = this.tasks.filter(t => {
-            let mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
-            let mReq = fRequester === 'Todos' || t.requester === fRequester;
-            let mStat = fStatus === 'Todos' || t.status === fStatus;
-            let mDate = true;
-            if (this.filterDates.length > 0) {
-                if(!t.dateDelivered) {
-                    mDate = false;
-                } else {
-                    const start = new Date(this.filterDates[0]); start.setHours(0,0,0,0);
-                    const end = this.filterDates.length > 1 ? new Date(this.filterDates[1]) : new Date(this.filterDates[0]); end.setHours(23,59,59,999);
-                    const taskDate = new Date(t.dateDelivered + 'T12:00:00');
-                    mDate = taskDate >= start && taskDate <= end;
-                }
-            }
-            return mAsig && mReq && mStat && mDate;
-        });
-
-        const sortTasks = (a, b) => {
-            if (!a.dateDelivered && !b.dateDelivered) return 0;
-            if (!a.dateDelivered) return 1; 
-            if (!b.dateDelivered) return -1; 
-            return (new Date(a.dateDelivered).getTime() - new Date(b.dateDelivered).getTime()) * sortModifier;
-        };
-
-        const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
-        const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
-
-        document.getElementById('countPrioridades').textContent = activas.length;
-        document.getElementById('countRealizadas').textContent = completadas.length;
-
-        this.renderWorkloadChart(activas);
-
-        const myTasks = this.tasks.filter(t => t.status !== 'Entregado' && t.assignee === this.user.name).sort(sortTasks);
-        
-        myTasks.forEach(t => {
-            const li = document.createElement('li');
-            li.className = 'request-item';
-            li.tabIndex = 0; 
-            
-            const handleExpand = (e) => {
-                if(e.target.tagName.toLowerCase() === 'input') return;
-                document.querySelectorAll('.request-item.expanded').forEach(el => { if(el !== li) el.classList.remove('expanded'); });
-                const exp = li.classList.toggle('expanded');
-                document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('row-highlight'));
-                if(exp) {
-                    const row = document.getElementById(`tr-${t.id}`);
-                    if(row) { row.classList.add('row-highlight'); row.scrollIntoView({behavior:'smooth', block:'center'}); }
-                }
-            };
-
-            li.onclick = handleExpand;
-            li.onkeydown = (e) => { if (e.key === 'Enter') handleExpand(e); };
-            
-            const colorHex = this.getColor(t.assignee);
-            
-            let dateClass = '';
-            let dateAlertIcon = '';
-            if (t.dateDelivered) {
-                if (t.dateDelivered < todayStr) {
-                    dateClass = 'text-danger';
-                    dateAlertIcon = '<i data-lucide="alert-triangle" class="text-danger" style="width:14px;height:14px;margin-right:2px;"></i>';
-                } else if (t.dateDelivered === todayStr) {
-                    dateClass = 'text-warning';
-                    dateAlertIcon = '<i data-lucide="clock" class="text-warning" style="width:14px;height:14px;margin-right:2px;"></i>';
-                }
-            }
-            
-            li.innerHTML = `
-                <div class="req-header">
-                    <span class="req-name"><span class="req-status-dot dot-${t.status === 'En curso' ? 'curso' : 'cola'}"></span>${escapeHTML(t.name)}</span>
-                    <div class="req-dates">
-                        <span>R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                        <span class="${dateClass}">E: <strong style="display:inline-flex; align-items:center;">${dateAlertIcon}${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
-                    </div>
-                </div>
-                <div class="req-extra-info">
-                    <div class="req-detail-row"><span>Solicitante:</span><strong>${escapeHTML(t.requester)}</strong></div>
-                    <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(t.assignee)}</span></div>
-                </div>
-            `;
-            sList.appendChild(li);
-        });
-        if(myTasks.length === 0) sList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default;">No tienes tareas asignadas</li>';
-
-        let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
-        
-        activas.forEach(t => {
-            const tr = document.createElement('tr');
-            tr.id = `tr-${t.id}`;
-            const colorHex = this.getColor(t.assignee);
-            const isCurso = t.status === 'En curso';
-            
-            let dateDeliveredVal = t.dateDelivered || '';
-            
-            let dateClass = '';
-            if (t.dateDelivered) {
-                if (t.dateDelivered < todayStr) dateClass = 'text-danger';
-                else if (t.dateDelivered === todayStr) dateClass = 'text-warning';
-            }
-            
-            tr.innerHTML = `
-                <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" onchange="App.updateTask('${t.id}', 'status', this.checked ? 'Entregado' : 'En curso', true)"></td>
-                <td data-label="Solicitud">
-                    <div class="req-title-cell">
-                        <strong>${escapeHTML(t.name)}</strong>
-                        <span>${escapeHTML(t.requester)}</span>
-                    </div>
-                </td>
-                <td data-label="Asignación">
-                    <select class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" onchange="App.updateTask('${t.id}', 'assignee', this.value, false)">
-                        ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
-                    </select>
-                </td>
-                <td class="date-info" data-label="Fechas (Rec - Ent)">
-                    <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                    <input type="text" class="inline-date-picker ${dateClass}" data-id="${t.id}" aria-label="Cambiar fecha de entrega" data-received="${t.dateReceived}" value="${dateDeliveredVal}" placeholder="Seleccionar">
-                </td>
-                <td data-label="Estado">
-                    <div id="status-switch-${t.id}" 
-                         class="status-switch ${isCurso ? 'curso' : 'cola'}" 
-                         role="switch" 
-                         aria-checked="${isCurso ? 'true' : 'false'}" 
-                         tabindex="0"
-                         onclick="App.toggleTaskStatus('${t.id}')"
-                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); App.toggleTaskStatus('${t.id}');}">
-                        <div class="switch-track"><div class="switch-thumb"></div></div>
-                        <span class="switch-label">${escapeHTML(t.status)}</span>
-                    </div>
-                </td>
-                <td style="text-align:center;" data-label="Acciones">
-                    <div class="action-buttons">
-                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" onclick="App.openEditModal('${t.id}')"><i data-lucide="edit-3"></i></button>
-                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" onclick="if(confirm('¿Eliminar?')) { App.tasks = App.tasks.filter(x => x.id !== '${t.id}'); App.markAsUnsaved(); App.renderBoard(); UI.showToast('Tarea eliminada', 'success'); }"><i data-lucide="trash-2"></i></button>
-                    </div>
-                </td>
-            `;
-            tBody.appendChild(tr);
-        });
-        if(activas.length === 0) tBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--text-muted);">No hay tareas pendientes.</td></tr>';
-
-        completadas.forEach(t => {
-            const li = document.createElement('li');
-            li.className = 'request-item completed-item';
-            li.innerHTML = `
-                <div style="display:flex; gap:10px;">
-                    <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked onchange="App.updateTask('${t.id}', 'status', this.checked ? 'Entregado' : 'En curso', true)">
-                    <div style="width: 100%;">
-                        <div class="req-name">${escapeHTML(t.name)}</div>
-                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; font-weight:500;">Entregado: ${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'N/A'} | Por: ${escapeHTML(t.assignee)}</div>
-                    </div>
-                </div>
-            `;
-            sCompList.appendChild(li);
-        });
-        if(completadas.length === 0) sCompList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default; background:transparent;">Sin historial</li>';
-
-        buildCustomSelects(tBody);
-        
-        this.fpInstances = flatpickr(".inline-date-picker", {
-            locale: "es",
-            dateFormat: "Y-m-d",
-            altInput: true,
-            altFormat: "d/m/Y",
-            altInputClass: "inline-date-picker-alt",
-            disableMobile: "true",
-            appendTo: document.body,
-            onChange: (selectedDates, dateStr, instance) => {
-                if(selectedDates.length === 0) return;
-                const id = instance.element.getAttribute('data-id');
-                const dateReceived = instance.element.getAttribute('data-received');
-                
-                if (dateReceived && new Date(dateStr) < new Date(dateReceived)) {
-                    UI.showToast("La fecha de entrega no puede ser anterior a la de recepción.", "error");
-                    const task = this.tasks.find(x => x.id === id);
-                    const oldDate = task ? task.dateDelivered : '';
-                    instance.setDate(oldDate);
-                    return;
-                }
-                
-                this.updateTask(id, 'dateDelivered', dateStr, false);
-            }
-        });
-
-        lucide.createIcons();
-    },
-
-    renderWorkloadChart(activasTasks) {
-        const wContainer = document.getElementById('workloadContainer');
-        if (!wContainer) return;
-        
-        const workload = {};
-        let maxTasks = 0;
-        
-        this.members.forEach(m => workload[m] = 0);
-        workload['No asignado'] = 0;
-        
-        activasTasks.forEach(t => {
-            const assignee = t.assignee || 'No asignado';
-            if (workload[assignee] === undefined) workload[assignee] = 0;
-            workload[assignee]++;
-            if (workload[assignee] > maxTasks) maxTasks = workload[assignee];
-        });
-
-        wContainer.innerHTML = '';
-        const sortedWorkload = Object.entries(workload).sort((a, b) => b[1] - a[1]);
-
-        sortedWorkload.forEach(([name, count]) => {
-            if(count === 0 && name === 'No asignado') return; 
-            
-            const percentage = maxTasks === 0 ? 0 : (count / maxTasks) * 100;
-            const color = this.getColor(name);
-            const safeName = escapeHTML(name);
-            
-            wContainer.innerHTML += `
-                <div class="workload-item">
-                    <div class="workload-header">
-                        <span>${safeName}</span>
-                        <span>${count}</span>
-                    </div>
-                    <div class="workload-bar-bg">
-                        <div class="workload-bar-fill" style="width: ${percentage}%; background-color: ${color};"></div>
-                    </div>
-                </div>
-            `;
-        });
-
-        if(sortedWorkload.length === 0 || maxTasks === 0) {
-            wContainer.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No hay tareas activas</p>';
-        }
-    }
-};
-
-// Punto de entrada blindado con manejo de errores global
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        await App.init();
-    } catch(e) {
-        console.error("FATAL ERROR:", e);
-        alert("Ocurrió un error al cargar la aplicación. Por favor, limpia la caché del navegador.");
-    }
-});
+                this.usersList = await DataService.getUsersSoy un modelo de lenguage, por lo que no me han diseñado para eso.
