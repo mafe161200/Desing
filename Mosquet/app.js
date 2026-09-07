@@ -10,7 +10,7 @@ const escapeHTML = (str) => {
 };
 
 // ----------------------------------------------------------------------
-// CONFIGURACIÓN SUPABASE (OBLIGATORIO PARA SINCRONIZACIÓN EN GITHUB PAGES)
+// CONFIGURACIÓN SUPABASE
 // ----------------------------------------------------------------------
 const SUPABASE_URL = "https://gbltrfqxohrmkopanghx.supabase.co"; 
 const SUPABASE_ANON_KEY = "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU"; 
@@ -24,8 +24,6 @@ if (SUPABASE_URL !== "" && SUPABASE_URL !== "INSERTA_TU_PROJECT_URL_AQUI") {
         } catch(e) {
             console.warn("Error al inicializar cliente Supabase. Fallback a LocalStorage.", e);
         }
-    } else {
-        console.warn("Librería de Supabase no cargada en el HTML.");
     }
 }
 
@@ -64,7 +62,7 @@ class UI {
             txt.textContent = 'Modo Local';
             if (errMessage && supabaseClient) {
                 console.error("Conexión rechazada por Supabase:", errMessage);
-                UI.showToast("Error BD: Revisa que RLS esté desactivado en la tabla", "error");
+                UI.showToast("Error BD: Revisa que RLS esté desactivado en las tablas", "error");
             }
         }
     }
@@ -82,16 +80,12 @@ const DataService = {
                 const parsed = JSON.parse(data);
                 if (Array.isArray(parsed)) users = parsed;
             }
-        } catch(e) {
-            console.warn("Error leyendo db_users", e);
-        }
+        } catch(e) { console.warn("Error leyendo db_users", e); }
 
         let baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
         const allUsersMap = new Map();
 
-        baseUsers.forEach(u => {
-            allUsersMap.set(u.username, { ...u });
-        }); 
+        baseUsers.forEach(u => allUsersMap.set(u.username, { ...u })); 
         
         users.forEach(u => {
             if (u && typeof u.username === 'string') {
@@ -116,7 +110,6 @@ const DataService = {
         } catch (error) {
             if (error.name === 'QuotaExceededError') {
                 UI.showToast("Error: Memoria llena. La imagen es muy pesada.", "error");
-                throw error;
             }
         }
     },
@@ -125,26 +118,13 @@ const DataService = {
         if (supabaseClient) {
             try {
                 const { data, error } = await supabaseClient.from('tasks').select('*');
-                if (error) {
-                    UI.updateConnectionStatus(false, error.message);
-                } else if (data) {
-                    UI.updateConnectionStatus(true);
-                    return data; 
-                }
-            } catch(e) {
-                console.warn("Excepción de red. Fallback a LocalStorage", e);
-                UI.updateConnectionStatus(false);
-            }
-        } else {
-            UI.updateConnectionStatus(false);
-        }
+                if (error) UI.updateConnectionStatus(false, error.message);
+                else if (data) { UI.updateConnectionStatus(true); return data; }
+            } catch(e) { UI.updateConnectionStatus(false); }
+        } else { UI.updateConnectionStatus(false); }
         
-        try {
-            return JSON.parse(localStorage.getItem('db_tasks')) || [];
-        } catch(e) {
-            console.error("Error parseando tareas locales", e);
-            return [];
-        }
+        try { return JSON.parse(localStorage.getItem('db_tasks')) || []; } 
+        catch(e) { return []; }
     },
 
     saveTasks: async (tasks) => {
@@ -152,86 +132,71 @@ const DataService = {
         if (supabaseClient) {
             try {
                 const { error } = await supabaseClient.from('tasks').upsert(tasks);
-                if (error) {
-                    console.error("Error sincronizando en Supabase", error);
-                    UI.showToast("Error guardando en la nube (Revisa RLS).", "error");
-                }
-            } catch(e) {
-                console.error("Excepción en sincronización remota", e);
-            }
+                if (error) UI.showToast("Error guardando tareas en la nube.", "error");
+            } catch(e) {}
+        }
+    },
+
+    getNotes: async () => {
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient.from('notes').select('*').order('created_at', { ascending: false });
+                if (!error && data) return data;
+            } catch(e) {}
+        }
+        try { return JSON.parse(localStorage.getItem('db_notes')) || []; } 
+        catch(e) { return []; }
+    },
+
+    saveNote: async (note) => {
+        let notes = [];
+        try { notes = JSON.parse(localStorage.getItem('db_notes')) || []; } catch(e) {}
+        notes.unshift(note);
+        localStorage.setItem('db_notes', JSON.stringify(notes));
+
+        if (supabaseClient) {
+            try {
+                const { error } = await supabaseClient.from('notes').insert([note]);
+                if (error) UI.showToast("Error guardando nota en la nube.", "error");
+            } catch(e) {}
         }
     },
     
-    // ----------------------------------------------------
-    // SINCRONIZACIÓN DE MIEMBROS Y SOLICITANTES A SUPABASE
-    // ----------------------------------------------------
     getMembers: async () => {
         if (supabaseClient) {
             try {
                 const { data, error } = await supabaseClient.from('members').select('name');
-                if (!error && data) {
-                    return data.map(d => d.name);
-                }
-            } catch(e) {
-                console.warn("Fallo en red de Miembros", e);
-            }
+                if (!error && data) return data.map(d => d.name);
+            } catch(e) {}
         }
-        try {
-            return JSON.parse(localStorage.getItem('db_members')) || ['Camilo', 'David', 'Mafe'];
-        } catch(e) {
-            return [];
-        }
+        try { return JSON.parse(localStorage.getItem('db_members')) || ['Camilo', 'David', 'Mafe']; } 
+        catch(e) { return []; }
     },
-    
     addMember: async (name) => {
-        if (supabaseClient) {
-            await supabaseClient.from('members').upsert([{ name }]);
-        }
+        if (supabaseClient) await supabaseClient.from('members').upsert([{ name }]);
     },
-
     removeMember: async (name) => {
-        if (supabaseClient) {
-            await supabaseClient.from('members').delete().eq('name', name);
-        }
+        if (supabaseClient) await supabaseClient.from('members').delete().eq('name', name);
     },
-    
-    saveMembers: async (m) => {
-        localStorage.setItem('db_members', JSON.stringify(m));
-    },
+    saveMembers: async (m) => localStorage.setItem('db_members', JSON.stringify(m)),
     
     getRequesters: async () => {
         if (supabaseClient) {
             try {
                 const { data, error } = await supabaseClient.from('requesters').select('name');
-                if (!error && data) {
-                    return data.map(d => d.name);
-                }
-            } catch(e) {
-                console.warn("Fallo en red de Solicitantes", e);
-            }
+                if (!error && data) return data.map(d => d.name);
+            } catch(e) {}
         }
-        try {
-            return JSON.parse(localStorage.getItem('db_reqs')) || ['Comunicaciones Internas', 'Comercial', 'Mkt Interno'];
-        } catch (e) {
-            return [];
-        }
+        try { return JSON.parse(localStorage.getItem('db_reqs')) || ['Comunicaciones Internas', 'Comercial', 'Mkt Interno']; } 
+        catch (e) { return []; }
     },
-    
     addRequester: async (name) => {
-        if (supabaseClient) {
-            await supabaseClient.from('requesters').upsert([{ name }]);
-        }
+        if (supabaseClient) await supabaseClient.from('requesters').upsert([{ name }]);
     },
-
     removeRequester: async (name) => {
-        if (supabaseClient) {
-            await supabaseClient.from('requesters').delete().eq('name', name);
-        }
+        if (supabaseClient) await supabaseClient.from('requesters').delete().eq('name', name);
     },
-
-    saveRequesters: async (r) => {
-        localStorage.setItem('db_reqs', JSON.stringify(r));
-    }
+    saveRequesters: async (r) => localStorage.setItem('db_reqs', JSON.stringify(r))
 };
 
 const AuthService = {
@@ -242,8 +207,7 @@ const AuthService = {
         
         const match = users.find(u => 
             u && typeof u.username === 'string' &&
-            u.username.toLowerCase() === userClean && 
-            u.password === passClean
+            u.username.toLowerCase() === userClean && u.password === passClean
         );
         
         if (match) {
@@ -277,18 +241,13 @@ const initDemoData = async () => {
             ]);
         }
         
-        // Cargar datos por defecto a Supabase en el primer inicio si no existen
         if (supabaseClient) {
             const currentMembers = await DataService.getMembers();
-            if(currentMembers.length === 0) {
-                await supabaseClient.from('members').upsert([{name: 'Camilo'}, {name: 'David'}, {name: 'Mafe'}]);
-            }
+            if(currentMembers.length === 0) await supabaseClient.from('members').upsert([{name: 'Camilo'}, {name: 'David'}, {name: 'Mafe'}]);
+            
             const currentReqs = await DataService.getRequesters();
-            if(currentReqs.length === 0) {
-                await supabaseClient.from('requesters').upsert([{name: 'Comunicaciones Internas'}, {name: 'Comercial'}, {name: 'Mkt Interno'}]);
-            }
+            if(currentReqs.length === 0) await supabaseClient.from('requesters').upsert([{name: 'Comunicaciones Internas'}, {name: 'Comercial'}, {name: 'Mkt Interno'}]);
         }
-        
         localStorage.setItem('dh_first_load', '1');
     }
 };
@@ -357,7 +316,6 @@ function buildCustomSelects(container = document) {
                 }
 
                 select.dispatchEvent(new Event('change'));
-                
                 optionsDiv.classList.remove('open');
                 trigger.classList.remove('active');
                 Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
@@ -435,6 +393,7 @@ const App = {
     members: [],
     requesters: [],
     usersList: [],
+    notes: [],
     filterDates: [],
     fpInstances: [],
     hasUnsavedChanges: false,
@@ -463,6 +422,7 @@ const App = {
         await this.loadData();
         this.setupPlugins();
         this.setupEventListeners();
+        this.setupNotesPanel();
         this.renderAll();
         
         this.setupCrossTabSync();
@@ -497,7 +457,6 @@ const App = {
                     document.getElementById('loginError').style.display = 'block';
                 }
             } catch (err) {
-                console.error("Login error:", err);
                 UI.showToast("Error al iniciar sesión. Limpiando almacenamiento...", "error");
                 localStorage.clear();
                 setTimeout(() => window.location.reload(), 1500);
@@ -510,24 +469,25 @@ const App = {
             if (e.key && e.key.startsWith('db_')) {
                 await this.loadData();
                 this.renderAll();
+                if(e.key === 'db_notes') this.renderNotes();
             }
         });
     },
 
     setupRealtimeSubscription() {
         if (supabaseClient) {
-            // Escuchar cambios en todo el esquema 'public' (incluye requesters y members)
             supabaseClient
                 .channel('public-changes')
                 .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-                    UI.showToast(`Actualización remota en ${payload.table}`, "info");
+                    if (payload.table === 'notes') {
+                        document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
+                    }
                     await this.loadData();
                     this.renderAll();
+                    this.renderNotes();
                 })
                 .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') {
-                        console.log("Conectado a Supabase WebSockets (Esquema Completo)");
-                    }
+                    if (status === 'SUBSCRIBED') console.log("Conectado a Supabase WebSockets");
                 });
         }
     },
@@ -535,13 +495,11 @@ const App = {
     updateAvatarUI() {
         const avatarEl = document.getElementById('userAvatar');
         const previewEl = document.getElementById('previewAvatar');
-        
         let avatarUrl = this.user.avatar;
         if (!avatarUrl) {
             const themeColor = (this.user.theme || '#4f46e5').replace('#', '');
             avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.user.name)}&background=${themeColor}20&color=${themeColor}&font-size=0.33&bold=true`;
         }
-        
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
     },
@@ -549,10 +507,10 @@ const App = {
     async loadData() {
         this.originalTasks = await DataService.getTasks();
         this.tasks = JSON.parse(JSON.stringify(this.originalTasks));
-        
         this.members = await DataService.getMembers();
         this.requesters = await DataService.getRequesters();
         this.usersList = await DataService.getUsers();
+        this.notes = await DataService.getNotes();
     },
 
     setupPlugins() {
@@ -593,7 +551,17 @@ const App = {
         document.getElementById('btnUndo').addEventListener('click', () => this.undoChanges());
 
         const mTask = document.getElementById('modalTask');
-        document.getElementById('btnNewTask').addEventListener('click', () => mTask.classList.add('active'));
+        document.getElementById('btnNewTask').addEventListener('click', () => {
+            // Setear la fecha de recepción por defecto al día actual
+            const today = new Date().toISOString().split('T')[0];
+            const dateRecInput = document.getElementById('dateReceived');
+            if(dateRecInput._flatpickr) {
+                dateRecInput._flatpickr.setDate(today);
+            } else {
+                dateRecInput.value = today;
+            }
+            mTask.classList.add('active');
+        });
         
         this.setupProfileListeners();
         this.setupAdminListeners();
@@ -628,16 +596,17 @@ const App = {
         document.getElementById('taskForm').addEventListener('submit', (e) => {
             e.preventDefault();
             
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            const dateReceivedAuto = `${yyyy}-${mm}-${dd}`;
+            // Si el usuario no ingresó fecha de solicitud, asignamos hoy por defecto
+            let dateReceivedValue = escapeHTML(document.getElementById('dateReceived').value);
+            if (!dateReceivedValue) {
+                dateReceivedValue = new Date().toISOString().split('T')[0];
+            }
             
             const dateDelivered = escapeHTML(document.getElementById('dateDelivered').value);
             
-            if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedAuto)) {
-                UI.showToast("La fecha de entrega no puede ser en el pasado.", "error"); 
+            // Validamos que la entrega no sea antes de la recepción lógicamente
+            if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedValue)) {
+                UI.showToast("La fecha de entrega no puede ser anterior a la solicitud.", "error"); 
                 return;
             }
 
@@ -647,7 +616,7 @@ const App = {
                 requester: escapeHTML(document.getElementById('requesterSelect').value),
                 assignee: escapeHTML(document.getElementById('assignee').value),
                 status: escapeHTML(document.getElementById('status').value),
-                dateReceived: dateReceivedAuto, 
+                dateReceived: dateReceivedValue, 
                 dateDelivered: dateDelivered
             });
             
@@ -665,14 +634,91 @@ const App = {
             const task = this.tasks.find(t => t.id === id);
             
             if (task) {
+                const newRecDate = escapeHTML(document.getElementById('editDateReceived').value);
+                
+                if (task.dateDelivered && new Date(task.dateDelivered) < new Date(newRecDate)) {
+                    UI.showToast("La fecha de solicitud no puede superar la de entrega.", "error"); 
+                    return;
+                }
+
                 task.name = escapeHTML(document.getElementById('editTaskName').value);
                 task.requester = escapeHTML(document.getElementById('editRequesterSelect').value);
+                task.dateReceived = newRecDate;
                 
                 this.markAsUnsaved();
                 document.getElementById('modalEditTask').classList.remove('active');
                 UI.showToast("Solicitud editada", "success");
                 this.renderBoard();
             }
+        });
+    },
+
+    setupNotesPanel() {
+        const btnToggle = document.getElementById('btnToggleNotes');
+        const panel = document.getElementById('notesPanel');
+        const overlay = document.getElementById('notesPanelOverlay');
+        const btnClose = document.getElementById('btnCloseNotes');
+        const form = document.getElementById('noteForm');
+
+        // Insert notification badge into toggle button
+        btnToggle.innerHTML += `<div class="notification-badge"></div>`;
+
+        const openPanel = () => {
+            panel.classList.add('open');
+            overlay.classList.add('active');
+            btnToggle.querySelector('.notification-badge').classList.remove('active');
+            this.renderNotes();
+        };
+
+        const closePanel = () => {
+            panel.classList.remove('open');
+            overlay.classList.remove('active');
+        };
+
+        btnToggle.addEventListener('click', openPanel);
+        btnClose.addEventListener('click', closePanel);
+        overlay.addEventListener('click', closePanel);
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('noteInput');
+            const text = input.value.trim();
+            if(!text) return;
+
+            const newNote = {
+                id: Date.now().toString(),
+                author: this.user.name,
+                content: escapeHTML(text),
+                created_at: new Date().toISOString()
+            };
+
+            await DataService.saveNote(newNote);
+            this.notes.unshift(newNote);
+            input.value = '';
+            this.renderNotes();
+        });
+    },
+
+    renderNotes() {
+        const container = document.getElementById('notesList');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        if (this.notes.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:20px;">No hay notas del equipo aún.</p>';
+            return;
+        }
+
+        this.notes.forEach(n => {
+            const dateObj = new Date(n.created_at);
+            const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${(dateObj.getMonth()+1).toString().padStart(2,'0')} ${dateObj.getHours()}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
+            
+            container.innerHTML += `
+                <div class="note-item">
+                    <div class="note-author"><span>${escapeHTML(n.author)}</span> <span class="note-date">${dateStr}</span></div>
+                    <div class="note-text">${escapeHTML(n.content)}</div>
+                </div>
+            `;
         });
     },
 
@@ -685,6 +731,13 @@ const App = {
         
         const reqSelect = document.getElementById('editRequesterSelect');
         updateCustomSelectUI(reqSelect, task.requester);
+
+        const recInput = document.getElementById('editDateReceived');
+        if(recInput._flatpickr) {
+            recInput._flatpickr.setDate(task.dateReceived || '');
+        } else {
+            recInput.value = task.dateReceived || '';
+        }
 
         document.getElementById('modalEditTask').classList.add('active');
     },
@@ -1019,6 +1072,7 @@ const App = {
         const sList = document.getElementById('sidebarList');
         const sCompList = document.getElementById('sidebarCompletedList');
         const tBody = document.getElementById('tablePrioridades');
+        const todayStr = new Date().toISOString().split('T')[0];
         
         if (this.fpInstances) {
             const instances = Array.isArray(this.fpInstances) ? this.fpInstances : [this.fpInstances];
@@ -1094,12 +1148,25 @@ const App = {
             
             const colorHex = this.getColor(t.assignee);
             
+            // Lógica para Alertas Visuales (Hoy o Vencidas)
+            let dateClass = '';
+            let dateAlertIcon = '';
+            if (t.dateDelivered) {
+                if (t.dateDelivered < todayStr) {
+                    dateClass = 'text-danger';
+                    dateAlertIcon = '<i data-lucide="alert-triangle" class="text-danger" style="width:14px;height:14px;"></i> ';
+                } else if (t.dateDelivered === todayStr) {
+                    dateClass = 'text-warning';
+                    dateAlertIcon = '<i data-lucide="clock" class="text-warning" style="width:14px;height:14px;"></i> ';
+                }
+            }
+
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name"><span class="req-status-dot dot-${t.status === 'En curso' ? 'curso' : 'cola'}"></span>${escapeHTML(t.name)}</span>
                     <div class="req-dates">
                         <span>R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                        <span>E: <strong>${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
+                        <span class="${dateClass}">E: <strong>${t.dateDelivered ? dateAlertIcon + t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
                     </div>
                 </div>
                 <div class="req-extra-info">
@@ -1120,6 +1187,13 @@ const App = {
             const isCurso = t.status === 'En curso';
             
             let dateDeliveredVal = t.dateDelivered || '';
+
+            // Alerta Visual de Fecha en Tabla
+            let dateClass = '';
+            if (t.dateDelivered) {
+                if (t.dateDelivered < todayStr) dateClass = 'text-danger';
+                else if (t.dateDelivered === todayStr) dateClass = 'text-warning';
+            }
             
             tr.innerHTML = `
                 <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" onchange="App.updateTask('${t.id}', 'status', this.checked ? 'Entregado' : 'En curso', true)"></td>
@@ -1136,7 +1210,7 @@ const App = {
                 </td>
                 <td class="date-info" data-label="Fechas (Rec - Ent)">
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                    <input type="text" class="inline-date-picker" data-id="${t.id}" aria-label="Cambiar fecha de entrega" data-received="${t.dateReceived}" value="${dateDeliveredVal}" placeholder="Seleccionar">
+                    <input type="text" class="inline-date-picker ${dateClass}" data-id="${t.id}" aria-label="Cambiar fecha de entrega" data-received="${t.dateReceived}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td data-label="Estado">
                     <div id="status-switch-${t.id}" 
