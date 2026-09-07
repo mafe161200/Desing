@@ -27,7 +27,6 @@ if (SUPABASE_URL !== "" && SUPABASE_URL !== "INSERTA_TU_PROJECT_URL_AQUI") {
     }
 }
 
-// Clase estática para Feedback de Interfaz
 class UI {
     static showToast(message, type = 'info') {
         const container = document.getElementById('toastContainer');
@@ -61,8 +60,7 @@ class UI {
             el.classList.remove('online');
             txt.textContent = 'Modo Local';
             if (errMessage && supabaseClient) {
-                console.error("Conexión rechazada por Supabase:", errMessage);
-                UI.showToast("Error BD: Revisa que RLS esté desactivado en las tablas", "error");
+                console.error("Conexión rechazada:", errMessage);
             }
         }
     }
@@ -131,8 +129,7 @@ const DataService = {
         localStorage.setItem('db_tasks', JSON.stringify(tasks));
         if (supabaseClient) {
             try {
-                const { error } = await supabaseClient.from('tasks').upsert(tasks);
-                if (error) UI.showToast("Error guardando tareas en la nube.", "error");
+                await supabaseClient.from('tasks').upsert(tasks);
             } catch(e) {}
         }
     },
@@ -140,7 +137,8 @@ const DataService = {
     getNotes: async () => {
         if (supabaseClient) {
             try {
-                const { data, error } = await supabaseClient.from('notes').select('*').order('created_at', { ascending: false });
+                // ASC para que los más viejos queden primero y el chat se lea de arriba hacia abajo
+                const { data, error } = await supabaseClient.from('notes').select('*').order('created_at', { ascending: true });
                 if (!error && data) return data;
             } catch(e) {}
         }
@@ -151,13 +149,12 @@ const DataService = {
     saveNote: async (note) => {
         let notes = [];
         try { notes = JSON.parse(localStorage.getItem('db_notes')) || []; } catch(e) {}
-        notes.unshift(note);
+        notes.push(note);
         localStorage.setItem('db_notes', JSON.stringify(notes));
 
         if (supabaseClient) {
             try {
-                const { error } = await supabaseClient.from('notes').insert([note]);
-                if (error) UI.showToast("Error guardando nota en la nube.", "error");
+                await supabaseClient.from('notes').insert([note]);
             } catch(e) {}
         }
     },
@@ -479,16 +476,22 @@ const App = {
             supabaseClient
                 .channel('public-changes')
                 .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
+                    
                     if (payload.table === 'notes') {
-                        document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
+                        // Badge Notification Si el panel de notas está cerrado
+                        const panel = document.getElementById('notesPanel');
+                        if(panel && !panel.classList.contains('open')) {
+                            document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
+                        }
+                    } else {
+                        UI.showToast(`Actualización de Tareas Recibida`, "info");
                     }
+                    
                     await this.loadData();
                     this.renderAll();
                     this.renderNotes();
                 })
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') console.log("Conectado a Supabase WebSockets");
-                });
+                .subscribe();
         }
     },
 
@@ -518,6 +521,7 @@ const App = {
             mode: "range", locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
             onChange: (dates) => { this.filterDates = dates; this.renderBoard(); }
         });
+        
         flatpickr(".modal-date", { 
             locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
             appendTo: document.body 
@@ -552,7 +556,6 @@ const App = {
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
-            // Setear la fecha de recepción por defecto al día actual
             const today = new Date().toISOString().split('T')[0];
             const dateRecInput = document.getElementById('dateReceived');
             if(dateRecInput._flatpickr) {
@@ -596,7 +599,6 @@ const App = {
         document.getElementById('taskForm').addEventListener('submit', (e) => {
             e.preventDefault();
             
-            // Si el usuario no ingresó fecha de solicitud, asignamos hoy por defecto
             let dateReceivedValue = escapeHTML(document.getElementById('dateReceived').value);
             if (!dateReceivedValue) {
                 dateReceivedValue = new Date().toISOString().split('T')[0];
@@ -604,7 +606,6 @@ const App = {
             
             const dateDelivered = escapeHTML(document.getElementById('dateDelivered').value);
             
-            // Validamos que la entrega no sea antes de la recepción lógicamente
             if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedValue)) {
                 UI.showToast("La fecha de entrega no puede ser anterior a la solicitud.", "error"); 
                 return;
@@ -660,7 +661,6 @@ const App = {
         const btnClose = document.getElementById('btnCloseNotes');
         const form = document.getElementById('noteForm');
 
-        // Insert notification badge into toggle button
         btnToggle.innerHTML += `<div class="notification-badge"></div>`;
 
         const openPanel = () => {
@@ -679,21 +679,32 @@ const App = {
         btnClose.addEventListener('click', closePanel);
         overlay.addEventListener('click', closePanel);
 
+        // Emoji Toolbar functionality
+        document.querySelectorAll('.quick-emoji').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById('noteInput');
+                input.value += btn.textContent;
+                input.focus();
+            });
+        });
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const input = document.getElementById('noteInput');
+            
+            // Omitimos escapeHTML al guardar en el objeto para no ensuciar la DB, lo aplicaremos al renderizar
             const text = input.value.trim();
             if(!text) return;
 
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
-                content: escapeHTML(text),
+                content: text, 
                 created_at: new Date().toISOString()
             };
 
             await DataService.saveNote(newNote);
-            this.notes.unshift(newNote);
+            this.notes.push(newNote);
             input.value = '';
             this.renderNotes();
         });
@@ -711,15 +722,27 @@ const App = {
 
         this.notes.forEach(n => {
             const dateObj = new Date(n.created_at);
-            const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${(dateObj.getMonth()+1).toString().padStart(2,'0')} ${dateObj.getHours()}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
+            const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${(dateObj.getMonth()+1).toString().padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
             
+            // Determinamos la procedencia (Mensajes Propios vs Mensajes del Equipo)
+            const isMine = n.author === this.user.name;
+            const alignClass = isMine ? 'mine' : 'other';
+            const authorText = isMine ? 'Tú' : escapeHTML(n.author);
+
             container.innerHTML += `
-                <div class="note-item">
-                    <div class="note-author"><span>${escapeHTML(n.author)}</span> <span class="note-date">${dateStr}</span></div>
-                    <div class="note-text">${escapeHTML(n.content)}</div>
+                <div class="chat-msg ${alignClass}">
+                    <div class="chat-meta">
+                        <span>${authorText}</span> <span>${dateStr}</span>
+                    </div>
+                    <div class="chat-bubble">
+                        ${escapeHTML(n.content)}
+                    </div>
                 </div>
             `;
         });
+        
+        // Auto Scroll-down al último mensaje
+        container.scrollTop = container.scrollHeight;
     },
 
     openEditModal(taskId) {
@@ -1072,6 +1095,7 @@ const App = {
         const sList = document.getElementById('sidebarList');
         const sCompList = document.getElementById('sidebarCompletedList');
         const tBody = document.getElementById('tablePrioridades');
+        
         const todayStr = new Date().toISOString().split('T')[0];
         
         if (this.fpInstances) {
@@ -1148,25 +1172,25 @@ const App = {
             
             const colorHex = this.getColor(t.assignee);
             
-            // Lógica para Alertas Visuales (Hoy o Vencidas)
+            // Evaluador de Alertas por Fecha de Entrega en el Panel Lateral
             let dateClass = '';
             let dateAlertIcon = '';
             if (t.dateDelivered) {
                 if (t.dateDelivered < todayStr) {
                     dateClass = 'text-danger';
-                    dateAlertIcon = '<i data-lucide="alert-triangle" class="text-danger" style="width:14px;height:14px;"></i> ';
+                    dateAlertIcon = '<i data-lucide="alert-triangle" class="text-danger" style="width:14px;height:14px;margin-right:2px;"></i>';
                 } else if (t.dateDelivered === todayStr) {
                     dateClass = 'text-warning';
-                    dateAlertIcon = '<i data-lucide="clock" class="text-warning" style="width:14px;height:14px;"></i> ';
+                    dateAlertIcon = '<i data-lucide="clock" class="text-warning" style="width:14px;height:14px;margin-right:2px;"></i>';
                 }
             }
-
+            
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name"><span class="req-status-dot dot-${t.status === 'En curso' ? 'curso' : 'cola'}"></span>${escapeHTML(t.name)}</span>
                     <div class="req-dates">
                         <span>R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                        <span class="${dateClass}">E: <strong>${t.dateDelivered ? dateAlertIcon + t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
+                        <span class="${dateClass}">E: <strong style="display:inline-flex; align-items:center;">${dateAlertIcon}${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
                     </div>
                 </div>
                 <div class="req-extra-info">
@@ -1187,8 +1211,8 @@ const App = {
             const isCurso = t.status === 'En curso';
             
             let dateDeliveredVal = t.dateDelivered || '';
-
-            // Alerta Visual de Fecha en Tabla
+            
+            // Evaluador de Alertas por Fecha de Entrega en Tabla Principal
             let dateClass = '';
             if (t.dateDelivered) {
                 if (t.dateDelivered < todayStr) dateClass = 'text-danger';
