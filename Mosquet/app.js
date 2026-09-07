@@ -137,7 +137,7 @@ const DataService = {
     getNotes: async () => {
         if (supabaseClient) {
             try {
-                // ASC para que los más viejos queden primero y el chat se lea de arriba hacia abajo
+                // ASC para que el chat se lea de arriba hacia abajo cronológicamente
                 const { data, error } = await supabaseClient.from('notes').select('*').order('created_at', { ascending: true });
                 if (!error && data) return data;
             } catch(e) {}
@@ -478,7 +478,6 @@ const App = {
                 .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
                     
                     if (payload.table === 'notes') {
-                        // Badge Notification Si el panel de notas está cerrado
                         const panel = document.getElementById('notesPanel');
                         if(panel && !panel.classList.contains('open')) {
                             document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
@@ -498,13 +497,22 @@ const App = {
     updateAvatarUI() {
         const avatarEl = document.getElementById('userAvatar');
         const previewEl = document.getElementById('previewAvatar');
+        const sendBtn = document.getElementById('btnSendNote');
+        
         let avatarUrl = this.user.avatar;
+        const themeColor = this.user.theme || '#4f46e5';
+        
         if (!avatarUrl) {
-            const themeColor = (this.user.theme || '#4f46e5').replace('#', '');
-            avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.user.name)}&background=${themeColor}20&color=${themeColor}&font-size=0.33&bold=true`;
+            avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.user.name)}&background=${themeColor.replace('#', '')}20&color=${themeColor.replace('#', '')}&font-size=0.33&bold=true`;
         }
+        
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
+        
+        // Single Source of Truth para el botón de enviar
+        if(sendBtn) {
+            sendBtn.style.backgroundColor = themeColor;
+        }
     },
 
     async loadData() {
@@ -692,10 +700,10 @@ const App = {
             e.preventDefault();
             const input = document.getElementById('noteInput');
             
-            // Omitimos escapeHTML al guardar en el objeto para no ensuciar la DB, lo aplicaremos al renderizar
             const text = input.value.trim();
             if(!text) return;
 
+            // NO escapamos aquí. Supabase/localStorage guardan la verdad raw. Se escapa en render.
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
@@ -724,24 +732,26 @@ const App = {
             const dateObj = new Date(n.created_at);
             const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${(dateObj.getMonth()+1).toString().padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
             
-            // Determinamos la procedencia (Mensajes Propios vs Mensajes del Equipo)
             const isMine = n.author === this.user.name;
             const alignClass = isMine ? 'mine' : 'other';
             const authorText = isMine ? 'Tú' : escapeHTML(n.author);
+            
+            // Single Source of Truth para los colores
+            const authorColor = this.getColor(n.author);
 
             container.innerHTML += `
                 <div class="chat-msg ${alignClass}">
                     <div class="chat-meta">
-                        <span>${authorText}</span> <span>${dateStr}</span>
+                        <span style="color: ${authorColor};">${authorText}</span> <span>${dateStr}</span>
                     </div>
-                    <div class="chat-bubble">
+                    <div class="chat-bubble" style="background-color: ${authorColor}15; border: 1px solid ${authorColor}30; color: var(--text-dark);">
                         ${escapeHTML(n.content)}
                     </div>
                 </div>
             `;
         });
         
-        // Auto Scroll-down al último mensaje
+        // Auto Scroll-down
         container.scrollTop = container.scrollHeight;
     },
 
@@ -1172,7 +1182,6 @@ const App = {
             
             const colorHex = this.getColor(t.assignee);
             
-            // Evaluador de Alertas por Fecha de Entrega en el Panel Lateral
             let dateClass = '';
             let dateAlertIcon = '';
             if (t.dateDelivered) {
@@ -1212,7 +1221,6 @@ const App = {
             
             let dateDeliveredVal = t.dateDelivered || '';
             
-            // Evaluador de Alertas por Fecha de Entrega en Tabla Principal
             let dateClass = '';
             if (t.dateDelivered) {
                 if (t.dateDelivered < todayStr) dateClass = 'text-danger';
