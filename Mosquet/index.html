@@ -71,11 +71,12 @@
                 </div>
                 
                 <div class="header-divider hide-mobile"></div>
-
+                
+                <!-- Botón de Notas/Comentarios con Badge de Notificación -->
                 <button id="btnToggleNotes" class="btn-icon position-relative" aria-label="Notas del Equipo" title="Notas del Equipo">
                     <i data-lucide="message-square"></i>
                 </button>
-                
+
                 <button id="btnLogout" class="btn-icon header-logout-btn" aria-label="Cerrar sesión" title="Cerrar sesión">
                     <i data-lucide="log-out"></i>
                 </button>
@@ -191,7 +192,7 @@
         </div>
     </div>
 
-    <!-- PANEL LATERAL DE NOTAS -->
+    <!-- PANEL LATERAL DE NOTAS Y CHAT DE EQUIPO -->
     <div id="notesPanelOverlay" class="notes-overlay"></div>
     <div id="notesPanel" class="notes-panel">
         <div class="notes-header">
@@ -199,11 +200,19 @@
             <button id="btnCloseNotes" class="btn-icon"><i data-lucide="x"></i></button>
         </div>
         <div class="notes-body" id="notesList">
-            <!-- Notas renderizadas aquí -->
+            <!-- Notas renderizadas dinámicamente aquí -->
         </div>
         <div class="notes-footer">
+            <div class="emoji-bar">
+                <button type="button" class="quick-emoji">👍</button>
+                <button type="button" class="quick-emoji">🔥</button>
+                <button type="button" class="quick-emoji">🚀</button>
+                <button type="button" class="quick-emoji">👀</button>
+                <button type="button" class="quick-emoji">❤️</button>
+                <button type="button" class="quick-emoji">✅</button>
+            </div>
             <form id="noteForm" style="display:flex; gap: 8px;">
-                <input type="text" id="noteInput" class="custom-input" placeholder="Escribe una nota rápida..." required>
+                <input type="text" id="noteInput" class="custom-input" placeholder="Escribe un mensaje al equipo..." required>
                 <button type="submit" class="btn btn-primary btn-icon" style="color: white;"><i data-lucide="send"></i></button>
             </form>
         </div>
