@@ -2,8 +2,8 @@
     /* Paleta Neutra Premium (Ajustada para reducir fatiga visual - Grises suaves) */
     --bg-main: #f8fafc;        /* Slate 50 */
     --card-bg: #ffffff;
-    --text-dark: #1e293b;      /* Ajustado de #0f172a a Slate 800 (Gris oscuro suave) */
-    --text-main: #475569;      /* Ajustado de #334155 a Slate 600 */
+    --text-dark: #1e293b;      /* Slate 800 (Gris oscuro suave) */
+    --text-main: #475569;      /* Slate 600 */
     --text-muted: #64748b;     /* Slate 500 */
     --bg-subtle: #f1f5f9;      /* Slate 100 */
     --border-light: #e2e8f0;   /* Slate 200 */
@@ -13,9 +13,9 @@
     --primary-hover: #4338ca;  
 
     /* Sistema de Estados - "En Cola" es Lavanda/Púrpura Suave */
-    --status-cola: #7e22ce;        /* Purple 700 */
-    --status-cola-bg: #f3e8ff;     /* Purple 100 */
-    --status-cola-border: #d8b4fe; /* Purple 300 */
+    --status-cola: #7e22ce;        
+    --status-cola-bg: #f3e8ff;     
+    --status-cola-border: #d8b4fe; 
 
     --status-curso: #1d4ed8;       
     --status-curso-bg: #eff6ff;    
@@ -131,7 +131,7 @@ input[type="file"]::file-selector-button:hover { background: var(--primary-hover
 .color-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.2s ease; box-shadow: 0 0 0 2px transparent; outline: none;}
 .color-swatch:hover, .color-swatch:focus-visible { transform: scale(1.1); box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--primary-cold); }
 .color-swatch.active { box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--primary-cold); transform: scale(1.05); }
-.color-swatch.disabled { opacity: 0.3; pointer-events: none; cursor: not-allowed; } /* Nuevo: Para colores tomados */
+.color-swatch.disabled { opacity: 0.3; pointer-events: none; cursor: not-allowed; }
 
 /* COMPONENTE: TOGGLE SWITCH BINARIO PARA ESTADO */
 .status-switch { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; cursor: pointer; user-select: none; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent; outline: none; }
@@ -141,10 +141,7 @@ input[type="file"]::file-selector-button:hover { background: var(--primary-hover
 .switch-track { width: 28px; height: 16px; background: rgba(0, 0, 0, 0.12); border-radius: 10px; position: relative; transition: background-color 0.25s ease; flex-shrink: 0; }
 .status-switch.curso .switch-track { background: var(--status-curso); }
 .status-switch.cola .switch-track { background: var(--status-cola); }
-.switch-thumb {
-    width: 12px; height: 12px; background: #ffffff; border-radius: 50%; position: absolute;
-    top: 2px; left: 2px; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
+.switch-thumb { width: 12px; height: 12px; background: #ffffff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 .status-switch.curso .switch-thumb { transform: translateX(12px); }
 
 /* CUSTOM DROPDOWNS GENERALES */
@@ -209,13 +206,16 @@ html body .native-select-hidden { display: none; }
 .req-header { display: flex; flex-direction: column; gap: 6px; }
 
 /* Nombre en la tarjeta: Truncado a 2 líneas normal, full text cuando se expande */
-.req-name { font-size: 0.9rem; font-weight: 600; color: var(--text-dark); display: -webkit-box; align-items: flex-start; gap: 8px; line-height: 1.3; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
-.request-item.expanded .req-name { -webkit-line-clamp: unset; overflow: visible; display: flex; align-items: flex-start;}
+.req-name { font-size: 0.9rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: flex-start; gap: 8px; line-height: 1.3; }
+.req-name-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; flex: 1; }
+.request-item.expanded .req-name-text { -webkit-line-clamp: unset; overflow: visible; }
 
 .req-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-top: 4px;}
 .req-status-dot.dot-cola { background-color: var(--status-cola); }
 .req-status-dot.dot-curso { background-color: var(--status-curso); }
-.req-dates { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: flex; justify-content: space-between; background: var(--bg-subtle); padding: 6px 10px; border-radius: 6px; }
+
+/* Corrección de superposición en req-dates mediante Flex Wrap y Gap */
+.req-dates { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--bg-subtle); padding: 8px 10px; border-radius: 6px; }
 .req-extra-info { display: none; flex-direction: column; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-light); font-size: 0.8rem; animation: fadeIn 0.2s;}
 .request-item.expanded .req-extra-info { display: flex; }
 @keyframes fadeIn { from {opacity:0; transform:translateY(-4px);} to{opacity:1; transform:translateY(0);} }
@@ -224,8 +224,9 @@ html body .native-select-hidden { display: none; }
 .req-detail-row strong { text-align: right; color: var(--text-dark); font-weight: 600; font-size: 0.8rem; word-break: break-word;}
 .completed-item { background: var(--bg-subtle); border-color: transparent; opacity: 0.85; cursor: default; transform: none !important;}
 .completed-item:hover { opacity: 1; border-color: var(--border-light); box-shadow: none;}
-.completed-item .req-name { text-decoration: line-through; color: var(--text-muted); }
-.time-alert-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: auto; }
+.completed-item .req-name-text { text-decoration: line-through; color: var(--text-muted); }
+
+.time-alert-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
 .time-alert-badge.danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
 .time-alert-badge.warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
 
