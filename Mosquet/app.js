@@ -1,28 +1,37 @@
 lucide.createIcons();
 
 /* =========================================
-   UTILITIES & UI CORE
+   UTILITIES & UI CORE (Seguridad y Sanitización)
    ========================================= */
 const escapeHTML = (str) => {
-    return str ? str.replace(/[&<>'"]/g, tag => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-    }[tag] || tag)) : '';
+    if (!str) return '';
+    const entityMap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '/': '&#x2F;',
+        '`': '&#x60;',
+        '=': '&#x3D;'
+    };
+    return String(str).replace(/[&<>"'`=\/]/g, s => entityMap[s]);
 };
 
 // ----------------------------------------------------------------------
-// CONFIGURACIÓN SUPABASE
+// CONFIGURACIÓN SUPABASE (SINGLE SOURCE OF TRUTH)
 // ----------------------------------------------------------------------
 const SUPABASE_URL = "https://gbltrfqxohrmkopanghx.supabase.co"; 
 const SUPABASE_ANON_KEY = "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU"; 
 
 let supabaseClient = null;
 
-if (SUPABASE_URL !== "" && SUPABASE_URL !== "INSERTA_TU_PROJECT_URL_AQUI") {
+if (SUPABASE_URL !== "") {
     if (typeof supabase !== 'undefined') {
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         } catch(e) {
-            console.warn("Error al inicializar cliente Supabase. Fallback a LocalStorage.", e);
+            console.warn("Error al inicializar Supabase.", e);
         }
     }
 }
@@ -43,9 +52,7 @@ class UI {
         container.appendChild(toast);
         lucide.createIcons();
         
-        setTimeout(() => {
-            if(toast.parentElement) toast.remove();
-        }, 3200);
+        setTimeout(() => { if(toast.parentElement) toast.remove(); }, 3200);
     }
 
     static updateConnectionStatus(isOnline, errMessage = null) {
@@ -59,9 +66,7 @@ class UI {
         } else {
             el.classList.remove('online');
             txt.textContent = 'Modo Local';
-            if (errMessage && supabaseClient) {
-                console.error("Conexión rechazada:", errMessage);
-            }
+            if (errMessage) console.error("Conexión rechazada:", errMessage);
         }
     }
 }
@@ -74,11 +79,8 @@ const DataService = {
         let users = [];
         try {
             const data = localStorage.getItem('db_users');
-            if (data) {
-                const parsed = JSON.parse(data);
-                if (Array.isArray(parsed)) users = parsed;
-            }
-        } catch(e) { console.warn("Error leyendo db_users", e); }
+            if (data) users = JSON.parse(data);
+        } catch(e) {}
 
         let baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
         const allUsersMap = new Map();
@@ -103,13 +105,7 @@ const DataService = {
         return finalUsers;
     },
     saveUsers: async (users) => {
-        try {
-            localStorage.setItem('db_users', JSON.stringify(users));
-        } catch (error) {
-            if (error.name === 'QuotaExceededError') {
-                UI.showToast("Error: Memoria llena. La imagen es muy pesada.", "error");
-            }
-        }
+        try { localStorage.setItem('db_users', JSON.stringify(users)); } catch (e) {}
     },
     
     getTasks: async () => {
@@ -120,42 +116,32 @@ const DataService = {
                 else if (data) { UI.updateConnectionStatus(true); return data; }
             } catch(e) { UI.updateConnectionStatus(false); }
         } else { UI.updateConnectionStatus(false); }
-        
-        try { return JSON.parse(localStorage.getItem('db_tasks')) || []; } 
-        catch(e) { return []; }
+        try { return JSON.parse(localStorage.getItem('db_tasks')) || []; } catch(e) { return []; }
     },
-
     saveTasks: async (tasks) => {
         localStorage.setItem('db_tasks', JSON.stringify(tasks));
         if (supabaseClient) {
-            try {
-                await supabaseClient.from('tasks').upsert(tasks);
-            } catch(e) {}
+            try { await supabaseClient.from('tasks').upsert(tasks); } catch(e) {}
         }
     },
 
     getNotes: async () => {
         if (supabaseClient) {
             try {
-                // ASC para que el chat se lea de arriba hacia abajo cronológicamente
+                // ASCendente para mostrar el chat de arriba hacia abajo
                 const { data, error } = await supabaseClient.from('notes').select('*').order('created_at', { ascending: true });
                 if (!error && data) return data;
             } catch(e) {}
         }
-        try { return JSON.parse(localStorage.getItem('db_notes')) || []; } 
-        catch(e) { return []; }
+        try { return JSON.parse(localStorage.getItem('db_notes')) || []; } catch(e) { return []; }
     },
-
     saveNote: async (note) => {
         let notes = [];
         try { notes = JSON.parse(localStorage.getItem('db_notes')) || []; } catch(e) {}
         notes.push(note);
         localStorage.setItem('db_notes', JSON.stringify(notes));
-
         if (supabaseClient) {
-            try {
-                await supabaseClient.from('notes').insert([note]);
-            } catch(e) {}
+            try { await supabaseClient.from('notes').insert([note]); } catch(e) {}
         }
     },
     
@@ -166,8 +152,7 @@ const DataService = {
                 if (!error && data) return data.map(d => d.name);
             } catch(e) {}
         }
-        try { return JSON.parse(localStorage.getItem('db_members')) || ['Camilo', 'David', 'Mafe']; } 
-        catch(e) { return []; }
+        try { return JSON.parse(localStorage.getItem('db_members')) || ['Camilo', 'David', 'Mafe']; } catch(e) { return []; }
     },
     addMember: async (name) => {
         if (supabaseClient) await supabaseClient.from('members').upsert([{ name }]);
@@ -184,8 +169,7 @@ const DataService = {
                 if (!error && data) return data.map(d => d.name);
             } catch(e) {}
         }
-        try { return JSON.parse(localStorage.getItem('db_reqs')) || ['Comunicaciones Internas', 'Comercial', 'Mkt Interno']; } 
-        catch (e) { return []; }
+        try { return JSON.parse(localStorage.getItem('db_reqs')) || ['Comunicaciones Internas', 'Comercial', 'Mkt Interno']; } catch (e) { return []; }
     },
     addRequester: async (name) => {
         if (supabaseClient) await supabaseClient.from('requesters').upsert([{ name }]);
@@ -201,12 +185,7 @@ const AuthService = {
         const users = await DataService.getUsers();
         const userClean = escapeHTML(username.trim().toLowerCase());
         const passClean = password.trim(); 
-        
-        const match = users.find(u => 
-            u && typeof u.username === 'string' &&
-            u.username.toLowerCase() === userClean && u.password === passClean
-        );
-        
+        const match = users.find(u => u && typeof u.username === 'string' && u.username.toLowerCase() === userClean && u.password === passClean);
         if (match) {
             localStorage.setItem('auth_user', JSON.stringify({ username: match.username, name: match.name, role: match.role, avatar: match.avatar, theme: match.theme }));
             return true;
@@ -221,10 +200,7 @@ const AuthService = {
         try {
             const item = localStorage.getItem('auth_user');
             return item ? JSON.parse(item) : null;
-        } catch (e) {
-            localStorage.removeItem('auth_user');
-            return null;
-        }
+        } catch (e) { return null; }
     }
 };
 
@@ -233,15 +209,12 @@ const initDemoData = async () => {
         const tasks = await DataService.getTasks();
         if (tasks.length === 0) {
             await DataService.saveTasks([
-                {id: "1", name: "Rediseño Logo Corporativo", requester: "Comercial", assignee: "Camilo", status: "En curso", dateReceived: "2026-08-20", dateDelivered: "2026-08-30"},
-                {id: "2", name: "Carrusel Instagram", requester: "Comunicaciones Internas", assignee: "David", status: "Entregado", dateReceived: "2026-08-15", dateDelivered: "2026-08-22"}
+                {id: "1", name: "Rediseño Logo Corporativo", requester: "Comercial", assignee: "Camilo", status: "En curso", dateReceived: "2026-08-20", dateDelivered: "2026-08-30"}
             ]);
         }
-        
         if (supabaseClient) {
             const currentMembers = await DataService.getMembers();
             if(currentMembers.length === 0) await supabaseClient.from('members').upsert([{name: 'Camilo'}, {name: 'David'}, {name: 'Mafe'}]);
-            
             const currentReqs = await DataService.getRequesters();
             if(currentReqs.length === 0) await supabaseClient.from('requesters').upsert([{name: 'Comunicaciones Internas'}, {name: 'Comercial'}, {name: 'Mkt Interno'}]);
         }
@@ -322,10 +295,7 @@ function buildCustomSelects(container = document) {
 
             item.addEventListener('click', handleSelect);
             item.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    handleSelect(e);
-                }
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(e); }
             });
             optionsDiv.appendChild(item);
         });
@@ -339,15 +309,11 @@ function buildCustomSelects(container = document) {
             if (!isOpen) { 
                 const rect = trigger.getBoundingClientRect();
                 if (window.innerHeight - rect.bottom < 200) {
-                    optionsDiv.style.top = 'auto';
-                    optionsDiv.style.bottom = 'calc(100% + 6px)';
+                    optionsDiv.style.top = 'auto'; optionsDiv.style.bottom = 'calc(100% + 6px)';
                 } else {
-                    optionsDiv.style.top = 'calc(100% + 6px)';
-                    optionsDiv.style.bottom = 'auto';
+                    optionsDiv.style.top = 'calc(100% + 6px)'; optionsDiv.style.bottom = 'auto';
                 }
-                optionsDiv.classList.add('open'); 
-                trigger.classList.add('active'); 
-                
+                optionsDiv.classList.add('open'); trigger.classList.add('active'); 
                 const firstOpt = optionsDiv.querySelector('.select-option');
                 if (firstOpt) firstOpt.focus();
             }
@@ -355,10 +321,7 @@ function buildCustomSelects(container = document) {
 
         trigger.addEventListener('click', toggleDropdown);
         trigger.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                toggleDropdown(e);
-            }
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDropdown(e); }
         });
 
         wrapper.appendChild(trigger);
@@ -448,15 +411,10 @@ const App = {
             const pass = document.getElementById('passwordInput').value;
             
             try {
-                if (await AuthService.login(user, pass)) {
-                    window.location.reload();
-                } else {
-                    document.getElementById('loginError').style.display = 'block';
-                }
+                if (await AuthService.login(user, pass)) window.location.reload();
+                else document.getElementById('loginError').style.display = 'block';
             } catch (err) {
-                UI.showToast("Error al iniciar sesión. Limpiando almacenamiento...", "error");
-                localStorage.clear();
-                setTimeout(() => window.location.reload(), 1500);
+                UI.showToast("Error al iniciar sesión.", "error");
             }
         });
     },
@@ -476,21 +434,21 @@ const App = {
             supabaseClient
                 .channel('public-changes')
                 .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-                    
                     if (payload.table === 'notes') {
                         const panel = document.getElementById('notesPanel');
                         if(panel && !panel.classList.contains('open')) {
                             document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
                         }
                     } else {
-                        UI.showToast(`Actualización de Tareas Recibida`, "info");
+                        UI.showToast(`Actualización Recibida`, "info");
                     }
-                    
                     await this.loadData();
                     this.renderAll();
                     this.renderNotes();
                 })
-                .subscribe();
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') console.log("Conectado a WebSockets");
+                });
         }
     },
 
@@ -499,8 +457,8 @@ const App = {
         const previewEl = document.getElementById('previewAvatar');
         const sendBtn = document.getElementById('btnSendNote');
         
-        let avatarUrl = this.user.avatar;
         const themeColor = this.user.theme || '#4f46e5';
+        let avatarUrl = this.user.avatar;
         
         if (!avatarUrl) {
             avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.user.name)}&background=${themeColor.replace('#', '')}20&color=${themeColor.replace('#', '')}&font-size=0.33&bold=true`;
@@ -508,11 +466,7 @@ const App = {
         
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
-        
-        // Single Source of Truth para el botón de enviar
-        if(sendBtn) {
-            sendBtn.style.backgroundColor = themeColor;
-        }
+        if(sendBtn) sendBtn.style.backgroundColor = themeColor; // Single source of truth para el botón
     },
 
     async loadData() {
@@ -564,13 +518,14 @@ const App = {
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
-            const today = new Date().toISOString().split('T')[0];
+            // Algoritmo local seguro para "hoy" YYYY-MM-DD
+            const d = new Date();
+            const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             const dateRecInput = document.getElementById('dateReceived');
-            if(dateRecInput._flatpickr) {
-                dateRecInput._flatpickr.setDate(today);
-            } else {
-                dateRecInput.value = today;
-            }
+            
+            if(dateRecInput._flatpickr) dateRecInput._flatpickr.setDate(todayLocal);
+            else dateRecInput.value = todayLocal;
+            
             mTask.classList.add('active');
         });
         
@@ -592,30 +547,26 @@ const App = {
             ['filterAssignee', 'filterRequester', 'filterStatus'].forEach(id => document.getElementById(id).value = 'Todos');
             document.getElementById('filterSort').value = 'asc';
             this.filterDates = [];
-            
             const fpInput = document.getElementById('filterDate');
-            if(fpInput && fpInput._flatpickr) {
-                fpInput._flatpickr.clear();
-            }
-
+            if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
             this.renderBoard();
             buildCustomSelects(document.querySelector('.inline-filters-bar')); 
             UI.showToast("Filtros limpiados", "info");
         });
 
-        // Formulario Creador
         document.getElementById('taskForm').addEventListener('submit', (e) => {
             e.preventDefault();
             
             let dateReceivedValue = escapeHTML(document.getElementById('dateReceived').value);
             if (!dateReceivedValue) {
-                dateReceivedValue = new Date().toISOString().split('T')[0];
+                const d = new Date();
+                dateReceivedValue = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             }
             
             const dateDelivered = escapeHTML(document.getElementById('dateDelivered').value);
             
             if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedValue)) {
-                UI.showToast("La fecha de entrega no puede ser anterior a la solicitud.", "error"); 
+                UI.showToast("La entrega no puede ser anterior a la solicitud.", "error"); 
                 return;
             }
 
@@ -632,11 +583,10 @@ const App = {
             this.markAsUnsaved(); 
             e.target.reset();
             document.getElementById('modalTask').classList.remove('active');
-            UI.showToast("Solicitud añadida (Recuerda guardar cambios)", "success");
+            UI.showToast("Solicitud añadida", "success");
             this.renderBoard();
         });
 
-        // Formulario Editor
         document.getElementById('editTaskForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const id = document.getElementById('editTaskId').value;
@@ -646,7 +596,7 @@ const App = {
                 const newRecDate = escapeHTML(document.getElementById('editDateReceived').value);
                 
                 if (task.dateDelivered && new Date(task.dateDelivered) < new Date(newRecDate)) {
-                    UI.showToast("La fecha de solicitud no puede superar la de entrega.", "error"); 
+                    UI.showToast("La solicitud no puede superar la entrega.", "error"); 
                     return;
                 }
 
@@ -687,7 +637,6 @@ const App = {
         btnClose.addEventListener('click', closePanel);
         overlay.addEventListener('click', closePanel);
 
-        // Emoji Toolbar functionality
         document.querySelectorAll('.quick-emoji').forEach(btn => {
             btn.addEventListener('click', () => {
                 const input = document.getElementById('noteInput');
@@ -699,11 +648,10 @@ const App = {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const input = document.getElementById('noteInput');
-            
             const text = input.value.trim();
             if(!text) return;
 
-            // NO escapamos aquí. Supabase/localStorage guardan la verdad raw. Se escapa en render.
+            // NO escapamos aquí. Se guarda RAW para evitar doble-escapado
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
@@ -735,14 +683,14 @@ const App = {
             const isMine = n.author === this.user.name;
             const alignClass = isMine ? 'mine' : 'other';
             const authorText = isMine ? 'Tú' : escapeHTML(n.author);
-            
-            // Single Source of Truth para los colores
             const authorColor = this.getColor(n.author);
 
+            // Renderizado seguro previniendo inyección HTML pero permitiendo símbolos (como <3)
             container.innerHTML += `
                 <div class="chat-msg ${alignClass}">
                     <div class="chat-meta">
-                        <span style="color: ${authorColor};">${authorText}</span> <span>${dateStr}</span>
+                        <span style="color: ${authorColor}; font-weight: 700;">${authorText}</span> 
+                        <span>${dateStr}</span>
                     </div>
                     <div class="chat-bubble" style="background-color: ${authorColor}15; border: 1px solid ${authorColor}30; color: var(--text-dark);">
                         ${escapeHTML(n.content)}
@@ -1106,7 +1054,9 @@ const App = {
         const sCompList = document.getElementById('sidebarCompletedList');
         const tBody = document.getElementById('tablePrioridades');
         
-        const todayStr = new Date().toISOString().split('T')[0];
+        // Algoritmo local exacto para evitar desfases horarios
+        const d = new Date();
+        const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         
         if (this.fpInstances) {
             const instances = Array.isArray(this.fpInstances) ? this.fpInstances : [this.fpInstances];
@@ -1359,4 +1309,12 @@ const App = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => App.init());
+// Punto de entrada blindado con manejo de errores global
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await App.init();
+    } catch(e) {
+        console.error("FATAL ERROR:", e);
+        alert("Ocurrió un error al cargar la aplicación. Por favor, limpia la caché del navegador.");
+    }
+});
