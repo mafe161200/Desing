@@ -72,7 +72,6 @@
                 
                 <div class="header-divider hide-mobile"></div>
                 
-                <!-- Botón de Notas/Comentarios con Badge de Notificación -->
                 <button id="btnToggleNotes" class="btn-icon position-relative" aria-label="Notas del Equipo" title="Notas del Equipo">
                     <i data-lucide="message-square"></i>
                 </button>
@@ -213,7 +212,8 @@
             </div>
             <form id="noteForm" style="display:flex; gap: 8px;">
                 <input type="text" id="noteInput" class="custom-input" placeholder="Escribe un mensaje al equipo..." required>
-                <button type="submit" class="btn btn-primary btn-icon" style="color: white;"><i data-lucide="send"></i></button>
+                <!-- Botón de enviar corregido con clase específica -->
+                <button type="submit" id="btnSendNote" class="btn-send-note" aria-label="Enviar"><i data-lucide="send"></i></button>
             </form>
         </div>
     </div>
