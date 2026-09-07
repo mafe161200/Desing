@@ -124,14 +124,12 @@ const DataService = {
     getTasks: async () => {
         if (supabaseClient) {
             try {
-                // Intento de conexión al BaaS
                 const { data, error } = await supabaseClient.from('tasks').select('*');
-                
                 if (error) {
                     UI.updateConnectionStatus(false, error.message);
                 } else if (data) {
                     UI.updateConnectionStatus(true);
-                    return data; // Retorna datos de la nube
+                    return data; 
                 }
             } catch(e) {
                 console.warn("Excepción de red. Fallback a LocalStorage", e);
@@ -141,7 +139,6 @@ const DataService = {
             UI.updateConnectionStatus(false);
         }
         
-        // Fallback a LocalStorage si falla o no hay cliente configurado
         try {
             return JSON.parse(localStorage.getItem('db_tasks')) || [];
         } catch(e) {
@@ -151,12 +148,9 @@ const DataService = {
     },
 
     saveTasks: async (tasks) => {
-        // Siempre guardar copia de seguridad local
         localStorage.setItem('db_tasks', JSON.stringify(tasks));
-        
         if (supabaseClient) {
             try {
-                // Supabase upsert actualiza si existe el ID o inserta si es nuevo
                 const { error } = await supabaseClient.from('tasks').upsert(tasks);
                 if (error) {
                     console.error("Error sincronizando en Supabase", error);
@@ -168,25 +162,76 @@ const DataService = {
         }
     },
     
+    // ----------------------------------------------------
+    // SINCRONIZACIÓN DE MIEMBROS Y SOLICITANTES A SUPABASE
+    // ----------------------------------------------------
     getMembers: async () => {
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient.from('members').select('name');
+                if (!error && data) {
+                    return data.map(d => d.name);
+                }
+            } catch(e) {
+                console.warn("Fallo en red de Miembros", e);
+            }
+        }
         try {
             return JSON.parse(localStorage.getItem('db_members')) || ['Camilo', 'David', 'Mafe'];
         } catch(e) {
-            console.error("Error leyendo miembros", e);
             return [];
         }
     },
-    saveMembers: async (m) => localStorage.setItem('db_members', JSON.stringify(m)),
+    
+    addMember: async (name) => {
+        if (supabaseClient) {
+            await supabaseClient.from('members').upsert([{ name }]);
+        }
+    },
+
+    removeMember: async (name) => {
+        if (supabaseClient) {
+            await supabaseClient.from('members').delete().eq('name', name);
+        }
+    },
+    
+    saveMembers: async (m) => {
+        localStorage.setItem('db_members', JSON.stringify(m));
+    },
     
     getRequesters: async () => {
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient.from('requesters').select('name');
+                if (!error && data) {
+                    return data.map(d => d.name);
+                }
+            } catch(e) {
+                console.warn("Fallo en red de Solicitantes", e);
+            }
+        }
         try {
             return JSON.parse(localStorage.getItem('db_reqs')) || ['Comunicaciones Internas', 'Comercial', 'Mkt Interno'];
         } catch (e) {
-            console.error("Error leyendo solicitantes", e);
             return [];
         }
     },
-    saveRequesters: async (r) => localStorage.setItem('db_reqs', JSON.stringify(r))
+    
+    addRequester: async (name) => {
+        if (supabaseClient) {
+            await supabaseClient.from('requesters').upsert([{ name }]);
+        }
+    },
+
+    removeRequester: async (name) => {
+        if (supabaseClient) {
+            await supabaseClient.from('requesters').delete().eq('name', name);
+        }
+    },
+
+    saveRequesters: async (r) => {
+        localStorage.setItem('db_reqs', JSON.stringify(r));
+    }
 };
 
 const AuthService = {
@@ -231,6 +276,19 @@ const initDemoData = async () => {
                 {id: "2", name: "Carrusel Instagram", requester: "Comunicaciones Internas", assignee: "David", status: "Entregado", dateReceived: "2026-08-15", dateDelivered: "2026-08-22"}
             ]);
         }
+        
+        // Cargar datos por defecto a Supabase en el primer inicio si no existen
+        if (supabaseClient) {
+            const currentMembers = await DataService.getMembers();
+            if(currentMembers.length === 0) {
+                await supabaseClient.from('members').upsert([{name: 'Camilo'}, {name: 'David'}, {name: 'Mafe'}]);
+            }
+            const currentReqs = await DataService.getRequesters();
+            if(currentReqs.length === 0) {
+                await supabaseClient.from('requesters').upsert([{name: 'Comunicaciones Internas'}, {name: 'Comercial'}, {name: 'Mkt Interno'}]);
+            }
+        }
+        
         localStorage.setItem('dh_first_load', '1');
     }
 };
@@ -407,7 +465,6 @@ const App = {
         this.setupEventListeners();
         this.renderAll();
         
-        // Sistemas de sincronización
         this.setupCrossTabSync();
         this.setupRealtimeSubscription();
     },
@@ -459,16 +516,17 @@ const App = {
 
     setupRealtimeSubscription() {
         if (supabaseClient) {
+            // Escuchar cambios en todo el esquema 'public' (incluye requesters y members)
             supabaseClient
-                .channel('public:tasks')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
-                    UI.showToast("Actualización remota recibida", "info");
+                .channel('public-changes')
+                .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
+                    UI.showToast(`Actualización remota en ${payload.table}`, "info");
                     await this.loadData();
                     this.renderAll();
                 })
                 .subscribe((status) => {
                     if (status === 'SUBSCRIBED') {
-                        console.log("Conectado a Supabase WebSockets");
+                        console.log("Conectado a Supabase WebSockets (Esquema Completo)");
                     }
                 });
         }
@@ -802,6 +860,8 @@ const App = {
             const name = escapeHTML(input.value.trim());
             if (name && !this.members.some(m => m.toLowerCase() === name.toLowerCase())) {
                 this.members.push(name); 
+                
+                await DataService.addMember(name);
                 await DataService.saveMembers(this.members);
                 
                 const themeOptions = ['#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488', '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c', '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'];
@@ -824,6 +884,8 @@ const App = {
             if (confirm('¿Quitar del equipo?')) { 
                 const removedName = this.members[index];
                 this.members.splice(index, 1); 
+                
+                await DataService.removeMember(removedName);
                 await DataService.saveMembers(this.members); 
 
                 let dbUsers = await DataService.getUsers();
@@ -842,7 +904,10 @@ const App = {
             const name = escapeHTML(input.value.trim());
             if (name && !this.requesters.some(r => r.toLowerCase() === name.toLowerCase())) {
                 this.requesters.push(name); 
+                
+                await DataService.addRequester(name);
                 await DataService.saveRequesters(this.requesters);
+                
                 input.value = ''; 
                 this.renderAll();
                 UI.showToast("Solicitante añadido", "success");
@@ -851,8 +916,12 @@ const App = {
         
         window.removeRequester = async (index) => { 
             if (confirm('¿Eliminar solicitante?')) { 
+                const removedName = this.requesters[index];
                 this.requesters.splice(index, 1); 
+                
+                await DataService.removeRequester(removedName);
                 await DataService.saveRequesters(this.requesters); 
+                
                 this.renderAll(); 
                 UI.showToast("Solicitante eliminado", "success");
             } 
