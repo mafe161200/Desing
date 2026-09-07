@@ -5,7 +5,7 @@ lucide.createIcons();
    ========================================= */
 const escapeHTML = (str) => {
     if (!str) return '';
-    // Protege contra inyección XSS pero respeta símbolos como <3 en renderizado final
+    // Protege contra inyección XSS pero respeta símbolos en renderizado final
     const entityMap = {
         '&': '&amp;',
         '<': '&lt;',
@@ -471,11 +471,7 @@ const App = {
         
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
-        
-        // Single Source of Truth para el botón de enviar
-        if(sendBtn) {
-            sendBtn.style.backgroundColor = themeColor;
-        }
+        if(sendBtn) sendBtn.style.backgroundColor = themeColor; 
     },
 
     async loadData() {
@@ -527,7 +523,6 @@ const App = {
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
-            // Algoritmo local seguro para extraer "hoy" (YYYY-MM-DD)
             const d = new Date();
             const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             
@@ -611,7 +606,7 @@ const App = {
 
                 task.name = escapeHTML(document.getElementById('editTaskName').value);
                 task.requester = escapeHTML(document.getElementById('editRequesterSelect').value);
-                task.dateReceived = newRecDate; // Mutación correcta del campo
+                task.dateReceived = newRecDate;
                 
                 this.markAsUnsaved();
                 document.getElementById('modalEditTask').classList.remove('active');
@@ -660,7 +655,7 @@ const App = {
             const text = input.value.trim();
             if(!text) return;
 
-            // Almacenamos el RAW (Texto Puro). La sanitización va en el render.
+            // NO escapamos aquí. Se guarda RAW para evitar doble-escapado
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
@@ -694,20 +689,26 @@ const App = {
             const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
+            // Patrón Estricto Accesible: Tuyos son Primary/White. Otros son White/DarkText con borde distintivo.
+            const bubbleStyle = isMine 
+                ? `background-color: var(--primary-cold); color: #ffffff; border: none;`
+                : `background-color: var(--card-bg); color: var(--text-dark); border: 1px solid var(--border-light); border-left: 4px solid ${authorColor};`;
+            
+            const nameStyle = isMine ? `color: var(--text-muted);` : `color: ${authorColor};`;
+
             container.innerHTML += `
                 <div class="chat-msg ${alignClass}">
                     <div class="chat-meta">
-                        <span style="color: ${authorColor}; font-weight: 700;">${authorText}</span> 
+                        <span style="${nameStyle} font-weight: 700;">${authorText}</span> 
                         <span>${dateStr}</span>
                     </div>
-                    <div class="chat-bubble">
+                    <div class="chat-bubble" style="${bubbleStyle}">
                         ${escapeHTML(n.content)}
                     </div>
                 </div>
             `;
         });
         
-        // Auto Scroll-down al último mensaje
         container.scrollTop = container.scrollHeight;
     },
 
@@ -768,7 +769,6 @@ const App = {
 
         let selectedTheme = this.user.theme || '#4f46e5';
 
-        // Lógica de Protección contra Colisión de Colores
         const checkTakenColors = () => {
             const takenColors = this.usersList.filter(u => u.username !== this.user.username).map(u => u.theme);
             swatches.forEach(swatch => {
@@ -1046,7 +1046,6 @@ const App = {
         const sCompList = document.getElementById('sidebarCompletedList');
         const tBody = document.getElementById('tablePrioridades');
         
-        // Algoritmo local seguro para calcular YYYY-MM-DD del día local actual
         const d = new Date();
         const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         
@@ -1139,11 +1138,16 @@ const App = {
             
             li.innerHTML = `
                 <div class="req-header">
-                    <span class="req-name"><span class="req-status-dot dot-${t.status === 'En curso' ? 'curso' : 'cola'}"></span>${escapeHTML(t.name)}</span>
+                    <span class="req-name">
+                        <span class="req-status-dot dot-${t.status === 'En curso' ? 'curso' : 'cola'}"></span>
+                        <span class="req-name-text">${escapeHTML(t.name)}</span>
+                    </span>
                     <div class="req-dates">
-                        <span>R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                        <span class="${dateClass}" style="display:flex; align-items:center;">E: <strong style="display:inline-flex; align-items:center; margin-left:4px;">${dateAlertIcon}${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
-                        ${overDueBadge}
+                        <span style="white-space: nowrap;">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                            <span class="${dateClass}" style="display:flex; align-items:center; white-space:nowrap;">E: <strong style="display:inline-flex; align-items:center; margin-left:4px;">${dateAlertIcon}${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
+                            ${overDueBadge}
+                        </div>
                     </div>
                 </div>
                 <div class="req-extra-info">
@@ -1218,7 +1222,7 @@ const App = {
                 <div style="display:flex; gap:10px;">
                     <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked onchange="App.updateTask('${t.id}', 'status', this.checked ? 'Entregado' : 'En curso', true)">
                     <div style="width: 100%;">
-                        <div class="req-name">${escapeHTML(t.name)}</div>
+                        <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">${escapeHTML(t.name)}</div>
                         <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; font-weight:500;">Entregado: ${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'N/A'} | Por: ${escapeHTML(t.assignee)}</div>
                     </div>
                 </div>
