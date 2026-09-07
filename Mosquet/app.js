@@ -9,16 +9,23 @@ const escapeHTML = (str) => {
     }[tag] || tag)) : '';
 };
 
-// Configuración de Supabase (Pega aquí tus llaves de Project Settings -> API)
-const SUPABASE_URL = ""; 
-const SUPABASE_ANON_KEY = ""; 
+// ----------------------------------------------------------------------
+// CONFIGURACIÓN SUPABASE (OBLIGATORIO PARA SINCRONIZACIÓN EN GITHUB PAGES)
+// ----------------------------------------------------------------------
+const SUPABASE_URL = "https://gbltrfqxohrmkopanghx.supabase.co"; 
+const SUPABASE_ANON_KEY = "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU"; 
+
 let supabaseClient = null;
 
-if (SUPABASE_URL && SUPABASE_ANON_KEY && typeof supabase !== 'undefined') {
-    try {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } catch(e) {
-        console.warn("Supabase no inicializado, fallback a LocalStorage.", e);
+if (SUPABASE_URL !== "" && SUPABASE_URL !== "INSERTA_TU_PROJECT_URL_AQUI") {
+    if (typeof supabase !== 'undefined') {
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch(e) {
+            console.warn("Error al inicializar cliente Supabase. Fallback a LocalStorage.", e);
+        }
+    } else {
+        console.warn("Librería de Supabase no cargada en el HTML.");
     }
 }
 
@@ -44,7 +51,7 @@ class UI {
         }, 3200);
     }
 
-    static updateConnectionStatus(isOnline) {
+    static updateConnectionStatus(isOnline, errMessage = null) {
         const el = document.getElementById('connectionStatus');
         const txt = document.getElementById('statusText');
         if (!el || !txt) return;
@@ -55,6 +62,10 @@ class UI {
         } else {
             el.classList.remove('online');
             txt.textContent = 'Modo Local';
+            if (errMessage && supabaseClient) {
+                console.error("Conexión rechazada por Supabase:", errMessage);
+                UI.showToast("Error BD: Revisa que RLS esté desactivado en la tabla", "error");
+            }
         }
     }
 }
@@ -72,7 +83,7 @@ const DataService = {
                 if (Array.isArray(parsed)) users = parsed;
             }
         } catch(e) {
-            console.warn("Error leyendo db_users de localStorage", e);
+            console.warn("Error leyendo db_users", e);
         }
 
         let baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
@@ -113,30 +124,44 @@ const DataService = {
     getTasks: async () => {
         if (supabaseClient) {
             try {
+                // Intento de conexión al BaaS
                 const { data, error } = await supabaseClient.from('tasks').select('*');
-                if (!error && data) {
+                
+                if (error) {
+                    UI.updateConnectionStatus(false, error.message);
+                } else if (data) {
                     UI.updateConnectionStatus(true);
-                    return data;
+                    return data; // Retorna datos de la nube
                 }
             } catch(e) {
-                console.warn("Fallo en Supabase, usando LocalStorage como respaldo", e);
+                console.warn("Excepción de red. Fallback a LocalStorage", e);
+                UI.updateConnectionStatus(false);
             }
+        } else {
+            UI.updateConnectionStatus(false);
         }
-        UI.updateConnectionStatus(false);
+        
+        // Fallback a LocalStorage si falla o no hay cliente configurado
         try {
             return JSON.parse(localStorage.getItem('db_tasks')) || [];
         } catch(e) {
-            console.error("Error parseando tareas", e);
+            console.error("Error parseando tareas locales", e);
             return [];
         }
     },
 
     saveTasks: async (tasks) => {
+        // Siempre guardar copia de seguridad local
         localStorage.setItem('db_tasks', JSON.stringify(tasks));
+        
         if (supabaseClient) {
             try {
+                // Supabase upsert actualiza si existe el ID o inserta si es nuevo
                 const { error } = await supabaseClient.from('tasks').upsert(tasks);
-                if (error) console.error("Error sincronizando en Supabase", error);
+                if (error) {
+                    console.error("Error sincronizando en Supabase", error);
+                    UI.showToast("Error guardando en la nube (Revisa RLS).", "error");
+                }
             } catch(e) {
                 console.error("Excepción en sincronización remota", e);
             }
@@ -381,6 +406,8 @@ const App = {
         this.setupPlugins();
         this.setupEventListeners();
         this.renderAll();
+        
+        // Sistemas de sincronización
         this.setupCrossTabSync();
         this.setupRealtimeSubscription();
     },
@@ -435,11 +462,15 @@ const App = {
             supabaseClient
                 .channel('public:tasks')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
-                    UI.showToast("Actualización en tiempo real recibida", "info");
+                    UI.showToast("Actualización remota recibida", "info");
                     await this.loadData();
                     this.renderAll();
                 })
-                .subscribe();
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log("Conectado a Supabase WebSockets");
+                    }
+                });
         }
     },
 
