@@ -5,7 +5,6 @@ lucide.createIcons();
    ========================================= */
 const escapeHTML = (str) => {
     if (!str) return '';
-    // Single Source of Truth para Sanitización
     const entityMap = {
         '&': '&amp;',
         '<': '&lt;',
@@ -38,7 +37,13 @@ if (SUPABASE_URL !== "") {
 }
 
 class UI {
-    static showToast(message, type = 'info') {
+    /**
+     * @param {string} message - El mensaje a mostrar
+     * @param {string} type - 'info', 'success', 'warning', 'error'
+     * @param {number} duration - Tiempo en milisegundos antes de desaparecer
+     * @param {function} onClickCallback - Acción a realizar al hacer clic en el toast
+     */
+    static showToast(message, type = 'info', duration = 8000, onClickCallback = null) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
         
@@ -51,10 +56,26 @@ class UI {
         if (type === 'warning') icon = 'alert-triangle';
         
         toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${escapeHTML(message)}</span>`;
+        
+        // Habilitar interactividad si hay un callback (ej. enlazar a una tarea)
+        if (onClickCallback) {
+            toast.classList.add('toast-clickable');
+            toast.title = "Haz clic para ver los detalles";
+            toast.addEventListener('click', () => {
+                onClickCallback();
+                toast.classList.add('fade-out');
+                setTimeout(() => { if(toast.parentElement) toast.remove(); }, 300);
+            });
+        }
+        
         container.appendChild(toast);
         lucide.createIcons();
         
-        setTimeout(() => { if(toast.parentElement) toast.remove(); }, 3500);
+        // Destrucción asíncrona segura
+        setTimeout(() => {
+            toast.classList.add('fade-out');
+            setTimeout(() => { if(toast.parentElement) toast.remove(); }, 300);
+        }, duration);
     }
 
     static updateConnectionStatus(isOnline, errMessage = null) {
@@ -81,18 +102,46 @@ const NotificationService = {
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         
+        // Función auxiliar para navegar hacia la tarea resaltada
+        const highlightTask = (taskId) => {
+            // 1. Limpiar todos los filtros que podrían ocultar la tarea
+            document.getElementById('filterAssignee').value = 'Todos';
+            document.getElementById('filterRequester').value = 'Todos';
+            document.getElementById('filterStatus').value = 'Todos';
+            App.filterDates = [];
+            const fpInput = document.getElementById('filterDate');
+            if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
+            
+            // 2. Forzar re-renderizado
+            App.renderBoard();
+            
+            // 3. Buscar la fila en el DOM y aplicar scroll + CSS Pulse
+            setTimeout(() => {
+                const row = document.getElementById(`tr-${taskId}`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.remove('task-highlight-pulse');
+                    void row.offsetWidth; // Force reflow
+                    row.classList.add('task-highlight-pulse');
+                    // Remover la clase después de la animación para poder repetirla
+                    setTimeout(() => row.classList.remove('task-highlight-pulse'), 3000);
+                }
+            }, 100);
+        };
+
         // 1. Alertar Tarea Más Próxima o Vencida del Usuario
         const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && t.dateDelivered);
         if (myPendingTasks.length > 0) {
             myPendingTasks.sort((a, b) => new Date(a.dateDelivered).getTime() - new Date(b.dateDelivered).getTime());
             const nearest = myPendingTasks[0];
+            const callback = () => highlightTask(nearest.id);
             
             if (nearest.dateDelivered < todayStr) {
-                 setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error'), 1000);
+                 setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error', 8000, callback), 1000);
             } else if (nearest.dateDelivered === todayStr) {
-                 setTimeout(() => UI.showToast(`Tu tarea más próxima es para hoy: ${nearest.name}`, 'warning'), 1000);
+                 setTimeout(() => UI.showToast(`Tu tarea más próxima es para hoy: ${nearest.name}`, 'warning', 8000, callback), 1000);
             } else {
-                 setTimeout(() => UI.showToast(`Próxima entrega: ${nearest.name} el ${nearest.dateDelivered.split('-').reverse().join('/')}`, 'info'), 1000);
+                 setTimeout(() => UI.showToast(`Próxima entrega: ${nearest.name} el ${nearest.dateDelivered.split('-').reverse().join('/')}`, 'info', 8000, callback), 1000);
             }
         }
 
@@ -106,7 +155,8 @@ const NotificationService = {
         });
 
         if (oldUnassigned.length > 0) {
-            setTimeout(() => UI.showToast(`Hay ${oldUnassigned.length} tarea(s) sin asignar desde hace más de 3 días.`, 'warning'), 2500);
+            // Pasamos null como callback porque es un grupo de tareas, no una sola.
+            setTimeout(() => UI.showToast(`Hay ${oldUnassigned.length} tarea(s) sin asignar desde hace más de 3 días.`, 'warning', 8000, null), 2500);
         }
     }
 };
@@ -429,7 +479,7 @@ const App = {
         this.setupCrossTabSync();
         this.setupRealtimeSubscription();
 
-        // Lanzar notificaciones emergentes seguras (Clean Architecture)
+        // Lanzar notificaciones inteligentes al inicio de sesión
         NotificationService.checkStartupAlerts(this.tasks, this.user.name);
     },
 
@@ -485,7 +535,7 @@ const App = {
                             document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
                         }
                     } else {
-                        UI.showToast(`Actualización Recibida`, "info");
+                        UI.showToast(`Actualización de base de datos recibida.`, "info");
                     }
                     
                     await this.loadData();
@@ -599,14 +649,12 @@ const App = {
             UI.showToast("Filtros limpiados", "info");
         });
 
-        // REGLA DE DOMINIO: Prevención de duplicados en creación
         document.getElementById('taskForm').addEventListener('submit', (e) => {
             e.preventDefault();
             
             const taskNameRaw = document.getElementById('taskName').value.trim();
             const requesterRaw = document.getElementById('requesterSelect').value;
             
-            // Client-Side Validation para evitar Data Spillage
             const isDuplicate = this.tasks.some(t => 
                 t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
                 t.requester === requesterRaw
@@ -699,7 +747,7 @@ const App = {
         btnClose.addEventListener('click', closePanel);
         overlay.addEventListener('click', closePanel);
 
-        // Web Component Emoji Picker - Corrección de Event Bubbling
+        // Native Web Component Emoji Picker Integrado
         const emojiBtn = document.getElementById('btnToggleEmoji');
         const pickerWrapper = document.getElementById('emojiPickerWrapper');
         const picker = document.querySelector('emoji-picker');
@@ -719,7 +767,6 @@ const App = {
             });
         }
 
-        // Delegación global al Documento para cerrar si se cliquea afuera
         document.addEventListener('click', (e) => {
             if(pickerWrapper && pickerWrapper.style.display === 'block') {
                 if(!pickerWrapper.contains(e.target) && !emojiBtn.contains(e.target)) {
@@ -733,7 +780,6 @@ const App = {
             const text = input.value.trim();
             if(!text) return;
 
-            // Se guarda RAW 
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
@@ -1237,7 +1283,6 @@ const App = {
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
             
-            // Event Delegation para expandir filas (KISS)
             tr.addEventListener('click', (e) => {
                 if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a')) {
                     return;

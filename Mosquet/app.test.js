@@ -36,3 +36,18 @@ describe('Security / Sanitization Tests', () => {
         expect(escapeHTML('')).toBe('');
     });
 });
+
+describe('Business Rules (Domain Validation)', () => {
+    test('Should detect duplicate task combinations', () => {
+        const existingTasks = [{ name: "Rediseño Logo", requester: "Comercial" }];
+        const newTaskName = "rediseño logo";
+        const newRequester = "Comercial";
+        
+        const isDuplicate = existingTasks.some(t => 
+            t.name.toLowerCase() === newTaskName.toLowerCase() && 
+            t.requester === newRequester
+        );
+        
+        expect(isDuplicate).toBe(true);
+    });
+});

@@ -1,18 +1,18 @@
 :root {
-    /* Paleta Neutra Premium (Grises Pizarra para reducir fatiga visual) */
-    --bg-main: #f1f5f9;        /* Slate 100 - Base para textura */
+    /* Paleta Neutra Premium */
+    --bg-main: #f1f5f9;        
     --card-bg: #ffffff;
-    --text-dark: #1e293b;      /* Slate 800 (Gris oscuro suave) */
-    --text-main: #475569;      /* Slate 600 */
-    --text-muted: #64748b;     /* Slate 500 */
-    --bg-subtle: #f8fafc;      /* Slate 50 */
-    --border-light: #e2e8f0;   /* Slate 200 */
+    --text-dark: #1e293b;      
+    --text-main: #475569;      
+    --text-muted: #64748b;     
+    --bg-subtle: #f8fafc;      
+    --border-light: #e2e8f0;   
     
     /* Identidad de Marca */
     --primary-cold: #4f46e5;   
     --primary-hover: #4338ca;  
 
-    /* Sistema de Estados - "En Cola" es Lavanda/Púrpura Suave */
+    /* Sistema de Estados */
     --status-cola: #7e22ce;        
     --status-cola-bg: #f3e8ff;     
     --status-cola-border: #d8b4fe; 
@@ -36,7 +36,6 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; letter-spacing: normal; }
 
-/* Textura de Fondo Fotográfica solicitada por el usuario con Overlay de Accesibilidad (WCAG) */
 body { 
     background-color: var(--bg-main); 
     background-image: linear-gradient(rgba(241, 245, 249, 0.85), rgba(241, 245, 249, 0.85)), url('https://images.pexels.com/photos/26545253/pexels-photo-26545253.png');
@@ -58,14 +57,35 @@ body {
 .text-danger { color: var(--danger) !important; font-weight: 700 !important; }
 .text-warning { color: var(--warning) !important; font-weight: 700 !important; }
 
-/* TOAST NOTIFICATIONS */
-.toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 9999999; pointer-events: none; }
-.toast { background: #ffffff; color: var(--text-dark); padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 0.85rem; border-left: 4px solid var(--primary-cold); animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards; pointer-events: all; }
+/* ==========================================================================
+   TOAST NOTIFICATIONS (Modificado para Alta Visibilidad e Interactividad)
+   ========================================================================== */
+.toast-container { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 12px; z-index: 9999999; pointer-events: none; }
+.toast { 
+    background: #ffffff; color: var(--text-dark); padding: 18px 24px; border-radius: 12px; 
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; 
+    font-weight: 600; font-size: 0.95rem; border-left: 6px solid var(--primary-cold); 
+    animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+    pointer-events: all; transition: opacity 0.3s ease, transform 0.3s ease; 
+}
+.toast-clickable { cursor: pointer; }
+.toast-clickable:hover { transform: scale(1.03); box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+.toast.fade-out { opacity: 0; transform: translateX(100%); }
+
 .toast.success { border-left-color: var(--success); }
 .toast.error { border-left-color: var(--danger); }
+.toast.warning { border-left-color: var(--warning); }
 .toast.info { border-left-color: var(--primary-cold); }
+
 @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(10px); } }
+
+/* Animación de Señalización de Tarea (Highlight Pulse) */
+@keyframes pulseHighlight {
+    0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7); background-color: var(--status-curso-bg); }
+    50% { box-shadow: 0 0 0 10px rgba(79, 70, 229, 0); background-color: var(--bg-main); }
+    100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); background-color: transparent; }
+}
+.task-highlight-pulse { animation: pulseHighlight 2.5s ease-out; border-left: 4px solid var(--primary-cold) !important; }
 
 /* ESTADO DE CONEXION EN TIEMPO REAL */
 .connection-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); background: var(--card-bg); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border-light); }
@@ -120,7 +140,6 @@ body {
 .btn-icon.delete:hover { color: var(--danger); background: var(--danger-bg); }
 .btn-icon.edit:hover { color: var(--info); background: #f0f9ff; }
 
-/* Botón específico de Enviar Nota */
 .btn-send-note { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; border: none; color: #ffffff; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0; outline: none; background-color: var(--primary-cold); }
 .btn-send-note:hover, .btn-send-note:focus-visible { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
 
@@ -216,16 +235,15 @@ html body .native-select-hidden { display: none; }
 .request-item.expanded { border-color: var(--primary-cold); background: var(--bg-subtle); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.15); }
 .req-header { display: flex; flex-direction: column; gap: 6px; }
 
-/* Nombre en la tarjeta: Truncado a 2 líneas normal, full text cuando se expande */
+/* Nombre en la tarjeta */
 .req-name { font-size: 0.9rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: flex-start; gap: 8px; line-height: 1.3; }
-.req-name-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; flex: 1; transition: all 0.3s ease;}
+.req-name-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; flex: 1; }
 .request-item.expanded .req-name-text { -webkit-line-clamp: unset; display: block; overflow: visible; }
 
 .req-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-top: 4px;}
 .req-status-dot.dot-cola { background-color: var(--status-cola); }
 .req-status-dot.dot-curso { background-color: var(--status-curso); }
 
-/* Corrección de superposición en req-dates mediante Flex Wrap */
 .req-dates { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--bg-main); padding: 8px 10px; border-radius: 6px; }
 .req-extra-info { display: none; flex-direction: column; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-light); font-size: 0.8rem; animation: fadeIn 0.2s;}
 .request-item.expanded .req-extra-info { display: flex; }
@@ -241,14 +259,13 @@ html body .native-select-hidden { display: none; }
 .time-alert-badge.danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
 .time-alert-badge.warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
 
-/* TABLA CENTRAL (Desktop) - Expansión de filas implementada */
+/* TABLA CENTRAL (Desktop) */
 .table-wrapper { padding-bottom: 24px; min-height: 320px; width: 100%; } 
 .task-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: fixed; }
 .task-table th { background: var(--bg-subtle); color: var(--text-muted); padding: 12px 16px; font-weight: 600; font-size: 0.75rem; border-bottom: 1px solid var(--border-light); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .task-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-light); vertical-align: middle; color: var(--text-main); font-weight: 500; position: relative; }
 .task-table tr { cursor: pointer; transition: background-color 0.2s; }
 .task-table tr:hover { background: var(--bg-subtle); }
-html body .row-highlight { background: var(--status-curso-bg) !important; outline: 2px solid var(--primary-cold); outline-offset: -2px; transition: 0.3s;}
 
 .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 60px; text-align: center; padding: 12px 8px 12px 24px; } 
 .task-table th:nth-child(2), .task-table td:nth-child(2) { width: 35%; padding-right: 24px; } 
@@ -262,7 +279,7 @@ html body .row-highlight { background: var(--status-curso-bg) !important; outlin
 
 /* Truncamiento en Tabla Principal */
 .req-title-cell strong { color: var(--text-dark); font-weight: 600; white-space: normal; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; transition: all 0.3s ease; }
-/* Expansión completa al hacer clic (Forzado a block para re-renderizado exacto) */
+/* Expansión completa al hacer clic */
 .task-table tr.expanded-row .req-title-cell strong { display: block; white-space: normal; overflow: visible; }
 
 .req-title-cell span { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -300,7 +317,7 @@ html body .row-highlight { background: var(--status-curso-bg) !important; outlin
 .remove-member { cursor: pointer; color: var(--text-muted); background: transparent; border: none; display: flex; outline: none; }
 .remove-member:hover, .remove-member:focus-visible { color: var(--danger); }
 
-/* PANEL LATERAL DE NOTAS (Off-canvas Drawer y Chat Bubbles Seguros) */
+/* PANEL LATERAL DE NOTAS (Off-canvas Drawer y Chat Bubbles) */
 .notes-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.4); backdrop-filter: blur(2px); z-index: 9998; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
 .notes-overlay.active { opacity: 1; pointer-events: all; }
 .notes-panel { position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100vh; background: var(--bg-main); box-shadow: -4px 0 25px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
