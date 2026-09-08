@@ -5,7 +5,7 @@ lucide.createIcons();
    ========================================= */
 const escapeHTML = (str) => {
     if (!str) return '';
-    // Protege contra XSS pero preserva estructura limpia
+    // Single Source of Truth para Sanitización al renderizar
     const entityMap = {
         '&': '&amp;',
         '<': '&lt;',
@@ -20,7 +20,7 @@ const escapeHTML = (str) => {
 };
 
 // ----------------------------------------------------------------------
-// CONFIGURACIÓN SUPABASE (SINGLE SOURCE OF TRUTH)
+// CONFIGURACIÓN SUPABASE
 // ----------------------------------------------------------------------
 const SUPABASE_URL = "https://gbltrfqxohrmkopanghx.supabase.co"; 
 const SUPABASE_ANON_KEY = "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU"; 
@@ -67,7 +67,6 @@ class UI {
         } else {
             el.classList.remove('online');
             txt.textContent = 'Modo Local';
-            if (errMessage) console.error("Conexión rechazada:", errMessage);
         }
     }
 }
@@ -470,10 +469,7 @@ const App = {
         
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
-        
-        if(sendBtn) {
-            sendBtn.style.backgroundColor = themeColor;
-        }
+        if(sendBtn) sendBtn.style.backgroundColor = themeColor;
     },
 
     async loadData() {
@@ -560,8 +556,25 @@ const App = {
             UI.showToast("Filtros limpiados", "info");
         });
 
+        // -------------------------------------------------------------
+        // PREVENCIÓN DE DUPLICADOS EN CREACIÓN (Domain Rule)
+        // -------------------------------------------------------------
         document.getElementById('taskForm').addEventListener('submit', (e) => {
             e.preventDefault();
+            
+            const taskNameRaw = document.getElementById('taskName').value.trim();
+            const requesterRaw = document.getElementById('requesterSelect').value;
+            
+            // Verificación Single Source of Truth
+            const isDuplicate = this.tasks.some(t => 
+                t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
+                t.requester === requesterRaw
+            );
+
+            if (isDuplicate) {
+                UI.showToast("Ya existe una tarea idéntica para este solicitante.", "error");
+                return;
+            }
             
             let dateReceivedValue = escapeHTML(document.getElementById('dateReceived').value);
             if (!dateReceivedValue) {
@@ -578,8 +591,8 @@ const App = {
 
             this.tasks.push({
                 id: Date.now().toString(),
-                name: escapeHTML(document.getElementById('taskName').value),
-                requester: escapeHTML(document.getElementById('requesterSelect').value),
+                name: escapeHTML(taskNameRaw),
+                requester: escapeHTML(requesterRaw),
                 assignee: escapeHTML(document.getElementById('assignee').value),
                 status: escapeHTML(document.getElementById('status').value),
                 dateReceived: dateReceivedValue, 
@@ -655,13 +668,14 @@ const App = {
             pickerWrapper.style.display = pickerWrapper.style.display === 'none' ? 'block' : 'none';
         });
 
-        picker.addEventListener('emoji-click', event => {
-            input.value += event.detail.unicode;
-            pickerWrapper.style.display = 'none';
-            input.focus();
-        });
+        if (picker) {
+            picker.addEventListener('emoji-click', event => {
+                input.value += event.detail.unicode;
+                pickerWrapper.style.display = 'none';
+                input.focus();
+            });
+        }
 
-        // Hide picker when clicking outside
         panel.addEventListener('click', (e) => {
             if(!e.target.closest('#emojiPickerWrapper') && !e.target.closest('#btnToggleEmoji')) {
                 pickerWrapper.style.display = 'none';
@@ -673,7 +687,7 @@ const App = {
             const text = input.value.trim();
             if(!text) return;
 
-            // NO escapamos aquí. Se guarda RAW para evitar doble-escapado de caracteres
+            // Guardado crudo (RAW)
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
@@ -708,8 +722,7 @@ const App = {
             const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
-            // Evitamos la inyección directa, pero no rompemos entidades como <3
-            // Reemplazo super seguro en tiempo de renderizado
+            // Sanitizado al momento del render (Previene doble escape)
             let cleanContent = escapeHTML(n.content);
 
             container.innerHTML += `
@@ -785,6 +798,7 @@ const App = {
 
         let selectedTheme = this.user.theme || '#4f46e5';
 
+        // Prevención estricta de Colisión de Colores
         const checkTakenColors = () => {
             const takenColors = this.usersList.filter(u => u.username !== this.user.username).map(u => u.theme);
             swatches.forEach(swatch => {
@@ -1062,7 +1076,6 @@ const App = {
         const sCompList = document.getElementById('sidebarCompletedList');
         const tBody = document.getElementById('tablePrioridades');
         
-        // Algoritmo local seguro
         const d = new Date();
         const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         
@@ -1180,17 +1193,11 @@ const App = {
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
             
-            // Event Delegation para expandir fila protegiendo controles internos
+            // Event Delegation (Click the row to expand the text)
             tr.addEventListener('click', (e) => {
-                // Ignora el click si se hizo dentro de un select, input, o boton
-                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons')) {
+                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a')) {
                     return;
                 }
-                
-                // Cierra otras filas
-                document.querySelectorAll('.task-table tr').forEach(r => {
-                    if (r !== tr) r.classList.remove('expanded-row');
-                });
                 tr.classList.toggle('expanded-row');
             });
             
