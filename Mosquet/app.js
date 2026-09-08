@@ -5,7 +5,7 @@ lucide.createIcons();
    ========================================= */
 const escapeHTML = (str) => {
     if (!str) return '';
-    // Single Source of Truth para Sanitización al renderizar
+    // Single Source of Truth para Sanitización. Protege de XSS pero preserva símbolos.
     const entityMap = {
         '&': '&amp;',
         '<': '&lt;',
@@ -67,6 +67,7 @@ class UI {
         } else {
             el.classList.remove('online');
             txt.textContent = 'Modo Local';
+            if (errMessage) console.error("Conexión rechazada:", errMessage);
         }
     }
 }
@@ -458,7 +459,6 @@ const App = {
     updateAvatarUI() {
         const avatarEl = document.getElementById('userAvatar');
         const previewEl = document.getElementById('previewAvatar');
-        const sendBtn = document.getElementById('btnSendNote');
         
         const themeColor = this.user.theme || '#4f46e5';
         let avatarUrl = this.user.avatar;
@@ -469,7 +469,6 @@ const App = {
         
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
-        if(sendBtn) sendBtn.style.backgroundColor = themeColor;
     },
 
     async loadData() {
@@ -556,16 +555,14 @@ const App = {
             UI.showToast("Filtros limpiados", "info");
         });
 
-        // -------------------------------------------------------------
-        // PREVENCIÓN DE DUPLICADOS EN CREACIÓN (Domain Rule)
-        // -------------------------------------------------------------
+        // REGLA DE DOMINIO: Prevención de duplicados en creación
         document.getElementById('taskForm').addEventListener('submit', (e) => {
             e.preventDefault();
             
             const taskNameRaw = document.getElementById('taskName').value.trim();
             const requesterRaw = document.getElementById('requesterSelect').value;
             
-            // Verificación Single Source of Truth
+            // Client-Side Validation (O(N)) para evitar Data Spillage
             const isDuplicate = this.tasks.some(t => 
                 t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
                 t.requester === requesterRaw
@@ -650,23 +647,26 @@ const App = {
         const closePanel = () => {
             panel.classList.remove('open');
             overlay.classList.remove('active');
-            document.getElementById('emojiPickerWrapper').style.display = 'none';
+            const picker = document.getElementById('emojiPickerWrapper');
+            if(picker) picker.style.display = 'none';
         };
 
         btnToggle.addEventListener('click', openPanel);
         btnClose.addEventListener('click', closePanel);
         overlay.addEventListener('click', closePanel);
 
-        // Native Web Component Emoji Picker Integration
+        // Native Web Component Emoji Picker (Aislado de Event Bubbling)
         const emojiBtn = document.getElementById('btnToggleEmoji');
         const pickerWrapper = document.getElementById('emojiPickerWrapper');
         const picker = document.querySelector('emoji-picker');
         const input = document.getElementById('noteInput');
 
-        emojiBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            pickerWrapper.style.display = pickerWrapper.style.display === 'none' ? 'block' : 'none';
-        });
+        if(emojiBtn && pickerWrapper) {
+            emojiBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                pickerWrapper.style.display = pickerWrapper.style.display === 'none' ? 'block' : 'none';
+            });
+        }
 
         if (picker) {
             picker.addEventListener('emoji-click', event => {
@@ -677,7 +677,7 @@ const App = {
         }
 
         panel.addEventListener('click', (e) => {
-            if(!e.target.closest('#emojiPickerWrapper') && !e.target.closest('#btnToggleEmoji')) {
+            if(pickerWrapper && !e.target.closest('#emojiPickerWrapper') && !e.target.closest('#btnToggleEmoji')) {
                 pickerWrapper.style.display = 'none';
             }
         });
@@ -687,7 +687,6 @@ const App = {
             const text = input.value.trim();
             if(!text) return;
 
-            // Guardado crudo (RAW)
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
@@ -698,7 +697,7 @@ const App = {
             await DataService.saveNote(newNote);
             this.notes.push(newNote);
             input.value = '';
-            pickerWrapper.style.display = 'none';
+            if(pickerWrapper) pickerWrapper.style.display = 'none';
             this.renderNotes();
         });
     },
@@ -722,9 +721,6 @@ const App = {
             const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
-            // Sanitizado al momento del render (Previene doble escape)
-            let cleanContent = escapeHTML(n.content);
-
             container.innerHTML += `
                 <div class="chat-msg ${alignClass}">
                     <div class="chat-meta">
@@ -732,7 +728,7 @@ const App = {
                         <span>${dateStr}</span>
                     </div>
                     <div class="chat-bubble ${isMine ? '' : 'chat-bubble-other'}" style="${isMine ? `background-color: var(--primary-cold); color: #ffffff;` : `border-left-color: ${authorColor};`}">
-                        ${cleanContent}
+                        ${escapeHTML(n.content)}
                     </div>
                 </div>
             `;
@@ -1193,11 +1189,13 @@ const App = {
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
             
-            // Event Delegation (Click the row to expand the text)
             tr.addEventListener('click', (e) => {
                 if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a')) {
                     return;
                 }
+                document.querySelectorAll('.task-table tr').forEach(r => {
+                    if(r !== tr) r.classList.remove('expanded-row');
+                });
                 tr.classList.toggle('expanded-row');
             });
             
