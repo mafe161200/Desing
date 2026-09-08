@@ -1,379 +1,426 @@
-:root {
-    /* Paleta Neutra Premium (Ajustada para reducir fatiga visual - Grises suaves) */
-    --bg-main: #f8fafc;        /* Slate 50 */
-    --card-bg: #ffffff;
-    --text-dark: #1e293b;      /* Slate 800 (Gris oscuro suave) */
-    --text-main: #475569;      /* Slate 600 */
-    --text-muted: #64748b;     /* Slate 500 */
-    --bg-subtle: #f1f5f9;      /* Slate 100 */
-    --border-light: #e2e8f0;   /* Slate 200 */
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: 'unsafe-inline' 'unsafe-eval' data: blob: wss:;">
+    <title>Design Hub | Plataforma Colaborativa</title>
     
-    /* Identidad de Marca */
-    --primary-cold: #4f46e5;   
-    --primary-hover: #4338ca;  
-
-    /* Sistema de Estados - "En Cola" es Lavanda/Púrpura Suave */
-    --status-cola: #7e22ce;        
-    --status-cola-bg: #f3e8ff;     
-    --status-cola-border: #d8b4fe; 
-
-    --status-curso: #1d4ed8;       
-    --status-curso-bg: #eff6ff;    
-    --status-curso-border: #bfdbfe;
-
-    --status-entregado: #047857;   
-    --status-entregado-bg: #ecfdf5;
-    --status-entregado-border: #a7f3d0;
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,800&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
-    /* UI Actions & Alerts */
-    --danger: #ef4444;         
-    --danger-bg: #fef2f2;
-    --warning: #f59e0b;        
-    --warning-bg: #fffbeb;
-    --success: #10b981;        
-    --info: #0ea5e9;           
-}
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-* { box-sizing: border-box; margin: 0; padding: 0; letter-spacing: normal; }
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-body, input, select, button, textarea { font-family: 'Montserrat', sans-serif; }
-body { background-color: var(--bg-main); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card" style="text-align: left;">
+            <h1 class="mixed-title logo-large" style="margin-bottom: 30px;">
+                <span class="logo-typographic">Design</span>
+            </h1>
+            <h2>Acceso al Sistema</h2>
+            <p style="margin-bottom: 24px;">Inicia sesión en la plataforma colaborativa</p>
+            <form id="loginForm" class="login-form">
+                <div class="field">
+                    <label for="usernameInput">Usuario</label>
+                    <input type="text" id="usernameInput" class="custom-input" placeholder="Ej: admin o Camilo" required autocomplete="username">
+                </div>
+                <div class="field">
+                    <label for="passwordInput">Contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="passwordInput" class="custom-input" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" id="togglePasswordBtn" class="toggle-password-btn" aria-label="Mostrar contraseña">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="loginError" class="login-error" role="alert">Usuario o contraseña incorrectos.</div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Ingresar al workspace</button>
+                
+                <div class="login-hint">
+                    Consulta el archivo <strong>users.js</strong> para ver credenciales de prueba.
+                </div>
+            </form>
+        </div>
+    </div>
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+    <div id="appContainer" class="main-container" style="display: none;">
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="mixed-title">
+                    <span class="logo-typographic">Design</span>
+                </h1>
+                <p class="header-subtitle">Gestión de Solicitudes<br>y Entregables de Diseño</p>
+            </div>
+            
+            <div class="top-actions">
+                <div class="connection-status" id="connectionStatus" title="Estado de sincronización">
+                    <span class="status-dot"></span> <span id="statusText">Modo Local</span>
+                </div>
 
-.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+                <div class="user-profile" id="userProfileBtn" title="Configurar Perfil" tabindex="0" role="button">
+                    <img id="userAvatar" src="" alt="Avatar del usuario" class="user-avatar">
+                    <span id="currentUserName">Usuario</span>
+                </div>
+                
+                <div class="header-divider hide-mobile"></div>
+                
+                <button id="btnToggleNotes" class="btn-icon position-relative" aria-label="Notas del Equipo" title="Notas del Equipo">
+                    <i data-lucide="message-square"></i>
+                </button>
 
-.text-danger { color: var(--danger) !important; font-weight: 700 !important; }
-.text-warning { color: var(--warning) !important; font-weight: 700 !important; }
+                <button id="btnLogout" class="btn-icon header-logout-btn" aria-label="Cerrar sesión" title="Cerrar sesión">
+                    <i data-lucide="log-out"></i>
+                </button>
+                
+                <button id="btnNewTask" class="btn btn-primary">
+                    <i data-lucide="plus-circle"></i> <span class="hide-mobile">Nueva Solicitud</span>
+                </button>
+                <button id="btnManageTeam" class="btn btn-secondary admin-only">
+                    <i data-lucide="users"></i> <span class="hide-mobile">Equipo</span>
+                </button>
+                <button id="btnManageReq" class="btn btn-secondary admin-only">
+                    <i data-lucide="building-2"></i> <span class="hide-mobile">Solicitantes</span>
+                </button>
+            </div>
+        </header>
 
-/* TOAST NOTIFICATIONS */
-.toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 9999999; pointer-events: none; }
-.toast { background: #ffffff; color: var(--text-dark); padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 0.85rem; border-left: 4px solid var(--primary-cold); animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-in 2.7s forwards; pointer-events: all; }
-.toast.success { border-left-color: var(--success); }
-.toast.error { border-left-color: var(--danger); }
-.toast.info { border-left-color: var(--primary-cold); }
-@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateY(10px); } }
+        <div class="layout-grid">
+            
+            <aside class="sidebar-col">
+                <div class="card sidebar-card card-accent-primary">
+                    <div class="card-header">
+                        <h2><i data-lucide="user-focus" class="icon-primary"></i> Mis Tareas</h2>
+                    </div>
+                    <div class="sidebar-content">
+                        <ul id="sidebarList" class="request-list"></ul>
+                    </div>
+                </div>
 
-/* ESTADO DE CONEXION EN TIEMPO REAL */
-.connection-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); background: var(--bg-subtle); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border-light); }
-.connection-status .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-muted); }
-.connection-status.online .status-dot { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
+                <div class="card sidebar-card card-accent-primary" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2><i data-lucide="bar-chart-2" class="icon-primary"></i> Carga de Trabajo</h2>
+                    </div>
+                    <div class="sidebar-content" id="workloadContainer" style="padding: 16px;">
+                        <!-- Gráfica inyectada vía JS -->
+                    </div>
+                </div>
 
-/* OVERLAY LOGIN */
-.auth-overlay { position: fixed; inset: 0; background: var(--bg-main); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.auth-card { background: var(--card-bg); padding: 40px 32px; border-radius: 16px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05); width: 100%; max-width: 400px; text-align: center; border: 1px solid var(--border-light); border-top: 4px solid var(--primary-cold);}
-.auth-card h2 { color: var(--text-dark); font-weight: 600; margin-bottom: 5px; font-size: 1.3rem; }
-.auth-card p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; font-weight: 500;}
-.login-form { display: flex; flex-direction: column; gap: 16px; text-align: left; }
-.login-error { color: var(--danger); font-size: 0.85rem; font-weight: 500; text-align: center; display: none; background: #fef2f2; padding: 8px; border-radius: 8px; border: 1px solid #fecdd3;}
-.login-hint { font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-top: 12px; background: var(--bg-subtle); padding: 12px; border-radius: 8px; border: 1px dashed var(--border-light); font-weight: 500;}
-.password-wrapper { position: relative; display: flex; align-items: center; width: 100%; }
-.password-wrapper .custom-input { padding-right: 44px; }
-.toggle-password-btn { position: absolute; right: 8px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; padding: 6px; border-radius: 6px; transition: 0.2s; outline: none; }
-.toggle-password-btn:hover { color: var(--primary-cold); background-color: var(--bg-subtle); }
+                <div class="card sidebar-card card-accent-primary" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2><i data-lucide="check-circle-2" class="icon-primary"></i> Realizadas <span class="badge-count badge-primary" id="countRealizadas">0</span></h2>
+                    </div>
+                    <div class="sidebar-content">
+                        <ul id="sidebarCompletedList" class="request-list"></ul>
+                    </div>
+                </div>
+            </aside>
 
-.main-container { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; padding: 30px 20px; overflow-x: hidden; }
-.lucide { width: 1.15em; height: 1.15em; stroke-width: 2.2; flex-shrink: 0; }
-.icon-primary { color: var(--primary-cold); }
+            <main class="main-board">
+                <section class="card board-section card-accent-primary">
+                    <div class="card-header card-header-flex">
+                        <div>
+                            <h2>
+                                <i data-lucide="clock" class="icon-primary"></i> Prioridad de Entregas 
+                                <span class="badge-count badge-primary" id="countPrioridades">0</span>
+                            </h2>
+                            <p class="subtitle">Trabajo activo, ordenado por proximidad de entrega.</p>
+                        </div>
+                    </div>
 
-.mixed-title { display: flex; align-items: center; margin: 0; padding: 0; line-height: 1; }
-.logo-typographic { font-family: 'Playfair Display', serif; font-size: 3.2rem; font-weight: 800; font-style: italic; color: var(--primary-cold); letter-spacing: -1.5px; margin: 0; }
-.logo-large .logo-typographic { font-size: 4rem; margin-bottom: 0; }
+                    <div class="inline-filters-bar">
+                        <div class="inline-filter-item">
+                            <div class="input-with-icon">
+                                <i data-lucide="calendar"></i>
+                                <input type="text" id="filterDate" class="date-range-picker custom-input" placeholder="Fecha entrega..." aria-label="Filtrar por fecha">
+                            </div>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterRequester" class="native-select-hidden" aria-label="Filtrar por solicitante">
+                                <option value="Todos">Solicitante: Todos</option>
+                            </select>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterAssignee" class="native-select-hidden" aria-label="Filtrar por asignado">
+                                <option value="Todos">Asignación: Todos</option>
+                            </select>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterStatus" class="native-select-hidden" aria-label="Filtrar por estado">
+                                <option value="Todos">Estado: Todos</option>
+                                <option value="En cola">En cola</option>
+                                <option value="En curso">En curso</option>
+                            </select>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterSort" class="native-select-hidden" aria-label="Ordenar tareas">
+                                <option value="asc">Orden: Más próximas</option>
+                                <option value="desc">Orden: Más lejanas</option>
+                            </select>
+                        </div>
+                        <button id="clearFilters" class="btn-text" title="Limpiar filtros" aria-label="Limpiar filtros">
+                            <i data-lucide="x-circle"></i>
+                        </button>
+                    </div>
 
-.app-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; background: var(--card-bg); padding: 20px 28px; border-radius: 16px; border: 1px solid var(--border-light); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-.header-content { display: flex; align-items: center; gap: 20px; }
-.header-subtitle { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; margin: 0; padding-left: 20px; border-left: 2px solid var(--border-light); line-height: 1.4; }
-.top-actions { display: flex; align-items: center; gap: 12px; }
+                    <div class="table-wrapper">
+                        <table class="task-table" role="table">
+                            <thead>
+                                <tr role="row">
+                                    <th style="width: 40px; text-align: center;" role="columnheader"><i data-lucide="check-square" style="width:16px; color:var(--text-muted)"></i></th>
+                                    <th role="columnheader">Solicitud</th>
+                                    <th role="columnheader">Asignación</th>
+                                    <th role="columnheader">Fechas (Rec - Ent)</th>
+                                    <th role="columnheader" style="width: 140px;">Estado</th>
+                                    <th role="columnheader" aria-label="Acciones" style="width: 80px; text-align: center;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablePrioridades" role="rowgroup"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
 
-.user-profile { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; color: var(--primary-cold); cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: 0.2s; outline: none; }
-.user-profile:hover, .user-profile:focus-visible { background: var(--bg-subtle); box-shadow: 0 0 0 2px var(--primary-cold); }
-.user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-light); background: var(--card-bg); }
-.header-divider { width: 1px; height: 24px; background: var(--border-light); margin: 0 4px; }
-.header-logout-btn { color: var(--text-muted); }
-.header-logout-btn:hover { color: var(--danger); background: #fef2f2; }
+        </div>
+    </div>
 
-.btn { font-family: inherit; padding: 10px 18px; border-radius: 8px; border: 1px solid transparent; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; outline: none;}
-.btn:focus-visible { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); }
-.btn-primary { background: var(--primary-cold); color: #ffffff; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25); }
-.btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
-.btn-secondary { background: var(--card-bg); border-color: var(--border-light); color: var(--text-main); }
-.btn-secondary:hover { background: var(--bg-subtle); border-color: var(--primary-cold); color: var(--primary-cold); }
-.btn-success { background: var(--success); color: #ffffff; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25); }
-.btn-success:hover { background: var(--success-hover); transform: translateY(-1px); }
+    <!-- PANEL LATERAL DE NOTAS Y CHAT DE EQUIPO -->
+    <div id="notesPanelOverlay" class="notes-overlay"></div>
+    <div id="notesPanel" class="notes-panel">
+        <div class="notes-header">
+            <h2><i data-lucide="message-square" class="icon-primary"></i> Anotaciones del Equipo</h2>
+            <button id="btnCloseNotes" class="btn-icon"><i data-lucide="x"></i></button>
+        </div>
+        <div class="notes-body" id="notesList">
+            <!-- Notas renderizadas dinámicamente aquí -->
+        </div>
+        <div class="notes-footer">
+            <div class="emoji-bar">
+                <button type="button" class="quick-emoji">👍</button>
+                <button type="button" class="quick-emoji">🔥</button>
+                <button type="button" class="quick-emoji">🚀</button>
+                <button type="button" class="quick-emoji">👀</button>
+                <button type="button" class="quick-emoji">❤️</button>
+                <button type="button" class="quick-emoji">✅</button>
+            </div>
+            <form id="noteForm" style="display:flex; gap: 8px;">
+                <input type="text" id="noteInput" class="custom-input" placeholder="Escribe un mensaje al equipo..." required>
+                <button type="submit" id="btnSendNote" class="btn-send-note" aria-label="Enviar"><i data-lucide="send"></i></button>
+            </form>
+        </div>
+    </div>
 
-/* Botones icono genéricos */
-.btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
-.btn-icon:hover, .btn-icon:focus-visible { outline: none; background: var(--bg-subtle); color: var(--primary-cold); }
-.btn-icon.delete:hover { color: var(--danger); background: var(--danger-bg); }
-.btn-icon.edit:hover { color: var(--info); background: #f0f9ff; }
+    <!-- Barra Inferior Flotante (Sticky Unsaved Changes) -->
+    <div id="unsavedChangesBar" class="unsaved-bar">
+        <div class="unsaved-bar-content">
+            <span class="unsaved-text"><i data-lucide="alert-circle"></i> Cambios sin guardar</span>
+            <div class="unsaved-actions">
+                <button id="btnUndo" class="btn btn-secondary">Deshacer</button>
+                <button id="btnSave" class="btn btn-success">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
 
-/* Botón específico de Enviar Nota - Resuelve CSS Conflicto */
-.btn-send-note { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; border: none; color: #ffffff; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0; outline: none; background-color: var(--primary-cold); }
-.btn-send-note:hover, .btn-send-note:focus-visible { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    <!-- Modal Nueva Tarea -->
+    <div id="modalTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTaskTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTaskTitle"><i data-lucide="file-plus" class="icon-primary"></i> Nueva Solicitud</h2>
+                <button class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="taskForm" class="task-form">
+                <div class="form-grid">
+                    <div class="field full-width">
+                        <label for="taskName">Nombre de la solicitud</label>
+                        <input type="text" id="taskName" class="custom-input" placeholder="Ej. Banner Redes..." required>
+                    </div>
+                    <div class="field">
+                        <label for="requesterSelect">Solicitante</label>
+                        <select id="requesterSelect" class="native-select-hidden" required></select>
+                    </div>
+                    <div class="field">
+                        <label for="assignee">Asignar a</label>
+                        <select id="assignee" class="native-select-hidden" required></select>
+                    </div>
+                    <div class="field">
+                        <label for="dateReceived">Fecha de solicitud (Recepción)</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" id="dateReceived" class="date-picker modal-date custom-input" placeholder="Seleccionar...">
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="dateDelivered">Fecha de entrega esperada</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar-check"></i>
+                            <input type="text" id="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." required>
+                        </div>
+                    </div>
+                    <div class="field full-width">
+                        <label for="status">Estado inicial</label>
+                        <select id="status" class="native-select-hidden" required>
+                            <option value="En cola" selected>En cola</option>
+                            <option value="En curso">En curso</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Añadir Solicitud</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-.btn-text { background: transparent; border: none; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;}
-.btn-text:hover { color: var(--danger); }
+    <!-- Modal Editar Tarea -->
+    <div id="modalEditTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalEditTaskTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalEditTaskTitle"><i data-lucide="edit-3" class="icon-primary"></i> Editar Solicitud</h2>
+                <button class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="editTaskForm" class="task-form">
+                <input type="hidden" id="editTaskId">
+                <div class="form-grid">
+                    <div class="field full-width">
+                        <label for="editTaskName">Nombre de la solicitud</label>
+                        <input type="text" id="editTaskName" class="custom-input" required>
+                    </div>
+                    <div class="field">
+                        <label for="editRequesterSelect">Solicitante</label>
+                        <select id="editRequesterSelect" class="native-select-hidden" required></select>
+                    </div>
+                    <div class="field">
+                        <label for="editDateReceived">Fecha de recepción</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" id="editDateReceived" class="date-picker modal-date custom-input" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Guardar Edición</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-.field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--primary-cold); margin-bottom: 8px; }
-.custom-input { font-size: 0.85rem; font-weight: 500; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-light); background: var(--card-bg); color: var(--text-main); outline: none; transition: 0.2s; width: 100%; box-sizing: border-box; }
-.custom-input:focus { border-color: var(--primary-cold); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
-.input-with-icon { position: relative; display: flex; align-items: center; width: 100%; }
-.input-with-icon .lucide { position: absolute; left: 14px; color: var(--primary-cold); z-index: 2; }
-.input-with-icon .custom-input { padding-left: 40px; }
+    <!-- Modal Equipo -->
+    <div id="modalTeam" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTeamTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTeamTitle"><i data-lucide="users" class="icon-primary"></i> Gestión de Equipo</h2>
+                <button class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                    Contraseña por defecto al añadir: <strong>Nombre_DH2026!</strong>
+                </p>
+                <form id="addMemberForm" class="input-group">
+                    <label for="newMemberInput" class="visually-hidden">Nombre del colaborador</label>
+                    <input type="text" id="newMemberInput" class="custom-input" placeholder="Nombre del colaborador..." required>
+                    <button type="submit" id="addMemberBtn" class="btn btn-primary">Añadir</button>
+                </form>
+                <div id="membersList" class="members-tags"></div>
+            </div>
+        </div>
+    </div>
 
-input[type="file"].custom-input { padding: 8px 12px; cursor: pointer; }
-input[type="file"]::file-selector-button { background: var(--primary-cold); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-right: 10px; transition: 0.2s; font-family: inherit; }
-input[type="file"]::file-selector-button:hover { background: var(--primary-hover); }
+    <!-- Modal Solicitantes -->
+    <div id="modalRequesters" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalReqTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalReqTitle"><i data-lucide="building-2" class="icon-primary"></i> Áreas Solicitantes</h2>
+                <button class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                <form id="addRequesterForm" class="input-group">
+                    <label for="newRequesterInput" class="visually-hidden">Nombre o área</label>
+                    <input type="text" id="newRequesterInput" class="custom-input" placeholder="Nombre o área..." required>
+                    <button type="submit" id="addRequesterBtn" class="btn btn-primary">Añadir</button>
+                </form>
+                <div id="requestersList" class="members-tags"></div>
+            </div>
+        </div>
+    </div>
 
-.color-picker-group { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
-.color-swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: all 0.2s ease; box-shadow: 0 0 0 2px transparent; outline: none;}
-.color-swatch:hover, .color-swatch:focus-visible { transform: scale(1.1); box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--primary-cold); }
-.color-swatch.active { box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--primary-cold); transform: scale(1.05); }
-.color-swatch.disabled { opacity: 0.3; pointer-events: none; cursor: not-allowed; }
+    <!-- Modal Mi Perfil -->
+    <div id="modalProfile" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalProfileTitle">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h2 id="modalProfileTitle"><i data-lucide="user-cog" class="icon-primary"></i> Personalizar Perfil</h2>
+                <button class="close-modal" id="closeProfileModalBtn" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                
+                <div id="avatarPreviewContainer" style="text-align: center; margin-bottom: 10px;">
+                    <img id="previewAvatar" src="" alt="Previsualización de avatar" class="user-avatar" style="width: 80px; height: 80px; border-width: 3px;">
+                    <div style="margin-top: 8px;">
+                        <button type="button" id="btnRemoveAvatar" class="btn-text" style="color: var(--danger); font-size: 0.75rem;">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Eliminar foto
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="cropperWrapper" style="display: none; width: 100%; max-height: 350px; margin-bottom: 16px; text-align: center; border-radius: 8px; overflow: hidden;">
+                    <img id="cropperImage" src="" alt="Recortar imagen" style="max-width: 100%; max-height: 350px; display: block;">
+                </div>
 
-/* COMPONENTE: TOGGLE SWITCH BINARIO PARA ESTADO */
-.status-switch { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; cursor: pointer; user-select: none; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent; outline: none; }
-.status-switch:focus-visible { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3); }
-.status-switch.cola { background-color: var(--status-cola-bg); color: var(--status-cola); border-color: var(--status-cola-border); }
-.status-switch.curso { background-color: var(--status-curso-bg); color: var(--status-curso); border-color: var(--status-curso-border); }
-.switch-track { width: 28px; height: 16px; background: rgba(0, 0, 0, 0.12); border-radius: 10px; position: relative; transition: background-color 0.25s ease; flex-shrink: 0; }
-.status-switch.curso .switch-track { background: var(--status-curso); }
-.status-switch.cola .switch-track { background: var(--status-cola); }
-.switch-thumb { width: 12px; height: 12px; background: #ffffff; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-.status-switch.curso .switch-thumb { transform: translateX(12px); }
+                <form id="profileForm" style="display: flex; flex-direction: column; gap: 16px;">
+                    
+                    <div class="field" style="border-bottom: 1px solid var(--border-light); padding-bottom: 16px;">
+                        <label>Tu color de perfil exclusivo</label>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; margin-bottom: 12px;">Elige el color con el que verás tus tareas.</p>
+                        <div class="color-picker-group" id="colorPickerGroup" role="radiogroup" aria-label="Selecciona un color de tema">
+                            <div class="color-swatch" data-color="#4f46e5" style="background-color: #4f46e5;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#2563eb" style="background-color: #2563eb;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#0284c7" style="background-color: #0284c7;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#0891b2" style="background-color: #0891b2;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#0d9488" style="background-color: #0d9488;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#059669" style="background-color: #059669;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#16a34a" style="background-color: #16a34a;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#84cc16" style="background-color: #84cc16;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#f59e0b" style="background-color: #f59e0b;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#ea580c" style="background-color: #ea580c;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#dc2626" style="background-color: #dc2626;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#e11d48" style="background-color: #e11d48;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#db2777" style="background-color: #db2777;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#c026d3" style="background-color: #c026d3;" role="radio" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#7c3aed" style="background-color: #7c3aed;" role="radio" tabindex="0"></div>
+                        </div>
+                    </div>
 
-/* CUSTOM DROPDOWNS GENERALES */
-html body .native-select-hidden { display: none; }
-.select-wrapper { position: relative; width: 100%; }
-.select-trigger { background: var(--card-bg); border: 1px solid var(--border-light); border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; font-weight: 500; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; outline: none; }
-.select-trigger:hover, .select-trigger:focus-visible { border-color: var(--primary-cold); background: var(--bg-subtle);}
-.select-trigger.active { border-color: var(--primary-cold); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); background: var(--card-bg);}
+                    <div class="field" id="fileFieldGroup">
+                        <label for="avatarFileInput">Subir foto desde tu PC</label>
+                        <input type="file" id="avatarFileInput" class="custom-input" accept="image/png, image/jpeg, image/webp">
+                    </div>
+                    
+                    <div id="urlDivider" style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 600;">O</div>
+                    
+                    <div class="field" id="urlFieldGroup">
+                        <label for="avatarUrlInput">Usar enlace (URL)</label>
+                        <input type="url" id="avatarUrlInput" class="custom-input" placeholder="https://ejemplo.com/mifoto.jpg">
+                    </div>
 
-.select-options { position: absolute; left: 0; width: 100%; background: var(--card-bg); border: 1px solid var(--border-light); border-radius: 8px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15); z-index: 9999999; max-height: 220px; overflow-y: auto; display: none; padding: 4px; }
-.select-options.open { display: block; animation: slideDown 0.15s ease-out; }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-.select-option { padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; cursor: pointer; color: var(--text-main); transition: 0.15s; outline: none;}
-.select-option:hover, .select-option:focus-visible { background: var(--bg-subtle); color: var(--primary-cold); }
-.select-option.selected { background: var(--status-curso-bg); color: var(--status-curso); font-weight: 600; }
+                    <div style="display: flex; gap: 12px; margin-top: 10px;">
+                        <button type="button" id="btnCancelCrop" class="btn btn-secondary" style="display: none; flex: 1; justify-content: center;">Cancelar Recorte</button>
+                        <button type="submit" id="btnSaveProfile" class="btn btn-primary" style="flex: 2; justify-content: center;">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-.inline-filters-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--bg-subtle); border-bottom: 1px solid var(--border-light); flex-wrap: wrap; }
-.inline-filter-item { flex: 1; min-width: 150px; }
-.inline-filter-item .custom-input, .inline-filter-item .select-trigger { padding: 8px 12px; font-size: 0.8rem; background: var(--card-bg); border-radius: 6px; }
-.inline-filter-item .input-with-icon .custom-input { padding-left: 36px; }
-.inline-filter-item .input-with-icon .lucide { left: 10px; width: 16px; height: 16px; }
-
-.select-trigger.table-select { padding: 6px 14px; border-radius: 20px; font-weight: 600; border: 1px solid transparent; width: 100%; box-shadow: none; white-space: nowrap; word-break: keep-all; justify-content: space-between; transition: all 0.2s ease; }
-.select-trigger.table-select span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.select-trigger.table-select:hover, .select-trigger.table-select:focus-visible { opacity: 0.9; border-color: var(--border-light); }
-.select-trigger.table-select svg { width: 14px; height: 14px; opacity: 0.8; margin-left: 6px; flex-shrink: 0;}
-.select-trigger.table-select.active { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); border-color: var(--primary-cold); }
-
-.select-trigger.inline-assignee { border: 1px solid var(--border-light); color: var(--text-dark); }
-.select-trigger.inline-assignee.unassigned { background-color: var(--bg-subtle) !important; color: var(--text-muted) !important; border-color: var(--border-light) !important; }
-
-/* Layout & Cards */
-.layout-grid { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
-.card { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border-light); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); overflow: visible; }
-.card-accent-primary { border-top: 4px solid var(--primary-cold); }
-.card-header { padding: 16px 20px; border-bottom: 1px solid var(--border-light); }
-.card-header h2 { font-size: 1rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: center; gap: 8px; }
-.card-header-flex { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.subtitle { font-size: 0.85rem; color: var(--text-muted); font-weight: 500;}
-
-/* CARGA DE TRABAJO */
-.workload-item { margin-bottom: 14px; }
-.workload-item:last-child { margin-bottom: 0; }
-.workload-header { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; color: var(--text-dark); }
-.workload-bar-bg { width: 100%; height: 8px; background: var(--bg-subtle); border-radius: 4px; overflow: hidden; border: 1px solid var(--border-light); }
-.workload-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease-out; }
-
-/* BARRA FLOTANTE DE CAMBIOS SIN GUARDAR */
-.unsaved-bar { position: fixed; bottom: 0; left: 0; width: 100%; display: flex; justify-content: center; padding: 20px; pointer-events: none; z-index: 9999; transform: translateY(150%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.unsaved-bar.active { transform: translateY(0); }
-.unsaved-bar-content { background: var(--text-dark); color: #ffffff; padding: 12px 24px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); display: flex; align-items: center; gap: 24px; pointer-events: all; }
-.unsaved-text { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; }
-.unsaved-text i { color: #fbbf24; }
-.unsaved-actions { display: flex; gap: 10px; }
-
-/* Sidebars (Mis Tareas) - Modificado para expansión fluida de texto */
-.sidebar-content { padding: 12px; max-height: 450px; overflow-y: auto; }
-.request-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.request-item { padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border-light); background: var(--card-bg); cursor: pointer; transition: all 0.3s ease; outline: none; }
-.request-item:hover, .request-item:focus-visible { border-color: var(--primary-cold); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.1);}
-.request-item.expanded { border-color: var(--primary-cold); background: var(--bg-main); box-shadow: 0 4px 10px rgba(79, 70, 229, 0.15); }
-.req-header { display: flex; flex-direction: column; gap: 6px; }
-
-/* Nombre en la tarjeta: Truncado a 2 líneas normal, full text cuando se expande */
-.req-name { font-size: 0.9rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: flex-start; gap: 8px; line-height: 1.3; }
-.req-name-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; flex: 1; }
-.request-item.expanded .req-name-text { -webkit-line-clamp: unset; overflow: visible; }
-
-.req-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-top: 4px;}
-.req-status-dot.dot-cola { background-color: var(--status-cola); }
-.req-status-dot.dot-curso { background-color: var(--status-curso); }
-
-/* Corrección de superposición en req-dates mediante Flex Wrap y Gap */
-.req-dates { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--bg-subtle); padding: 8px 10px; border-radius: 6px; }
-.req-extra-info { display: none; flex-direction: column; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-light); font-size: 0.8rem; animation: fadeIn 0.2s;}
-.request-item.expanded .req-extra-info { display: flex; }
-@keyframes fadeIn { from {opacity:0; transform:translateY(-4px);} to{opacity:1; transform:translateY(0);} }
-.req-detail-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-top: 4px;}
-.req-detail-row span:first-child { flex-shrink: 0; color: var(--text-muted); font-weight: 600; font-size: 0.75rem;}
-.req-detail-row strong { text-align: right; color: var(--text-dark); font-weight: 600; font-size: 0.8rem; word-break: break-word;}
-.completed-item { background: var(--bg-subtle); border-color: transparent; opacity: 0.85; cursor: default; transform: none !important;}
-.completed-item:hover { opacity: 1; border-color: var(--border-light); box-shadow: none;}
-.completed-item .req-name-text { text-decoration: line-through; color: var(--text-muted); }
-
-.time-alert-badge { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
-.time-alert-badge.danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
-.time-alert-badge.warning { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning); }
-
-/* TABLA CENTRAL (Desktop) */
-.table-wrapper { padding-bottom: 24px; min-height: 320px; width: 100%; } 
-.task-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; table-layout: fixed; }
-.task-table th { background: var(--bg-subtle); color: var(--text-muted); padding: 12px 16px; font-weight: 600; font-size: 0.75rem; border-bottom: 1px solid var(--border-light); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.task-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-light); vertical-align: middle; color: var(--text-main); font-weight: 500; position: relative; }
-.task-table tr:hover { background: var(--bg-main); }
-html body .row-highlight { background: var(--status-curso-bg) !important; outline: 2px solid var(--primary-cold); outline-offset: -2px; transition: 0.3s;}
-
-.task-table th:nth-child(1), .task-table td:nth-child(1) { width: 60px; text-align: center; padding: 12px 8px 12px 24px; } 
-.task-table th:nth-child(2), .task-table td:nth-child(2) { width: 35%; padding-right: 24px; } 
-.task-table th:nth-child(3), .task-table td:nth-child(3) { width: 22%; padding-right: 16px; } 
-.task-table th:nth-child(4), .task-table td:nth-child(4) { width: 20%; padding-right: 16px; } 
-.task-table th:nth-child(5), .task-table td:nth-child(5) { width: 140px; padding-right: 16px; } 
-.task-table th:nth-child(6), .task-table td:nth-child(6) { width: 80px; padding: 12px 8px; } 
-
-.action-buttons { display: flex; gap: 8px; justify-content: flex-end; }
-.req-title-cell { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
-/* Titulo de tabla envuelto automáticamente (Double line) */
-.req-title-cell strong { color: var(--text-dark); font-weight: 600; white-space: normal; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
-.req-title-cell span { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.date-info { display: flex; flex-direction: column; gap: 6px; }
-.date-req { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; white-space: nowrap;}
-
-.inline-date-picker-alt { font-family: 'Montserrat', sans-serif; font-size: 0.75rem; font-weight: 600; color: var(--status-curso); background: var(--status-curso-bg); border: 1px solid var(--status-curso-border); border-radius: 6px; padding: 6px 10px; width: 115px; min-width: 115px; display: block; cursor: pointer; transition: all 0.2s ease; outline: none; text-align: center; box-sizing: border-box; }
-.inline-date-picker-alt:hover { background: #dbeafe; border-color: var(--primary-cold); }
-.inline-date-picker-alt:focus { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); background: var(--card-bg); }
-
-.badge-count { font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; font-weight: 600; }
-.badge-primary { background: #e0e7ff; color: #4338ca; } 
-.custom-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--status-entregado); border-radius: 4px;}
-
-/* Modales */
-.modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: none; align-items: flex-start; justify-content: center; z-index: 1000; padding: 40px 16px; overflow-y: auto; }
-.modal-overlay.active { display: flex; }
-.modal-content { background: var(--card-bg); width: 100%; max-width: 600px; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: popIn 0.2s ease-out; margin: auto; overflow: visible; position: relative; }
-@keyframes popIn { from { transform: scale(0.98); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-.modal-header { display: flex; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border-light); background: var(--bg-subtle); border-radius: 16px 16px 0 0; position: sticky; top: 0; z-index: 10; }
-.modal-header h2 { font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text-dark);}
-.close-modal { background: var(--card-bg); border: 1px solid var(--border-light); padding: 6px; border-radius: 8px; cursor: pointer; color: var(--text-muted); outline: none; }
-.close-modal:hover, .close-modal:focus-visible { background: #fef2f2; color: var(--danger); border-color: #fecdd3; }
-
-.task-form { padding: 24px; overflow: visible; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; overflow: visible; }
-.field.full-width { grid-column: 1 / -1; }
-.field { position: relative; }
-.form-actions { margin-top: 20px; text-align: right; border-top: 1px solid var(--border-light); padding-top: 16px; }
-
-.profile-controls { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-.input-group { display: flex; gap: 10px; }
-.members-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-.member-chip { background: var(--bg-subtle); padding: 6px 12px; border-radius: 16px; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-light); color: var(--text-dark); }
-.remove-member { cursor: pointer; color: var(--text-muted); background: transparent; border: none; display: flex; outline: none; }
-.remove-member:hover, .remove-member:focus-visible { color: var(--danger); }
-
-/* PANEL LATERAL DE NOTAS (Off-canvas Drawer y Chat Bubbles Seguros) */
-.notes-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.4); backdrop-filter: blur(2px); z-index: 9998; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
-.notes-overlay.active { opacity: 1; pointer-events: all; }
-.notes-panel { position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100vh; background: var(--bg-main); box-shadow: -4px 0 25px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
-.notes-panel.open { right: 0; }
-.notes-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-light); background: var(--card-bg); }
-.notes-header h2 { font-size: 1rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: center; gap: 8px; margin:0;}
-.notes-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
-
-/* Burbujas de Chat Accesibles (Alto Contraste) */
-.chat-msg { display: flex; flex-direction: column; width: 100%; animation: popIn 0.2s ease-out; }
-.chat-msg.mine { align-items: flex-end; }
-.chat-msg.other { align-items: flex-start; }
-.chat-bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 0.85rem; line-height: 1.4; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-.chat-msg.mine .chat-bubble { border-bottom-right-radius: 4px; background: var(--primary-cold); color: #ffffff; }
-.chat-msg.other .chat-bubble { border-bottom-left-radius: 4px; background: var(--card-bg); border: 1px solid var(--border-light); color: var(--text-dark); }
-.chat-meta { font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px; display: flex; gap: 6px; font-weight: 500; }
-.notes-footer { padding: 16px 20px 20px 20px; border-top: 1px solid var(--border-light); background: var(--card-bg); }
-
-/* Quick Emojis */
-.emoji-bar { display: flex; gap: 6px; margin-bottom: 10px; }
-.quick-emoji { background: var(--bg-subtle); border: 1px solid var(--border-light); border-radius: 20px; padding: 4px 8px; cursor: pointer; font-size: 1rem; transition: 0.2s; outline: none; }
-.quick-emoji:hover { background: var(--border-light); transform: scale(1.1); }
-
-/* UTILIDAD ALERTAS (Badge Notificaciones) */
-.position-relative { position: relative; }
-.notification-badge { position: absolute; top: 0px; right: 0px; width: 10px; height: 10px; background-color: var(--danger); border-radius: 50%; border: 2px solid var(--card-bg); display: none; }
-.notification-badge.active { display: block; animation: popIn 0.3s ease-out; }
-
-/* MEDIA QUERIES PARA MÓVILES */
-@media (max-width: 980px) { .layout-grid { grid-template-columns: 1fr; } }
-@media (max-width: 768px) {
-    .app-header { flex-direction: column; align-items: stretch; text-align: center; gap: 16px; padding: 20px; }
-    .header-content { flex-direction: column; gap: 10px; }
-    .header-subtitle { border-left: none; padding-left: 0; border-top: 2px solid var(--border-light); padding-top: 10px; }
-    .top-actions { justify-content: center; flex-wrap: wrap; }
-    .hide-mobile { display: none; }
-    .btn { padding: 10px; justify-content: center; } 
-    .form-grid { grid-template-columns: 1fr; }
-    .field.full-width { grid-column: auto; }
-    .toast-container { right: 10px; left: 10px; bottom: 10px; }
-    .toast { width: 100%; box-sizing: border-box; }
-    .inline-filter-item { min-width: 100%; flex: none; }
-    .unsaved-bar { padding: 10px; bottom: 10px; }
-    .unsaved-bar-content { flex-direction: column; width: 100%; gap: 12px; }
-    .unsaved-actions { width: 100%; display: flex; gap: 10px; }
-    .unsaved-actions button { flex: 1; justify-content: center; }
-    .table-wrapper { overflow: hidden; padding: 0; min-height: auto; }
-    .task-table, .task-table tbody, .task-table tr, .task-table td { display: block; box-sizing: border-box; }
-    .task-table thead { display: none; }
-    .task-table tr { margin-bottom: 16px; border: 1px solid var(--border-light); border-radius: 12px; overflow: hidden; padding: 16px !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); background: var(--card-bg); }
-    .task-table td:nth-child(n) { width: 100% !important; padding-right: 0 !important; padding-left: 0 !important; }
-    .task-table td { display: flex; flex-direction: column; align-items: flex-start !important; text-align: left !important; padding: 12px 0 !important; border-bottom: 1px dashed var(--border-light) !important; gap: 8px; }
-    .task-table td:nth-child(1) { flex-direction: row; align-items: center !important; justify-content: space-between; border-bottom: 1px solid var(--border-light) !important; padding-top: 0 !important; }
-    .task-table td:last-child { border-bottom: 0 !important; flex-direction: row; justify-content: flex-end; align-items: center !important; padding-bottom: 0 !important; }
-    .task-table td::before { content: attr(data-label); font-weight: 600; color: var(--primary-cold); font-size: 0.75rem; text-transform: uppercase; display: block; width: 100%; }
-    .task-table td:nth-child(1)::before, .task-table td:last-child::before { width: auto; }
-    .action-buttons { justify-content: flex-end; width: auto; gap: 8px; }
-    .req-title-cell { width: 100%; align-items: flex-start; text-align: left; }
-    .req-title-cell strong, .req-title-cell span { display: block; width: 100%; white-space: normal; word-break: break-word; }
-    .date-info { width: 100%; align-items: flex-start; gap: 8px;}
-    .inline-date-picker-alt, .select-trigger.table-select, .status-switch { width: 100% !important; max-width: 100% !important; text-align: left; justify-content: space-between; box-sizing: border-box; }
-}
-
-/* FLATPICKR OVERRIDES CORREGIDOS */
-html body div.flatpickr-calendar { font-family: 'Montserrat', sans-serif; border-radius: 12px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15); border: 1px solid var(--border-light); z-index: 9999999; padding: 0; width: 280px; min-width: 280px; max-width: 280px; background: var(--card-bg); }
-html body div.flatpickr-calendar .flatpickr-months { background: var(--primary-cold); padding: 8px 10px; align-items: center; position: relative; border-radius: 11px 11px 0 0; }
-html body div.flatpickr-calendar .flatpickr-months .flatpickr-month { font-weight: 600; color: #ffffff; fill: #ffffff; }
-html body div.flatpickr-calendar .flatpickr-current-month { font-size: 0.9rem; font-weight: 600; color: #ffffff; padding: 0; display: flex; align-items: center; justify-content: center; }
-html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months { font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 600; background: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 6px; padding: 3px 8px; border: none; outline: none; cursor: pointer; margin-right: 4px; appearance: menulist; -webkit-appearance: menulist; }
-html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months:hover { background: rgba(255, 255, 255, 0.3); }
-html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months option { background-color: var(--card-bg); color: var(--text-dark); font-weight: 500; padding: 6px; }
-html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper { width: 6.5ch; }
-html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper input.cur-year { font-family: 'Montserrat', sans-serif; font-weight: 600; color: #ffffff; padding: 0 2px; }
-html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowUp, html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowDown { border-color: rgba(255,255,255,0.5); }
-html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowUp:after { border-bottom-color: #ffffff; }
-html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowDown:after { border-top-color: #ffffff; }
-html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month { color: #ffffff; fill: #ffffff; padding: 0; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; position: absolute; top: 50%; transform: translateY(-50%); border-radius: 6px; cursor: pointer; z-index: 3; }
-html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover { background: rgba(255,255,255,0.15); }
-html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month { left: 8px; }
-html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month { right: 8px; }
-html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month svg, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month svg, html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month svg path, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month svg path { fill: #ffffff !important; color: #ffffff !important; }
-html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover svg, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover svg, html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover svg path, html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover svg path { fill: #ffffff !important; color: #ffffff !important; }
-html body div.flatpickr-calendar .flatpickr-weekdays { background: var(--bg-subtle); padding: 8px 10px 4px 10px; border-bottom: 1px solid var(--border-light); }
-html body div.flatpickr-calendar span.flatpickr-weekday { font-family: 'Montserrat', sans-serif; font-size: 0.7rem; font-weight: 700; color: var(--primary-cold); text-transform: uppercase; }
-html body div.flatpickr-calendar .flatpickr-days { width: 280px; padding: 8px; }
-html body div.flatpickr-calendar .dayContainer { width: 264px; min-width: 264px; max-width: 264px; height: auto; justify-content: flex-start; }
-html body div.flatpickr-calendar .flatpickr-day { font-family: 'Montserrat', sans-serif; width: 35px; height: 35px; line-height: 35px; max-width: 35px; border-radius: 8px; font-size: 0.8rem; font-weight: 500; color: var(--text-main); margin: 1px 1px; border: 1px solid transparent; transition: all 0.15s ease; }
-html body div.flatpickr-calendar .flatpickr-day:hover { background: var(--bg-subtle); color: var(--primary-cold); }
-html body div.flatpickr-calendar .flatpickr-day.today { border-color: var(--primary-cold); color: var(--primary-cold); font-weight: 600; }
-html body div.flatpickr-calendar .flatpickr-day.selected, html body div.flatpickr-calendar .flatpickr-day.startRange, html body div.flatpickr-calendar .flatpickr-day.endRange { background: var(--primary-cold); border-color: var(--primary-cold); color: #ffffff; font-weight: 600; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3); }
-html body div.flatpickr-calendar .flatpickr-day.inRange { background: var(--status-curso-bg); color: var(--status-curso); box-shadow: none; }
-html body div.flatpickr-calendar .flatpickr-day.prevMonthDay, html body div.flatpickr-calendar .flatpickr-day.nextMonthDay { color: var(--text-muted); opacity: 0.5;}
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <script src="users.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
