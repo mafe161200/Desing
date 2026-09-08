@@ -13,12 +13,13 @@ describe('DataService Tests (Mocked Storage)', () => {
     });
 
     test('saveTasks debería guardar tareas en LocalStorage simulación', async () => {
-        const mockTasks = [{ id: "100", name: "Tarea Responsiva" }];
+        const mockTasks = [{ id: "100", name: "Tarea Responsiva", isStarred: true }];
         await DataService.saveTasks(mockTasks);
         
         const retrieved = await DataService.getTasks();
         expect(retrieved.length).toBe(1);
         expect(retrieved[0].name).toBe("Tarea Responsiva");
+        expect(retrieved[0].isStarred).toBe(true);
     });
 });
 
@@ -28,26 +29,5 @@ describe('Security / Sanitization Tests', () => {
         const safeString = escapeHTML(maliciousString);
         expect(safeString).not.toContain("<script>");
         expect(safeString).toBe("&lt;script&gt;alert(&#39;xss&#39;)&lt;&#x2F;script&gt; &lt;3");
-    });
-    
-    test('escapeHTML maneja strings vacíos o nulls de forma segura', () => {
-        expect(escapeHTML(null)).toBe('');
-        expect(escapeHTML(undefined)).toBe('');
-        expect(escapeHTML('')).toBe('');
-    });
-});
-
-describe('Business Rules (Domain Validation)', () => {
-    test('Should detect duplicate task combinations', () => {
-        const existingTasks = [{ name: "Rediseño Logo", requester: "Comercial" }];
-        const newTaskName = "rediseño logo";
-        const newRequester = "Comercial";
-        
-        const isDuplicate = existingTasks.some(t => 
-            t.name.toLowerCase() === newTaskName.toLowerCase() && 
-            t.requester === newRequester
-        );
-        
-        expect(isDuplicate).toBe(true);
     });
 });

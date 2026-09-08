@@ -37,12 +37,6 @@ if (SUPABASE_URL !== "") {
 }
 
 class UI {
-    /**
-     * @param {string} message - El mensaje a mostrar
-     * @param {string} type - 'info', 'success', 'warning', 'error'
-     * @param {number} duration - Tiempo en milisegundos antes de desaparecer
-     * @param {function} onClickCallback - Acción a realizar al hacer clic en el toast
-     */
     static showToast(message, type = 'info', duration = 8000, onClickCallback = null) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
@@ -57,10 +51,9 @@ class UI {
         
         toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${escapeHTML(message)}</span>`;
         
-        // Habilitar interactividad si hay un callback (ej. enlazar a una tarea)
         if (onClickCallback) {
             toast.classList.add('toast-clickable');
-            toast.title = "Haz clic para ver los detalles";
+            toast.title = "Haz clic para ir a la tarea";
             toast.addEventListener('click', () => {
                 onClickCallback();
                 toast.classList.add('fade-out');
@@ -71,7 +64,6 @@ class UI {
         container.appendChild(toast);
         lucide.createIcons();
         
-        // Destrucción asíncrona segura
         setTimeout(() => {
             toast.classList.add('fade-out');
             setTimeout(() => { if(toast.parentElement) toast.remove(); }, 300);
@@ -95,16 +87,16 @@ class UI {
 }
 
 // ----------------------------------------------------------------------
-// SERVICIO DE NOTIFICACIONES AL INICIO (Clean Architecture - SRP)
+// SERVICIO DE NOTIFICACIONES (Clean Architecture)
 // ----------------------------------------------------------------------
 const NotificationService = {
     checkStartupAlerts: (tasks, userName) => {
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
         
-        // Función auxiliar para navegar hacia la tarea resaltada
+        // Enrutamiento Visual (Callback para ir a la tarea)
         const highlightTask = (taskId) => {
-            // 1. Limpiar todos los filtros que podrían ocultar la tarea
+            // Limpiamos filtros para asegurar que la tarea se muestre
             document.getElementById('filterAssignee').value = 'Todos';
             document.getElementById('filterRequester').value = 'Todos';
             document.getElementById('filterStatus').value = 'Todos';
@@ -112,24 +104,30 @@ const NotificationService = {
             const fpInput = document.getElementById('filterDate');
             if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
             
-            // 2. Forzar re-renderizado
-            App.renderBoard();
+            App.renderBoard(); // Forzar renderizado sin filtros
             
-            // 3. Buscar la fila en el DOM y aplicar scroll + CSS Pulse
             setTimeout(() => {
+                // Buscamos la fila en la tabla principal
                 const row = document.getElementById(`tr-${taskId}`);
                 if (row) {
                     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     row.classList.remove('task-highlight-pulse');
-                    void row.offsetWidth; // Force reflow
+                    void row.offsetWidth; // Reflow
                     row.classList.add('task-highlight-pulse');
-                    // Remover la clase después de la animación para poder repetirla
                     setTimeout(() => row.classList.remove('task-highlight-pulse'), 3000);
+                }
+                // Si la pantalla es pequeña y estamos viendo el sidebar, también la buscamos ahí
+                const li = document.getElementById(`li-${taskId}`);
+                if (li && window.innerWidth <= 980) {
+                     li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                     li.classList.remove('task-highlight-pulse');
+                     void li.offsetWidth;
+                     li.classList.add('task-highlight-pulse');
+                     setTimeout(() => li.classList.remove('task-highlight-pulse'), 3000);
                 }
             }, 100);
         };
 
-        // 1. Alertar Tarea Más Próxima o Vencida del Usuario
         const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && t.dateDelivered);
         if (myPendingTasks.length > 0) {
             myPendingTasks.sort((a, b) => new Date(a.dateDelivered).getTime() - new Date(b.dateDelivered).getTime());
@@ -145,7 +143,6 @@ const NotificationService = {
             }
         }
 
-        // 2. Alertar Tareas Olvidadas (> 3 días sin asignar)
         const unassigned = tasks.filter(t => t.assignee === 'No asignado' && t.status !== 'Entregado' && t.dateReceived);
         const oldUnassigned = unassigned.filter(t => {
             const recDate = new Date(t.dateReceived);
@@ -155,7 +152,6 @@ const NotificationService = {
         });
 
         if (oldUnassigned.length > 0) {
-            // Pasamos null como callback porque es un grupo de tareas, no una sola.
             setTimeout(() => UI.showToast(`Hay ${oldUnassigned.length} tarea(s) sin asignar desde hace más de 3 días.`, 'warning', 8000, null), 2500);
         }
     }
@@ -300,7 +296,7 @@ const initDemoData = async () => {
         const tasks = await DataService.getTasks();
         if (tasks.length === 0) {
             await DataService.saveTasks([
-                {id: "1", name: "Rediseño Logo Corporativo", requester: "Comercial", assignee: "Camilo", status: "En curso", dateReceived: "2026-08-20", dateDelivered: "2026-08-30"}
+                {id: "1", name: "Rediseño Logo Corporativo", requester: "Comercial", assignee: "Camilo", status: "En curso", dateReceived: "2026-08-20", dateDelivered: "2026-08-30", isStarred: false}
             ]);
         }
         if (supabaseClient) {
@@ -479,7 +475,6 @@ const App = {
         this.setupCrossTabSync();
         this.setupRealtimeSubscription();
 
-        // Lanzar notificaciones inteligentes al inicio de sesión
         NotificationService.checkStartupAlerts(this.tasks, this.user.name);
     },
 
@@ -535,7 +530,7 @@ const App = {
                             document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
                         }
                     } else {
-                        UI.showToast(`Actualización de base de datos recibida.`, "info");
+                        UI.showToast(`Actualización Recibida`, "info", 3000);
                     }
                     
                     await this.loadData();
@@ -568,6 +563,9 @@ const App = {
     async loadData() {
         this.originalTasks = await DataService.getTasks();
         this.tasks = JSON.parse(JSON.stringify(this.originalTasks));
+        // Migración retroactiva: Si alguna tarea antigua no tiene el flag booleano, se lo asignamos
+        this.tasks.forEach(t => { if (typeof t.isStarred === 'undefined') t.isStarred = false; });
+
         this.members = await DataService.getMembers();
         this.requesters = await DataService.getRequesters();
         this.usersList = await DataService.getUsers();
@@ -606,6 +604,15 @@ const App = {
         document.getElementById('unsavedChangesBar').classList.remove('active');
         UI.showToast("Cambios revertidos", "info");
         this.renderBoard();
+    },
+
+    toggleTaskStar(taskId) {
+        const task = this.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.isStarred = !task.isStarred;
+            this.markAsUnsaved();
+            this.renderBoard();
+        }
     },
 
     setupEventListeners() {
@@ -685,7 +692,8 @@ const App = {
                 assignee: escapeHTML(document.getElementById('assignee').value),
                 status: escapeHTML(document.getElementById('status').value),
                 dateReceived: dateReceivedValue, 
-                dateDelivered: dateDelivered
+                dateDelivered: dateDelivered,
+                isStarred: false // Nueva propiedad
             });
             
             this.markAsUnsaved(); 
@@ -747,7 +755,6 @@ const App = {
         btnClose.addEventListener('click', closePanel);
         overlay.addEventListener('click', closePanel);
 
-        // Native Web Component Emoji Picker Integrado
         const emojiBtn = document.getElementById('btnToggleEmoji');
         const pickerWrapper = document.getElementById('emojiPickerWrapper');
         const picker = document.querySelector('emoji-picker');
@@ -1202,7 +1209,13 @@ const App = {
             return mAsig && mReq && mStat && mDate;
         });
 
+        // REGLA DE ORDENAMIENTO DOBLE (Estrellas Arriba O(N log N))
         const sortTasks = (a, b) => {
+            // Prioridad Primaria: Destacados
+            if (a.isStarred && !b.isStarred) return -1;
+            if (!a.isStarred && b.isStarred) return 1;
+            
+            // Prioridad Secundaria: Fechas de Entrega
             if (!a.dateDelivered && !b.dateDelivered) return 0;
             if (!a.dateDelivered) return 1; 
             if (!b.dateDelivered) return -1; 
@@ -1221,11 +1234,14 @@ const App = {
         
         myTasks.forEach(t => {
             const li = document.createElement('li');
-            li.className = 'request-item';
+            // Añadir clase de estrella para estilar en el CSS
+            li.className = `request-item ${t.isStarred ? 'task-starred' : ''}`;
             li.tabIndex = 0; 
+            li.id = `li-${t.id}`;
             
+            // Prevent Event Bubbling
             const handleExpand = (e) => {
-                if(e.target.tagName.toLowerCase() === 'input') return;
+                if(e.target.closest('input, button')) return;
                 document.querySelectorAll('.request-item.expanded').forEach(el => { if(el !== li) el.classList.remove('expanded'); });
                 const exp = li.classList.toggle('expanded');
                 document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
@@ -1255,7 +1271,9 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        <span class="req-status-dot dot-${t.status === 'En curso' ? 'curso' : 'cola'}"></span>
+                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" onclick="App.toggleTaskStar('${t.id}')" aria-label="Destacar">
+                            <i data-lucide="star" style="width: 14px; height: 14px;"></i>
+                        </button>
                         <span class="req-name-text">${escapeHTML(t.name)}</span>
                     </span>
                     <div class="req-dates">
@@ -1280,11 +1298,14 @@ const App = {
         activas.forEach(t => {
             const tr = document.createElement('tr');
             tr.id = `tr-${t.id}`;
+            tr.className = t.isStarred ? 'task-starred' : ''; // Clase de Estrella Visual en la fila
+            
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
             
             tr.addEventListener('click', (e) => {
-                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a')) {
+                // Ignore clicks on buttons to prevent bubbling collision
+                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
                     return;
                 }
                 document.querySelectorAll('.task-table tr').forEach(r => {
@@ -1304,7 +1325,12 @@ const App = {
                 <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" onchange="App.updateTask('${t.id}', 'status', this.checked ? 'Entregado' : 'En curso', true)"></td>
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
-                        <strong>${escapeHTML(t.name)}</strong>
+                        <strong>
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" onclick="App.toggleTaskStar('${t.id}')" aria-label="Destacar">
+                                <i data-lucide="star"></i>
+                            </button>
+                            <span class="req-title-text">${escapeHTML(t.name)}</span>
+                        </strong>
                         <span>${escapeHTML(t.requester)}</span>
                     </div>
                 </td>
@@ -1342,12 +1368,15 @@ const App = {
 
         completadas.forEach(t => {
             const li = document.createElement('li');
-            li.className = 'request-item completed-item';
+            li.className = `request-item completed-item ${t.isStarred ? 'task-starred' : ''}`;
             li.innerHTML = `
                 <div style="display:flex; gap:10px;">
                     <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked onchange="App.updateTask('${t.id}', 'status', this.checked ? 'Entregado' : 'En curso', true)">
                     <div style="width: 100%;">
-                        <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">${escapeHTML(t.name)}</div>
+                        <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">
+                            ${t.isStarred ? '<i data-lucide="star" style="width: 12px; height: 12px; color: #f59e0b; fill: #f59e0b; margin-right: 4px;"></i>' : ''}
+                            ${escapeHTML(t.name)}
+                        </div>
                         <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; font-weight:500;">Entregado: ${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'N/A'} | Por: ${escapeHTML(t.assignee)}</div>
                     </div>
                 </div>
