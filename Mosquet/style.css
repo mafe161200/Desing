@@ -2,7 +2,7 @@
     /* Paleta Neutra Premium (Grises Pizarra para reducir fatiga visual) */
     --bg-main: #f1f5f9;        /* Slate 100 - Base para textura */
     --card-bg: #ffffff;
-    --text-dark: #1e293b;      /* Slate 800 */
+    --text-dark: #1e293b;      /* Slate 800 (Gris oscuro suave) */
     --text-main: #475569;      /* Slate 600 */
     --text-muted: #64748b;     /* Slate 500 */
     --bg-subtle: #f8fafc;      /* Slate 50 */
@@ -12,10 +12,10 @@
     --primary-cold: #4f46e5;   
     --primary-hover: #4338ca;  
 
-    /* Sistema de Estados - "En Cola" es un Slate Neutral Minimalista */
-    --status-cola: #64748b;        /* Slate 500 */
-    --status-cola-bg: #f8fafc;     /* Slate 50 */
-    --status-cola-border: #e2e8f0; /* Slate 200 */
+    /* Sistema de Estados - "En Cola" es Lavanda/Púrpura Suave */
+    --status-cola: #7e22ce;        /* Purple 700 */
+    --status-cola-bg: #f3e8ff;     /* Purple 100 */
+    --status-cola-border: #d8b4fe; /* Purple 300 */
 
     --status-curso: #1d4ed8;       
     --status-curso-bg: #eff6ff;    
@@ -100,6 +100,8 @@ body {
 .user-profile:hover, .user-profile:focus-visible { background: var(--bg-subtle); box-shadow: 0 0 0 2px var(--primary-cold); }
 .user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-light); background: var(--card-bg); }
 .header-divider { width: 1px; height: 24px; background: var(--border-light); margin: 0 4px; }
+.header-logout-btn { color: var(--text-muted); }
+.header-logout-btn:hover { color: var(--danger); background: #fef2f2; }
 
 .btn { font-family: inherit; padding: 10px 18px; border-radius: 8px; border: 1px solid transparent; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 8px; outline: none;}
 .btn:focus-visible { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.4); }
@@ -110,14 +112,13 @@ body {
 .btn-success { background: var(--success); color: #ffffff; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25); }
 .btn-success:hover { background: var(--success-hover); transform: translateY(-1px); }
 
-.btn-icon { background: var(--card-bg); border: 1px solid var(--border-light); color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
-.btn-icon:hover, .btn-icon:focus-visible { outline: none; background: var(--bg-subtle); color: var(--primary-cold); border-color: var(--primary-cold); }
-.btn-icon.header-logout-btn:hover { color: var(--danger); background: var(--danger-bg); border-color: var(--danger); }
-.btn-icon.delete { border: none; background: transparent; padding: 6px; }
-.btn-icon.delete:hover { color: var(--danger); background: var(--danger-bg); border-color: transparent;}
-.btn-icon.edit { border: none; background: transparent; padding: 6px;}
-.btn-icon.edit:hover { color: var(--info); background: #f0f9ff; border-color: transparent;}
+/* Botones icono genéricos */
+.btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+.btn-icon:hover, .btn-icon:focus-visible { outline: none; background: var(--bg-subtle); color: var(--primary-cold); }
+.btn-icon.delete:hover { color: var(--danger); background: var(--danger-bg); }
+.btn-icon.edit:hover { color: var(--info); background: #f0f9ff; }
 
+/* Botón específico de Enviar Nota - Resuelve CSS Conflicto */
 .btn-send-note { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; border: none; color: #ffffff; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0; outline: none; background-color: var(--primary-cold); }
 .btn-send-note:hover, .btn-send-note:focus-visible { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
 
@@ -177,6 +178,7 @@ html body .native-select-hidden { display: none; }
 .select-trigger.table-select:hover, .select-trigger.table-select:focus-visible { opacity: 0.9; border-color: var(--border-light); }
 .select-trigger.table-select svg { width: 14px; height: 14px; opacity: 0.8; margin-left: 6px; flex-shrink: 0;}
 .select-trigger.table-select.active { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2); border-color: var(--primary-cold); }
+
 .select-trigger.inline-assignee { border: 1px solid var(--border-light); color: var(--text-dark); }
 .select-trigger.inline-assignee.unassigned { background-color: var(--bg-subtle) !important; color: var(--text-muted) !important; border-color: var(--border-light) !important; }
 
@@ -215,7 +217,7 @@ html body .native-select-hidden { display: none; }
 /* Nombre en la tarjeta: Truncado a 2 líneas normal, full text cuando se expande */
 .req-name { font-size: 0.9rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: flex-start; gap: 8px; line-height: 1.3; }
 .req-name-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; flex: 1; }
-.request-item.expanded .req-name-text { -webkit-line-clamp: unset; overflow: visible; }
+.request-item.expanded .req-name-text { -webkit-line-clamp: unset; display: block; overflow: visible; }
 
 .req-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-top: 4px;}
 .req-status-dot.dot-cola { background-color: var(--status-cola); }
@@ -256,10 +258,10 @@ html body .row-highlight { background: var(--status-curso-bg) !important; outlin
 .action-buttons { display: flex; gap: 8px; justify-content: flex-end; }
 .req-title-cell { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
 
-/* Truncamiento en Tabla Principal */
+/* Truncamiento en Tabla Principal (Expansión Corregida) */
 .req-title-cell strong { color: var(--text-dark); font-weight: 600; white-space: normal; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; transition: all 0.3s ease; }
-/* Expansión completa al hacer clic */
-.task-table tr.expanded-row .req-title-cell strong { -webkit-line-clamp: unset; overflow: visible; }
+/* Expansión completa al hacer clic - Corregido a display block para forzar render */
+.task-table tr.expanded-row .req-title-cell strong { display: block; white-space: normal; overflow: visible; }
 
 .req-title-cell span { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .date-info { display: flex; flex-direction: column; gap: 6px; }
@@ -296,10 +298,10 @@ html body .row-highlight { background: var(--status-curso-bg) !important; outlin
 .remove-member { cursor: pointer; color: var(--text-muted); background: transparent; border: none; display: flex; outline: none; }
 .remove-member:hover, .remove-member:focus-visible { color: var(--danger); }
 
-/* PANEL LATERAL DE NOTAS (Off-canvas Drawer) */
+/* PANEL LATERAL DE NOTAS (Off-canvas Drawer y Chat Bubbles Seguros) */
 .notes-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.4); backdrop-filter: blur(2px); z-index: 9998; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
 .notes-overlay.active { opacity: 1; pointer-events: all; }
-.notes-panel { position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100vh; background: var(--bg-subtle); box-shadow: -4px 0 25px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
+.notes-panel { position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100vh; background: var(--bg-main); box-shadow: -4px 0 25px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
 .notes-panel.open { right: 0; }
 .notes-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-light); background: var(--card-bg); }
 .notes-header h2 { font-size: 1rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: center; gap: 8px; margin:0;}
@@ -317,7 +319,7 @@ html body .row-highlight { background: var(--status-curso-bg) !important; outlin
 
 /* UTILIDAD ALERTAS (Badge Notificaciones) */
 .position-relative { position: relative; }
-.notification-badge { position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; background-color: var(--danger); border-radius: 50%; border: 2px solid var(--card-bg); display: none; }
+.notification-badge { position: absolute; top: 0px; right: 0px; width: 10px; height: 10px; background-color: var(--danger); border-radius: 50%; border: 2px solid var(--card-bg); display: none; }
 .notification-badge.active { display: block; animation: popIn 0.3s ease-out; }
 
 /* MEDIA QUERIES PARA MÓVILES */
