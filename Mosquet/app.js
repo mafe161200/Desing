@@ -5,7 +5,7 @@ lucide.createIcons();
    ========================================= */
 const escapeHTML = (str) => {
     if (!str) return '';
-    // Single Source of Truth para Sanitización. Protege de XSS pero preserva símbolos.
+    // Single Source of Truth para Sanitización
     const entityMap = {
         '&': '&amp;',
         '<': '&lt;',
@@ -48,12 +48,13 @@ class UI {
         let icon = 'info';
         if (type === 'success') icon = 'check-circle';
         if (type === 'error') icon = 'alert-circle';
+        if (type === 'warning') icon = 'alert-triangle';
         
         toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${escapeHTML(message)}</span>`;
         container.appendChild(toast);
         lucide.createIcons();
         
-        setTimeout(() => { if(toast.parentElement) toast.remove(); }, 3200);
+        setTimeout(() => { if(toast.parentElement) toast.remove(); }, 3500);
     }
 
     static updateConnectionStatus(isOnline, errMessage = null) {
@@ -71,6 +72,44 @@ class UI {
         }
     }
 }
+
+// ----------------------------------------------------------------------
+// SERVICIO DE NOTIFICACIONES AL INICIO (Clean Architecture - SRP)
+// ----------------------------------------------------------------------
+const NotificationService = {
+    checkStartupAlerts: (tasks, userName) => {
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        
+        // 1. Alertar Tarea Más Próxima o Vencida del Usuario
+        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && t.dateDelivered);
+        if (myPendingTasks.length > 0) {
+            myPendingTasks.sort((a, b) => new Date(a.dateDelivered).getTime() - new Date(b.dateDelivered).getTime());
+            const nearest = myPendingTasks[0];
+            
+            if (nearest.dateDelivered < todayStr) {
+                 setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error'), 1000);
+            } else if (nearest.dateDelivered === todayStr) {
+                 setTimeout(() => UI.showToast(`Tu tarea más próxima es para hoy: ${nearest.name}`, 'warning'), 1000);
+            } else {
+                 setTimeout(() => UI.showToast(`Próxima entrega: ${nearest.name} el ${nearest.dateDelivered.split('-').reverse().join('/')}`, 'info'), 1000);
+            }
+        }
+
+        // 2. Alertar Tareas Olvidadas (> 3 días sin asignar)
+        const unassigned = tasks.filter(t => t.assignee === 'No asignado' && t.status !== 'Entregado' && t.dateReceived);
+        const oldUnassigned = unassigned.filter(t => {
+            const recDate = new Date(t.dateReceived);
+            const diffTime = Math.abs(now - recDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays > 3;
+        });
+
+        if (oldUnassigned.length > 0) {
+            setTimeout(() => UI.showToast(`Hay ${oldUnassigned.length} tarea(s) sin asignar desde hace más de 3 días.`, 'warning'), 2500);
+        }
+    }
+};
 
 /* =========================================
    CAPA DE SERVICIOS (PERSISTENCIA Y AUTH)
@@ -389,6 +428,9 @@ const App = {
         
         this.setupCrossTabSync();
         this.setupRealtimeSubscription();
+
+        // Lanzar notificaciones emergentes seguras (Clean Architecture)
+        NotificationService.checkStartupAlerts(this.tasks, this.user.name);
     },
 
     showLogin() {
@@ -459,6 +501,7 @@ const App = {
     updateAvatarUI() {
         const avatarEl = document.getElementById('userAvatar');
         const previewEl = document.getElementById('previewAvatar');
+        const sendBtn = document.getElementById('btnSendNote');
         
         const themeColor = this.user.theme || '#4f46e5';
         let avatarUrl = this.user.avatar;
@@ -469,6 +512,7 @@ const App = {
         
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
+        if(sendBtn) sendBtn.style.backgroundColor = themeColor; 
     },
 
     async loadData() {
@@ -562,7 +606,7 @@ const App = {
             const taskNameRaw = document.getElementById('taskName').value.trim();
             const requesterRaw = document.getElementById('requesterSelect').value;
             
-            // Client-Side Validation (O(N)) para evitar Data Spillage
+            // Client-Side Validation para evitar Data Spillage
             const isDuplicate = this.tasks.some(t => 
                 t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
                 t.requester === requesterRaw
@@ -655,7 +699,7 @@ const App = {
         btnClose.addEventListener('click', closePanel);
         overlay.addEventListener('click', closePanel);
 
-        // Native Web Component Emoji Picker (Aislado de Event Bubbling)
+        // Web Component Emoji Picker - Corrección de Event Bubbling
         const emojiBtn = document.getElementById('btnToggleEmoji');
         const pickerWrapper = document.getElementById('emojiPickerWrapper');
         const picker = document.querySelector('emoji-picker');
@@ -671,14 +715,16 @@ const App = {
         if (picker) {
             picker.addEventListener('emoji-click', event => {
                 input.value += event.detail.unicode;
-                pickerWrapper.style.display = 'none';
                 input.focus();
             });
         }
 
-        panel.addEventListener('click', (e) => {
-            if(pickerWrapper && !e.target.closest('#emojiPickerWrapper') && !e.target.closest('#btnToggleEmoji')) {
-                pickerWrapper.style.display = 'none';
+        // Delegación global al Documento para cerrar si se cliquea afuera
+        document.addEventListener('click', (e) => {
+            if(pickerWrapper && pickerWrapper.style.display === 'block') {
+                if(!pickerWrapper.contains(e.target) && !emojiBtn.contains(e.target)) {
+                    pickerWrapper.style.display = 'none';
+                }
             }
         });
 
@@ -687,6 +733,7 @@ const App = {
             const text = input.value.trim();
             if(!text) return;
 
+            // Se guarda RAW 
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
@@ -721,6 +768,8 @@ const App = {
             const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
+            let cleanContent = escapeHTML(n.content);
+
             container.innerHTML += `
                 <div class="chat-msg ${alignClass}">
                     <div class="chat-meta">
@@ -728,7 +777,7 @@ const App = {
                         <span>${dateStr}</span>
                     </div>
                     <div class="chat-bubble ${isMine ? '' : 'chat-bubble-other'}" style="${isMine ? `background-color: var(--primary-cold); color: #ffffff;` : `border-left-color: ${authorColor};`}">
-                        ${escapeHTML(n.content)}
+                        ${cleanContent}
                     </div>
                 </div>
             `;
@@ -794,7 +843,6 @@ const App = {
 
         let selectedTheme = this.user.theme || '#4f46e5';
 
-        // Prevención estricta de Colisión de Colores
         const checkTakenColors = () => {
             const takenColors = this.usersList.filter(u => u.username !== this.user.username).map(u => u.theme);
             swatches.forEach(swatch => {
@@ -1189,6 +1237,7 @@ const App = {
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
             
+            // Event Delegation para expandir filas (KISS)
             tr.addEventListener('click', (e) => {
                 if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a')) {
                     return;

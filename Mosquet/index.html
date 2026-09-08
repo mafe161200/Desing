@@ -212,7 +212,8 @@
                 <button type="button" id="btnToggleEmoji" class="btn-icon" title="Añadir Emoji" aria-label="Añadir Emoji" style="flex-shrink: 0; background: var(--bg-subtle);">
                     <i data-lucide="smile"></i>
                 </button>
-                <input type="text" id="noteInput" class="custom-input" placeholder="Escribe un mensaje al equipo..." required>
+                <!-- Ajuste: autocomplete="off", name dinámico y spellcheck false evitan memoria del navegador -->
+                <input type="text" id="noteInput" name="team_chat_input_unique" autocomplete="off" spellcheck="false" class="custom-input" placeholder="Escribe un mensaje al equipo..." required>
                 <button type="submit" id="btnSendNote" class="btn-send-note" aria-label="Enviar"><i data-lucide="send"></i></button>
             </form>
         </div>
