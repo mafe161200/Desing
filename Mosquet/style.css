@@ -1,6 +1,6 @@
 :root {
     /* Paleta Neutra Premium (Grises Pizarra para reducir fatiga visual) */
-    --bg-main: #f1f5f9;        /* Slate 100 - Base para textura */
+    --bg-main: #f1f5f9;        /* Slate 100 - Fallback color */
     --card-bg: #ffffff;
     --text-dark: #1e293b;      /* Slate 800 (Gris oscuro suave) */
     --text-main: #475569;      /* Slate 600 */
@@ -13,9 +13,9 @@
     --primary-hover: #4338ca;  
 
     /* Sistema de Estados - "En Cola" es Lavanda/Púrpura Suave */
-    --status-cola: #7e22ce;        /* Purple 700 */
-    --status-cola-bg: #f3e8ff;     /* Purple 100 */
-    --status-cola-border: #d8b4fe; /* Purple 300 */
+    --status-cola: #7e22ce;        
+    --status-cola-bg: #f3e8ff;     
+    --status-cola-border: #d8b4fe; 
 
     --status-curso: #1d4ed8;       
     --status-curso-bg: #eff6ff;    
@@ -36,11 +36,13 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; letter-spacing: normal; }
 
-/* Textura de Fondo (Canvas Grid Minimalista) */
+/* Textura de Fondo Fotográfica solicitada por el usuario con Overlay de Accesibilidad (WCAG) */
 body { 
     background-color: var(--bg-main); 
-    background-image: radial-gradient(var(--border-light) 1px, transparent 1px);
-    background-size: 24px 24px;
+    background-image: linear-gradient(rgba(241, 245, 249, 0.85), rgba(241, 245, 249, 0.85)), url('https://images.pexels.com/photos/26545253/pexels-photo-26545253.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     color: var(--text-main); 
     font-family: 'Montserrat', sans-serif; 
     line-height: 1.5; 
@@ -118,7 +120,7 @@ body {
 .btn-icon.delete:hover { color: var(--danger); background: var(--danger-bg); }
 .btn-icon.edit:hover { color: var(--info); background: #f0f9ff; }
 
-/* Botón específico de Enviar Nota - Resuelve CSS Conflicto */
+/* Botón específico de Enviar Nota */
 .btn-send-note { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; border: none; color: #ffffff; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0; outline: none; background-color: var(--primary-cold); }
 .btn-send-note:hover, .btn-send-note:focus-visible { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
 
@@ -258,9 +260,9 @@ html body .row-highlight { background: var(--status-curso-bg) !important; outlin
 .action-buttons { display: flex; gap: 8px; justify-content: flex-end; }
 .req-title-cell { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
 
-/* Truncamiento en Tabla Principal (Expansión Corregida) */
+/* Truncamiento en Tabla Principal (Expansión Corregida para Cross-Browser Compatibility) */
 .req-title-cell strong { color: var(--text-dark); font-weight: 600; white-space: normal; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; transition: all 0.3s ease; }
-/* Expansión completa al hacer clic - Corregido a display block para forzar render */
+/* Expansión completa al hacer clic - Forzado a display block para renderizar sin fallos WebKit */
 .task-table tr.expanded-row .req-title-cell strong { display: block; white-space: normal; overflow: visible; }
 
 .req-title-cell span { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
