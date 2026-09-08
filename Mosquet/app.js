@@ -5,7 +5,7 @@ lucide.createIcons();
    ========================================= */
 const escapeHTML = (str) => {
     if (!str) return '';
-    // Protege contra inyección XSS pero respeta símbolos en renderizado final
+    // Protege contra XSS pero preserva estructura limpia
     const entityMap = {
         '&': '&amp;',
         '<': '&lt;',
@@ -107,7 +107,7 @@ const DataService = {
     },
     saveUsers: async (users) => {
         try { localStorage.setItem('db_users', JSON.stringify(users)); } catch (e) {
-            if (e.name === 'QuotaExceededError') UI.showToast("Error: Memoria llena. La imagen es muy pesada.", "error");
+            if (e.name === 'QuotaExceededError') UI.showToast("Error: Memoria llena.", "error");
         }
     },
     
@@ -131,7 +131,6 @@ const DataService = {
     getNotes: async () => {
         if (supabaseClient) {
             try {
-                // ASCendente para mostrar el chat de arriba hacia abajo
                 const { data, error } = await supabaseClient.from('notes').select('*').order('created_at', { ascending: true });
                 if (!error && data) return data;
             } catch(e) {}
@@ -471,7 +470,10 @@ const App = {
         
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
-        if(sendBtn) sendBtn.style.backgroundColor = themeColor; 
+        
+        if(sendBtn) {
+            sendBtn.style.backgroundColor = themeColor;
+        }
     },
 
     async loadData() {
@@ -635,27 +637,43 @@ const App = {
         const closePanel = () => {
             panel.classList.remove('open');
             overlay.classList.remove('active');
+            document.getElementById('emojiPickerWrapper').style.display = 'none';
         };
 
         btnToggle.addEventListener('click', openPanel);
         btnClose.addEventListener('click', closePanel);
         overlay.addEventListener('click', closePanel);
 
-        document.querySelectorAll('.quick-emoji').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const input = document.getElementById('noteInput');
-                input.value += btn.textContent;
-                input.focus();
-            });
+        // Native Web Component Emoji Picker Integration
+        const emojiBtn = document.getElementById('btnToggleEmoji');
+        const pickerWrapper = document.getElementById('emojiPickerWrapper');
+        const picker = document.querySelector('emoji-picker');
+        const input = document.getElementById('noteInput');
+
+        emojiBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            pickerWrapper.style.display = pickerWrapper.style.display === 'none' ? 'block' : 'none';
+        });
+
+        picker.addEventListener('emoji-click', event => {
+            input.value += event.detail.unicode;
+            pickerWrapper.style.display = 'none';
+            input.focus();
+        });
+
+        // Hide picker when clicking outside
+        panel.addEventListener('click', (e) => {
+            if(!e.target.closest('#emojiPickerWrapper') && !e.target.closest('#btnToggleEmoji')) {
+                pickerWrapper.style.display = 'none';
+            }
         });
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const input = document.getElementById('noteInput');
             const text = input.value.trim();
             if(!text) return;
 
-            // NO escapamos aquí. Se guarda RAW para evitar doble-escapado
+            // NO escapamos aquí. Se guarda RAW para evitar doble-escapado de caracteres
             const newNote = {
                 id: Date.now().toString(),
                 author: this.user.name,
@@ -666,6 +684,7 @@ const App = {
             await DataService.saveNote(newNote);
             this.notes.push(newNote);
             input.value = '';
+            pickerWrapper.style.display = 'none';
             this.renderNotes();
         });
     },
@@ -689,21 +708,18 @@ const App = {
             const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
-            // Patrón Estricto Accesible: Tuyos son Primary/White. Otros son White/DarkText con borde distintivo.
-            const bubbleStyle = isMine 
-                ? `background-color: var(--primary-cold); color: #ffffff; border: none;`
-                : `background-color: var(--card-bg); color: var(--text-dark); border: 1px solid var(--border-light); border-left: 4px solid ${authorColor};`;
-            
-            const nameStyle = isMine ? `color: var(--text-muted);` : `color: ${authorColor};`;
+            // Evitamos la inyección directa, pero no rompemos entidades como <3
+            // Reemplazo super seguro en tiempo de renderizado
+            let cleanContent = escapeHTML(n.content);
 
             container.innerHTML += `
                 <div class="chat-msg ${alignClass}">
                     <div class="chat-meta">
-                        <span style="${nameStyle} font-weight: 700;">${authorText}</span> 
+                        <span style="color: ${isMine ? 'var(--text-muted)' : authorColor}; font-weight: 700;">${authorText}</span> 
                         <span>${dateStr}</span>
                     </div>
-                    <div class="chat-bubble" style="${bubbleStyle}">
-                        ${escapeHTML(n.content)}
+                    <div class="chat-bubble ${isMine ? '' : 'chat-bubble-other'}" style="${isMine ? `background-color: var(--primary-cold); color: #ffffff;` : `border-left-color: ${authorColor};`}">
+                        ${cleanContent}
                     </div>
                 </div>
             `;
@@ -816,7 +832,7 @@ const App = {
                 dbUser.theme = selectedTheme;
                 try {
                     await DataService.saveUsers(allUsers);
-                    UI.showToast("Perfil actualizado correctamente", "success");
+                    UI.showToast("Perfil actualizado", "success");
                 } catch (e) { return; }
             }
 
@@ -1046,6 +1062,7 @@ const App = {
         const sCompList = document.getElementById('sidebarCompletedList');
         const tBody = document.getElementById('tablePrioridades');
         
+        // Algoritmo local seguro
         const d = new Date();
         const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         
@@ -1108,11 +1125,7 @@ const App = {
                 if(e.target.tagName.toLowerCase() === 'input') return;
                 document.querySelectorAll('.request-item.expanded').forEach(el => { if(el !== li) el.classList.remove('expanded'); });
                 const exp = li.classList.toggle('expanded');
-                document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('row-highlight'));
-                if(exp) {
-                    const row = document.getElementById(`tr-${t.id}`);
-                    if(row) { row.classList.add('row-highlight'); row.scrollIntoView({behavior:'smooth', block:'center'}); }
-                }
+                document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
             };
 
             li.onclick = handleExpand;
@@ -1167,8 +1180,21 @@ const App = {
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
             
-            let dateDeliveredVal = t.dateDelivered || '';
+            // Event Delegation para expandir fila protegiendo controles internos
+            tr.addEventListener('click', (e) => {
+                // Ignora el click si se hizo dentro de un select, input, o boton
+                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons')) {
+                    return;
+                }
+                
+                // Cierra otras filas
+                document.querySelectorAll('.task-table tr').forEach(r => {
+                    if (r !== tr) r.classList.remove('expanded-row');
+                });
+                tr.classList.toggle('expanded-row');
+            });
             
+            let dateDeliveredVal = t.dateDelivered || '';
             let dateClass = '';
             if (t.dateDelivered) {
                 if (t.dateDelivered < todayStr) dateClass = 'text-danger';
