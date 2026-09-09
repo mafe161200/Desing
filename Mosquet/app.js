@@ -672,13 +672,13 @@ const App = {
                 return;
             }
             
-            let dateReceivedValue = escapeHTML(document.getElementById('dateReceived').value);
-            if (!dateReceivedValue) {
+            let dateReceivedValue = escapeHTML(document.getElementById('dateReceived').value);let dateReceivedValue = document.getElementById('dateReceived').value.trim();
+                        if (!dateReceivedValue) {
                 const d = new Date();
                 dateReceivedValue = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             }
             
-            const dateDelivered = escapeHTML(document.getElementById('dateDelivered').value);
+            const dateDelivered = document.getElementById('dateDelivered').value.trim();
             
             if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedValue)) {
                 UI.showToast("La entrega no puede ser anterior a la solicitud.", "error"); 
@@ -686,14 +686,17 @@ const App = {
             }
 
             this.tasks.push({
-                id: Date.now().toString(),
-                name: escapeHTML(taskNameRaw),
-                requester: escapeHTML(requesterRaw),
-                assignee: escapeHTML(document.getElementById('assignee').value),
-                status: escapeHTML(document.getElementById('status').value),
-                dateReceived: dateReceivedValue, 
-                dateDelivered: dateDelivered,
-                isStarred: false // Nueva propiedad
+id: typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : Date.now().toString(),
+
+name: taskNameRaw,
+requester: requesterRaw,
+assignee: document.getElementById('assignee').value.trim(),
+status: document.getElementById('status').value.trim(),
+dateReceived: dateReceivedValue,
+dateDelivered: dateDelivered,
+isStarred: false
             });
             
             this.markAsUnsaved(); 
@@ -709,15 +712,15 @@ const App = {
             const task = this.tasks.find(t => t.id === id);
             
             if (task) {
-                const newRecDate = escapeHTML(document.getElementById('editDateReceived').value);
+                const newRecDate = document.getElementById('editDateReceived').value.trim();
                 
                 if (task.dateDelivered && new Date(task.dateDelivered) < new Date(newRecDate)) {
                     UI.showToast("La solicitud no puede superar la entrega.", "error"); 
                     return;
                 }
 
-                task.name = escapeHTML(document.getElementById('editTaskName').value);
-                task.requester = escapeHTML(document.getElementById('editRequesterSelect').value);
+                task.name = document.getElementById('editTaskName').value.trim();
+                task.requester = document.getElementById('editRequesterSelect').value.trim();   
                 task.dateReceived = newRecDate;
                 
                 this.markAsUnsaved();
@@ -1007,7 +1010,14 @@ const App = {
                 const canvas = this.cropperInstance.getCroppedCanvas({ width: 256, height: 256 });
                 saveAndClose(canvas.toDataURL('image/webp', 0.5));
             } else if (urlInput.value.trim() !== '') {
-                saveAndClose(escapeHTML(urlInput.value.trim()));
+                const avatarUrl = urlInput.value.trim();
+
+            if (!/^https?:\/\//i.test(avatarUrl)) {
+             UI.showToast("La URL del avatar debe comenzar por http:// o https://", "error");
+             return;
+}
+
+saveAndClose(avatarUrl);    
             } else {
                 saveAndClose(this.user.avatar || ""); 
             }
@@ -1065,7 +1075,7 @@ const App = {
         document.getElementById('addRequesterForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const input = document.getElementById('newRequesterInput');
-            const name = escapeHTML(input.value.trim());
+            const name = input.value.trim();
             if (name && !this.requesters.some(r => r.toLowerCase() === name.toLowerCase())) {
                 this.requesters.push(name); 
                 await DataService.addRequester(name);
@@ -1158,14 +1168,43 @@ const App = {
         return allColors[Math.abs(hash) % allColors.length];
     },
 
-    updateTask(id, field, value, shouldRender = false) {
-        const t = this.tasks.find(x => x.id === id);
-        if (t) {
-            t[field] = escapeHTML(value);
-            this.markAsUnsaved(); 
-            this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
-            if(shouldRender) this.renderBoard(); 
-        }
+updateTask(id, field, value, shouldRender = false) {
+    const task = this.tasks.find(x => x.id === id);
+
+    if (!task) {
+        console.warn(`No se encontró la tarea con ID: ${id}`);
+        return;
+    }
+
+    const allowedFields = [
+        'name',
+        'requester',
+        'assignee',
+        'status',
+        'dateReceived',
+        'dateDelivered',
+        'isStarred'
+    ];
+
+    if (!allowedFields.includes(field)) {
+        console.warn(`Campo no permitido para actualizar: ${field}`);
+        return;
+    }
+
+    // Los datos se almacenan en su forma original.
+    // escapeHTML() debe utilizarse únicamente al renderizar HTML.
+    task[field] = typeof value === 'string' ? value.trim() : value;
+
+    this.markAsUnsaved();
+
+    this.renderWorkloadChart(
+        this.tasks.filter(x => x.status !== 'Entregado')
+    );
+
+    if (shouldRender) {
+        this.renderBoard();
+    }
+},
     },
 
     renderBoard() {
