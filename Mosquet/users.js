@@ -1,36 +1,60 @@
-// Base de datos inicial de usuarios (Simulación de Backend)
-// ADVERTENCIA DE SEGURIDAD: 
-// Las contraseñas en texto plano solo se utilizan para propósitos de demostración.
-// En un entorno de producción, la validación de usuarios debe realizarse
-// mediante un Backend seguro (JWT) y las contraseñas guardadas con hashes (Bcrypt/Argon2).
+/**
+ * Design Hub - configuración pública de perfiles
+ *
+ * IMPORTANTE:
+ * Este archivo NO contiene contraseñas.
+ *
+ * La autenticación se realiza mediante Supabase Auth.
+ * Estos datos son únicamente metadatos públicos del perfil
+ * que la interfaz puede utilizar para identificar al usuario.
+ */
 
 const INITIAL_USERS = [
-    { 
-        username: "admin", 
-        password: "Admin_DH2026!", 
-        role: "admin", 
+    {
+        username: "admin",
+        email: "admin@designhub.local",
+        role: "admin",
         name: "Administrador General",
+        avatar: "",
         theme: "#4f46e5"
     },
-    { 
-        username: "camilo", 
-        password: "Camilo_DH2026!", 
-        role: "editor", 
+    {
+        username: "camilo",
+        email: "camilo@designhub.local",
+        role: "editor",
         name: "Camilo",
-        theme: "#db2777" 
+        avatar: "",
+        theme: "#db2777"
     },
-    { 
-        username: "david", 
-        password: "David_DH2026!", 
-        role: "editor", 
+    {
+        username: "david",
+        email: "david@designhub.local",
+        role: "editor",
         name: "David",
-        theme: "#ea580c" 
+        avatar: "",
+        theme: "#ea580c"
     },
-    { 
-        username: "mafe", 
-        password: "Mafe_DH2026!", 
-        role: "editor", 
+    {
+        username: "mafe",
+        email: "mafe@designhub.local",
+        role: "editor",
         name: "Mafe",
-        theme: "#0284c7" 
+        avatar: "",
+        theme: "#0284c7"
     }
 ];
+
+/**
+ * Busca un perfil por nombre de usuario.
+ */
+function getInitialUserProfile(username) {
+    const cleanUsername =
+        String(username || "").trim().toLowerCase();
+
+    return INITIAL_USERS.find(
+        user =>
+            user &&
+            typeof user.username === "string" &&
+            user.username.toLowerCase() === cleanUsername
+    ) || null;
+}
