@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://npmcdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://gbltrfqxohrmkopanghx.supabase.co wss://gbltrfqxohrmkopanghx.supabase.co; worker-src 'self' blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://npmcdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://gbltrfqxohrmkopanghx.supabase.co wss://gbltrfqxohrmkopanghx.supabase.co https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob:;">
     <title>Design Hub | Plataforma Colaborativa</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,7 +14,7 @@
     
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -98,7 +98,7 @@
             <aside class="sidebar-col">
                 <div class="card sidebar-card card-accent-primary">
                     <div class="card-header">
-                        <h2><i data-lucide="user-focus" class="icon-primary"></i> Mis Tareas</h2>
+                        <h2><i data-lucide="user" class="icon-primary"></i> Mis Tareas</h2>
                     </div>
                     <div class="sidebar-content">
                         <ul id="sidebarList" class="request-list"></ul>

@@ -55,6 +55,16 @@ const getLocalJSON = (key, fallback) => {
     }
 };
 
+const removeStorageItem = (key) => {
+    try {
+        localStorage.removeItem(key);
+        return true;
+    } catch (error) {
+        console.warn(`No se pudo eliminar "${key}" de LocalStorage.`, error);
+        return false;
+    }
+};
+
 const setLocalJSON = (key, value) => {
     try {
         localStorage.setItem(key, JSON.stringify(value));
@@ -665,7 +675,7 @@ const AuthService = {
             const { data, error } = await supabaseClient.auth.getUser();
 
             if (error || !data?.user) {
-                localStorage.removeItem(CONFIG.localStorageKeys.authUser);
+                removeStorageItem(CONFIG.localStorageKeys.authUser);
                 return null;
             }
 
@@ -678,7 +688,7 @@ const AuthService = {
             if (!profile) {
                 console.error(`No existe un perfil de Supabase para el usuario "${username}".`);
                 await supabaseClient.auth.signOut();
-                localStorage.removeItem(CONFIG.localStorageKeys.authUser);
+                removeStorageItem(CONFIG.localStorageKeys.authUser);
                 return null;
             }
 
@@ -695,7 +705,7 @@ const AuthService = {
             return sessionUser;
         } catch (error) {
             console.error('No fue posible validar la sesión:', error);
-            localStorage.removeItem(CONFIG.localStorageKeys.authUser);
+            removeStorageItem(CONFIG.localStorageKeys.authUser);
             return null;
         }
     },
@@ -709,7 +719,7 @@ const AuthService = {
         } catch (error) {
             console.error('Error inesperado cerrando sesión:', error);
         } finally {
-            localStorage.removeItem(CONFIG.localStorageKeys.authUser);
+            removeStorageItem(CONFIG.localStorageKeys.authUser);
             window.location.reload();
         }
     }
