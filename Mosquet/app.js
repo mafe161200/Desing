@@ -229,6 +229,39 @@ const NotificationService = {
    ========================================= */
 const DataService = {
     async getUsers() {
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('profiles')
+                    .select('id, username, email, name, role, avatar, theme, created_at')
+                    .order('username', { ascending: true });
+
+                if (!error && data) {
+                    const profiles = data.map(profile => ({
+                        id: profile.id,
+                        username: normalizeUsername(profile.username),
+                        email: normalizeText(profile.email),
+                        name: normalizeText(profile.name),
+                        role: profile.role === 'admin' ? 'admin' : 'editor',
+                        avatar: sanitizeAvatarUrl(profile.avatar),
+                        theme: normalizeText(profile.theme) || '#4f46e5',
+                        created_at: profile.created_at
+                    }));
+
+                    setLocalJSON(CONFIG.localStorageKeys.users, profiles);
+                    return profiles;
+                }
+
+                if (error) {
+                    console.warn('Supabase: no se pudieron cargar los perfiles.', error);
+                }
+            } catch (error) {
+                console.warn('Supabase: error cargando perfiles.', error);
+            }
+        }
+
+        // Fallback únicamente para modo local/offline.
+        // En producción, Supabase Profiles es la fuente de autoridad.
         const localUsers = getLocalJSON(CONFIG.localStorageKeys.users, []);
         const baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
         const allUsersMap = new Map();
@@ -241,28 +274,78 @@ const DataService = {
 
         localUsers.forEach(user => {
             if (!user?.username) return;
-
             const key = normalizeUsername(user.username);
             const existing = allUsersMap.get(key);
 
             if (existing) {
                 allUsersMap.set(key, {
                     ...existing,
-                    avatar: user.avatar || existing.avatar || "",
-                    theme: user.theme || existing.theme || '#4f46e5'
+                    avatar: sanitizeAvatarUrl(user.avatar || existing.avatar || ''),
+                    theme: normalizeText(user.theme || existing.theme || '#4f46e5')
                 });
-            } else {
-                allUsersMap.set(key, { ...user });
             }
         });
 
-        const finalUsers = Array.from(allUsersMap.values());
-        setLocalJSON(CONFIG.localStorageKeys.users, finalUsers);
-        return finalUsers;
+        return Array.from(allUsersMap.values());
     },
 
-    async saveUsers(users) {
-        return setLocalJSON(CONFIG.localStorageKeys.users, users);
+    async getProfileByAuthId(authId) {
+        if (!supabaseClient || !authId) return null;
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('id, username, email, name, role, avatar, theme, created_at')
+                .eq('id', authId)
+                .maybeSingle();
+
+            if (error) {
+                console.error('Supabase: no se pudo cargar el perfil.', error);
+                return null;
+            }
+
+            if (!data) return null;
+
+            return {
+                id: data.id,
+                username: normalizeUsername(data.username),
+                email: normalizeText(data.email),
+                name: normalizeText(data.name),
+                role: data.role === 'admin' ? 'admin' : 'editor',
+                avatar: sanitizeAvatarUrl(data.avatar),
+                theme: normalizeText(data.theme) || '#4f46e5',
+                created_at: data.created_at
+            };
+        } catch (error) {
+            console.error('Supabase: error cargando el perfil.', error);
+            return null;
+        }
+    },
+
+    async updateProfile(authId, changes) {
+        if (!supabaseClient || !authId) return false;
+
+        const payload = {
+            avatar: sanitizeAvatarUrl(changes?.avatar),
+            theme: normalizeText(changes?.theme) || '#4f46e5'
+        };
+
+        try {
+            const { error } = await supabaseClient
+                .from('profiles')
+                .update(payload)
+                .eq('id', authId);
+
+            if (error) {
+                console.error('Supabase: no se pudo actualizar el perfil.', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Supabase: error actualizando el perfil.', error);
+            return false;
+        }
     },
 
     async getTasks() {
@@ -515,194 +598,104 @@ const DataService = {
 };
 
 const AuthService = {
-    /**
-     * Convierte el usuario visible de Design Hub en el correo
-     * utilizado por Supabase Auth.
-     *
-     * Para mantener la interfaz actual, la persona sigue
-     * escribiendo solamente "admin", "camilo", "david" o "mafe".
-     */
     usernameToEmail: (username) => {
         const cleanUsername = normalizeUsername(username);
-
         if (!cleanUsername) return '';
-
         return `${cleanUsername}@designhub.local`;
     },
 
     login: async (username, password) => {
         if (!supabaseClient) {
-            console.error("Supabase Auth no está disponible.");
-            UI.showToast(
-                "No fue posible conectar con el servicio de autenticación.",
-                "error"
-            );
+            console.error('Supabase Auth no está disponible.');
+            UI.showToast('No fue posible conectar con el servicio de autenticación.', 'error');
             return false;
         }
 
         const userClean = normalizeUsername(username);
         const passClean = String(password ?? '');
-
-        if (!userClean || !passClean) {
-            return false;
-        }
-
-        const email = AuthService.usernameToEmail(userClean);
+        if (!userClean || !passClean) return false;
 
         try {
-            const { data, error } =
-                await supabaseClient.auth.signInWithPassword({
-                    email,
-                    password: passClean
-                });
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: AuthService.usernameToEmail(userClean),
+                password: passClean
+            });
 
             if (error || !data?.user) {
-                if (error) {
-                    console.warn(
-                        "Inicio de sesión rechazado:",
-                        error.message
-                    );
-                }
-
+                if (error) console.warn('Inicio de sesión rechazado:', error.message);
                 return false;
             }
 
-            const authUser = data.user;
+            const profile = await DataService.getProfileByAuthId(data.user.id);
 
-            /*
-             * La información visual/rol continúa viniendo de la
-             * configuración de usuarios mientras terminamos la
-             * migración hacia perfiles en Supabase.
-             */
-            const users = await DataService.getUsers();
-
-            const profile =
-                users.find(user =>
-                    user &&
-                    typeof user.username === 'string' &&
-                    normalizeUsername(user.username) === userClean
-                );
+            if (!profile) {
+                console.error('El usuario autenticado no tiene un perfil válido en Supabase.');
+                await supabaseClient.auth.signOut();
+                UI.showToast('Tu cuenta no tiene un perfil configurado. Contacta al administrador.', 'error');
+                return false;
+            }
 
             const sessionUser = {
-                id: authUser.id,
-                username: userClean,
-                name: profile?.name || userClean,
-                role: profile?.role || 'editor',
-                avatar: profile?.avatar || '',
-                theme: profile?.theme || '#4f46e5'
+                id: data.user.id,
+                username: profile.username || userClean,
+                name: profile.name || userClean,
+                role: profile.role,
+                avatar: profile.avatar || '',
+                theme: profile.theme || '#4f46e5'
             };
 
-            if (!setLocalJSON(
-                CONFIG.localStorageKeys.authUser,
-                sessionUser
-            )) {
+            if (!setLocalJSON(CONFIG.localStorageKeys.authUser, sessionUser)) {
                 await supabaseClient.auth.signOut();
                 return false;
             }
 
             UI.updateConnectionStatus(true);
-
             return true;
-
         } catch (error) {
-            console.error(
-                "Error durante la autenticación con Supabase:",
-                error
-            );
-
-            UI.showToast(
-                "No fue posible iniciar sesión. Inténtalo nuevamente.",
-                "error"
-            );
-
+            console.error('Error durante la autenticación con Supabase:', error);
+            UI.showToast('No fue posible iniciar sesión. Inténtalo nuevamente.', 'error');
             return false;
         }
     },
 
-    /**
-     * Valida la sesión real de Supabase antes de mostrar
-     * el workspace. El LocalStorage se utiliza solamente
-     * como caché de información visual.
-     */
     getUser: async () => {
-        if (!supabaseClient) {
-            return null;
-        }
+        if (!supabaseClient) return null;
 
         try {
-            const { data, error } =
-                await supabaseClient.auth.getUser();
+            const { data, error } = await supabaseClient.auth.getUser();
 
             if (error || !data?.user) {
-                removeStorageItem(
-                    CONFIG.localStorageKeys.authUser
-                );
+                localStorage.removeItem(CONFIG.localStorageKeys.authUser);
                 return null;
             }
 
             const authUser = data.user;
+            let username = normalizeUsername(authUser.user_metadata?.username || '');
+            if (!username && authUser.email) username = normalizeUsername(authUser.email.split('@')[0]);
+            if (!username) return null;
 
-            let username = normalizeUsername(
-                authUser.user_metadata?.username || ''
-            );
-
-            if (!username && authUser.email) {
-                username =
-                    normalizeUsername(
-                        authUser.email.split('@')[0]
-                    );
-            }
-
-            if (!username) {
-                console.error(
-                    "La sesión de Supabase no contiene un usuario identificable."
-                );
-                return null;
-            }
-
-            const users =
-                await DataService.getUsers();
-
-            const profile =
-                users.find(user =>
-                    user &&
-                    typeof user.username === 'string' &&
-                    normalizeUsername(user.username) === username
-                );
-
+            const profile = await DataService.getProfileByAuthId(authUser.id);
             if (!profile) {
-                console.error(
-                    `No existe un perfil local para el usuario "${username}".`
-                );
+                console.error(`No existe un perfil de Supabase para el usuario "${username}".`);
+                await supabaseClient.auth.signOut();
+                localStorage.removeItem(CONFIG.localStorageKeys.authUser);
                 return null;
             }
 
             const sessionUser = {
                 id: authUser.id,
-                username,
-                name: profile.name,
-                role: profile.role || 'editor',
+                username: profile.username || username,
+                name: profile.name || username,
+                role: profile.role,
                 avatar: profile.avatar || '',
                 theme: profile.theme || '#4f46e5'
             };
 
-            setLocalJSON(
-                CONFIG.localStorageKeys.authUser,
-                sessionUser
-            );
-
+            setLocalJSON(CONFIG.localStorageKeys.authUser, sessionUser);
             return sessionUser;
-
         } catch (error) {
-            console.error(
-                "No fue posible validar la sesión:",
-                error
-            );
-
-            removeStorageItem(
-                CONFIG.localStorageKeys.authUser
-            );
-
+            console.error('No fue posible validar la sesión:', error);
+            localStorage.removeItem(CONFIG.localStorageKeys.authUser);
             return null;
         }
     },
@@ -710,26 +703,13 @@ const AuthService = {
     logout: async () => {
         try {
             if (supabaseClient) {
-                const { error } =
-                    await supabaseClient.auth.signOut();
-
-                if (error) {
-                    console.error(
-                        "Error cerrando sesión en Supabase:",
-                        error
-                    );
-                }
+                const { error } = await supabaseClient.auth.signOut();
+                if (error) console.error('Error cerrando sesión en Supabase:', error);
             }
         } catch (error) {
-            console.error(
-                "Error inesperado cerrando sesión:",
-                error
-            );
+            console.error('Error inesperado cerrando sesión:', error);
         } finally {
-            removeStorageItem(
-                CONFIG.localStorageKeys.authUser
-            );
-
+            localStorage.removeItem(CONFIG.localStorageKeys.authUser);
             window.location.reload();
         }
     }
@@ -1091,6 +1071,7 @@ const App = {
         
         this.setupProfileListeners();
         this.setupAdminListeners();
+        this.setupDynamicEventDelegation();
 
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
@@ -1182,6 +1163,160 @@ const App = {
                 document.getElementById('modalEditTask').classList.remove('active');
                 UI.showToast("Solicitud editada", "success");
                 this.renderBoard();
+            }
+        });
+    },
+
+
+    setupDynamicEventDelegation() {
+        /*
+         * Los elementos de tareas, miembros y solicitantes se generan
+         * dinámicamente. En lugar de insertar JavaScript dentro del HTML
+         * (onclick/onchange/onkeydown), centralizamos sus eventos aquí.
+         */
+        document.addEventListener('click', async (event) => {
+            const target = event.target.closest('[data-action]');
+
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const taskId = target.dataset.taskId;
+
+            switch (action) {
+                case 'remove-member': {
+                    const index = Number(target.dataset.index);
+                    if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
+                    if (!confirm('¿Quitar del equipo?')) return;
+
+                    const removedName = this.members[index];
+                    const removed = await DataService.removeMember(removedName);
+                    if (!removed) {
+                        UI.showToast('No fue posible eliminar el colaborador.', 'error');
+                        return;
+                    }
+
+                    this.members.splice(index, 1);
+                    setLocalJSON(CONFIG.localStorageKeys.members, this.members);
+                    this.usersList = await DataService.getUsers();
+                    this.renderAll();
+                    UI.showToast('Colaborador eliminado', 'success');
+                    break;
+                }
+
+                case 'remove-requester': {
+                    const index = Number(target.dataset.index);
+                    if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
+                    if (!confirm('¿Eliminar solicitante?')) return;
+
+                    const removedName = this.requesters[index];
+                    const removed = await DataService.removeRequester(removedName);
+                    if (!removed) {
+                        UI.showToast('No fue posible eliminar el solicitante.', 'error');
+                        return;
+                    }
+
+                    this.requesters.splice(index, 1);
+                    setLocalJSON(CONFIG.localStorageKeys.requesters, this.requesters);
+                    this.renderAll();
+                    UI.showToast('Solicitante eliminado', 'success');
+                    break;
+                }
+
+                case 'toggle-star':
+                    if (taskId) {
+                        this.toggleTaskStar(taskId);
+                    }
+                    break;
+
+                case 'toggle-status':
+                    if (taskId) {
+                        this.toggleTaskStatus(taskId);
+                    }
+                    break;
+
+                case 'edit-task':
+                    if (taskId) {
+                        this.openEditModal(taskId);
+                    }
+                    break;
+
+                case 'delete-task':
+                    if (!taskId) return;
+
+                    if (confirm('¿Eliminar?')) {
+                        this.tasks = this.tasks.filter(
+                            task => task.id !== taskId
+                        );
+
+                        this.markAsUnsaved();
+                        this.renderBoard();
+
+                        UI.showToast(
+                            'Tarea eliminada',
+                            'success'
+                        );
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        document.addEventListener('change', (event) => {
+            const target = event.target.closest('[data-action]');
+
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const taskId = target.dataset.taskId;
+
+            if (!taskId) return;
+
+            switch (action) {
+                case 'toggle-completed':
+                    this.updateTask(
+                        taskId,
+                        'status',
+                        target.checked
+                            ? 'Entregado'
+                            : 'En curso',
+                        true
+                    );
+                    break;
+
+                case 'change-assignee':
+                    this.updateTask(
+                        taskId,
+                        'assignee',
+                        target.value,
+                        false
+                    );
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            const target = event.target.closest('[data-action]');
+
+            if (!target) return;
+
+            if (
+                target.dataset.action !== 'toggle-status' ||
+                (event.key !== 'Enter' && event.key !== ' ')
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const taskId = target.dataset.taskId;
+
+            if (taskId) {
+                this.toggleTaskStatus(taskId);
             }
         });
     },
@@ -1400,21 +1535,31 @@ const App = {
         };
 
         const saveAndClose = async (avatarData) => {
-            this.user.avatar = sanitizeAvatarUrl(avatarData);
-            this.user.theme = selectedTheme;
-            localStorage.setItem('auth_user', JSON.stringify(this.user));
-            
-            let allUsers = await DataService.getUsers();
-            let dbUser = allUsers.find(u => u.username === this.user.username);
-            if(dbUser) {
-                dbUser.avatar = this.user.avatar;
-                dbUser.theme = selectedTheme;
-                try {
-                    await DataService.saveUsers(allUsers);
-                    UI.showToast("Perfil actualizado", "success");
-                } catch (e) { return; }
+            const avatar = sanitizeAvatarUrl(avatarData);
+            const theme = normalizeText(selectedTheme) || '#4f46e5';
+
+            if (supabaseClient && this.user.id) {
+                const saved = await DataService.updateProfile(this.user.id, { avatar, theme });
+                if (!saved) {
+                    UI.showToast('No fue posible guardar el perfil en la nube.', 'error');
+                    return;
+                }
+            } else {
+                const localUsers = getLocalJSON(CONFIG.localStorageKeys.users, []);
+                const index = localUsers.findIndex(u =>
+                    normalizeUsername(u.username) === normalizeUsername(this.user.username)
+                );
+                if (index >= 0) {
+                    localUsers[index].avatar = avatar;
+                    localUsers[index].theme = theme;
+                    setLocalJSON(CONFIG.localStorageKeys.users, localUsers);
+                }
             }
 
+            this.user.avatar = avatar;
+            this.user.theme = theme;
+            setLocalJSON(CONFIG.localStorageKeys.authUser, this.user);
+            UI.showToast('Perfil actualizado', 'success');
             this.usersList = await DataService.getUsers();
             this.updateAvatarUI();
             resetProfileModal();
@@ -1502,38 +1647,12 @@ const App = {
                     return;
                 }
                 
-                const themeOptions = ['#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488', '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c', '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'];
-                const randomTheme = themeOptions[Math.floor(Math.random() * themeOptions.length)];
-
-                let dbUsers = await DataService.getUsers();
-                if (!dbUsers.some(u => u.username === name.toLowerCase())) {
-                    dbUsers.push({ username: name.toLowerCase(), password: `${name}_DH2026!`, role: "editor", name: name, avatar: "", theme: randomTheme });
-                    await DataService.saveUsers(dbUsers);
-                }
-
                 this.usersList = await DataService.getUsers();
                 input.value = ''; 
                 this.renderAll();
                 UI.showToast("Colaborador añadido", "success");
             }
         });
-
-        window.removeMember = async (index) => { 
-            if (confirm('¿Quitar del equipo?')) { 
-                const removedName = this.members[index];
-                this.members.splice(index, 1); 
-                await DataService.removeMember(removedName);
-                await DataService.saveMembers(this.members); 
-
-                let dbUsers = await DataService.getUsers();
-                dbUsers = dbUsers.filter(u => u.username.toLowerCase() !== removedName.toLowerCase());
-                await DataService.saveUsers(dbUsers);
-
-                this.usersList = await DataService.getUsers();
-                this.renderAll(); 
-                UI.showToast("Colaborador eliminado", "success");
-            } 
-        };
 
         document.getElementById('addRequesterForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1554,16 +1673,6 @@ const App = {
             }
         });
         
-        window.removeRequester = async (index) => { 
-            if (confirm('¿Eliminar solicitante?')) { 
-                const removedName = this.requesters[index];
-                this.requesters.splice(index, 1); 
-                await DataService.removeRequester(removedName);
-                await DataService.saveRequesters(this.requesters); 
-                this.renderAll(); 
-                UI.showToast("Solicitante eliminado", "success");
-            } 
-        };
     },
 
     renderAll() {
@@ -1607,14 +1716,14 @@ const App = {
         this.members.forEach((m) => {
             const safeM = escapeHTML(m);
             const hexColor = this.getColor(m);
-            mList.innerHTML += `<div class="member-chip" style="color: ${hexColor}; background-color: ${hexColor}20; border-color: ${hexColor}40;"><span>${safeM}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeM}" onclick="removeMember('${this.members.indexOf(m)}')"><i data-lucide="x"></i></button></div>`;
+            mList.innerHTML += `<div class="member-chip" style="color: ${hexColor}; background-color: ${hexColor}20; border-color: ${hexColor}40;"><span>${safeM}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeM}" data-action="remove-member" data-index="${this.members.indexOf(m)}"><i data-lucide="x"></i></button></div>`;
         });
 
         const rList = document.getElementById('requestersList');
         rList.innerHTML = '';
         this.requesters.forEach((r, i) => {
             const safeR = escapeHTML(r);
-            rList.innerHTML += `<div class="member-chip"><span>${safeR}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeR}" onclick="removeRequester(${i})"><i data-lucide="x"></i></button></div>`;
+            rList.innerHTML += `<div class="member-chip"><span>${safeR}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeR}" data-action="remove-requester" data-index="${i}"><i data-lucide="x"></i></button></div>`;
         });
         lucide.createIcons();
     },
@@ -1749,7 +1858,7 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" onclick="App.toggleTaskStar('${t.id}')" aria-label="Destacar">
+                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}"" aria-label="Destacar">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
                         </button>
                         <span class="req-name-text">${escapeHTML(t.name)}</span>
@@ -1800,11 +1909,11 @@ const App = {
             }
             
             tr.innerHTML = `
-                <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" onchange="App.updateTask('${t.id}', 'status', this.checked ? 'Entregado' : 'En curso', true)"></td>
+                <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}"></td>
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" onclick="App.toggleTaskStar('${t.id}')" aria-label="Destacar">
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}"" aria-label="Destacar">
                                 <i data-lucide="star"></i>
                             </button>
                             <span class="req-title-text">${escapeHTML(t.name)}</span>
@@ -1813,7 +1922,7 @@ const App = {
                     </div>
                 </td>
                 <td data-label="Asignación">
-                    <select class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" onchange="App.updateTask('${t.id}', 'assignee', this.value, false)">
+                    <select class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
                         ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
                     </select>
                 </td>
@@ -1827,16 +1936,15 @@ const App = {
                          role="switch" 
                          aria-checked="${isCurso ? 'true' : 'false'}" 
                          tabindex="0"
-                         onclick="App.toggleTaskStatus('${t.id}')"
-                         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); App.toggleTaskStatus('${t.id}');}">
+                         data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
                         <div class="switch-track"><div class="switch-thumb"></div></div>
                         <span class="switch-label">${escapeHTML(t.status)}</span>
                     </div>
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
                     <div class="action-buttons">
-                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" onclick="App.openEditModal('${t.id}')"><i data-lucide="edit-3"></i></button>
-                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" onclick="if(confirm('¿Eliminar?')) { App.tasks = App.tasks.filter(x => x.id !== '${t.id}'); App.markAsUnsaved(); App.renderBoard(); UI.showToast('Tarea eliminada', 'success'); }"><i data-lucide="trash-2"></i></button>
+                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}""><i data-lucide="edit-3"></i></button>
+                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
                     </div>
                 </td>
             `;
@@ -1849,7 +1957,7 @@ const App = {
             li.className = `request-item completed-item ${t.isStarred ? 'task-starred' : ''}`;
             li.innerHTML = `
                 <div style="display:flex; gap:10px;">
-                    <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked onchange="App.updateTask('${t.id}', 'status', this.checked ? 'Entregado' : 'En curso', true)">
+                    <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}">
                     <div style="width: 100%;">
                         <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">
                             ${t.isStarred ? '<i data-lucide="star" style="width: 12px; height: 12px; color: #f59e0b; fill: #f59e0b; margin-right: 4px;"></i>' : ''}
