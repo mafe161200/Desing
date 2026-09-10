@@ -724,9 +724,13 @@ function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
 
         // Con altInput, Flatpickr oculta el input original.
         // La etiqueta debe quedar asociada al campo visible.
-        const label = Array.from(document.querySelectorAll('label')).find(
-            candidate => candidate.htmlFor === baseId || candidate.getAttribute('for') === baseId
-        );
+        const label = document.getElementById(`${baseId}-label`) ||
+            Array.from(document.querySelectorAll('label')).find(
+                candidate => {
+                    const target = candidate.getAttribute('for');
+                    return target === baseId || target === `${baseId}-display`;
+                }
+            );
         if (label) {
             const labelId = label.id || `${baseId}-label`;
             label.id = labelId;
