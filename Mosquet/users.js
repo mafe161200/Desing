@@ -1,19 +1,17 @@
 /**
- * Design Hub - configuración pública de perfiles
+ * Design Hub - metadatos visuales de perfiles
  *
  * IMPORTANTE:
- * Este archivo NO contiene contraseñas.
- *
- * La autenticación se realiza mediante Supabase Auth.
- * Estos datos son únicamente metadatos públicos del perfil
- * que la interfaz puede utilizar para identificar al usuario.
+ * - Este archivo NO contiene contraseñas.
+ * - Este archivo NO define roles ni permisos.
+ * - La autenticación y los roles oficiales vienen de Supabase Auth + public.profiles.
+ * - Estos datos son únicamente valores visuales de respaldo para la interfaz.
  */
 
 const INITIAL_USERS = [
     {
         username: "admin",
         email: "admin@designhub.local",
-        role: "admin",
         name: "Administrador General",
         avatar: "",
         theme: "#4f46e5"
@@ -21,7 +19,6 @@ const INITIAL_USERS = [
     {
         username: "camilo",
         email: "camilo@designhub.local",
-        role: "editor",
         name: "Camilo",
         avatar: "",
         theme: "#db2777"
@@ -29,7 +26,6 @@ const INITIAL_USERS = [
     {
         username: "david",
         email: "david@designhub.local",
-        role: "editor",
         name: "David",
         avatar: "",
         theme: "#ea580c"
@@ -37,24 +33,9 @@ const INITIAL_USERS = [
     {
         username: "mafe",
         email: "mafe@designhub.local",
-        role: "editor",
         name: "Mafe",
         avatar: "",
         theme: "#0284c7"
     }
 ];
 
-/**
- * Busca un perfil por nombre de usuario.
- */
-function getInitialUserProfile(username) {
-    const cleanUsername =
-        String(username || "").trim().toLowerCase();
-
-    return INITIAL_USERS.find(
-        user =>
-            user &&
-            typeof user.username === "string" &&
-            user.username.toLowerCase() === cleanUsername
-    ) || null;
-}

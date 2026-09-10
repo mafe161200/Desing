@@ -23,12 +23,10 @@ const CONFIG = Object.freeze({
     supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU",
     demoDataEnabled: true,
     localStorageKeys: Object.freeze({
-        users: 'db_users',
         tasks: 'db_tasks',
         notes: 'db_notes',
         members: 'db_members',
         requesters: 'db_reqs',
-        authUser: 'auth_user',
         firstLoad: 'dh_first_load'
     })
 });
@@ -239,64 +237,38 @@ const NotificationService = {
    ========================================= */
 const DataService = {
     async getUsers() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('profiles')
-                    .select('id, username, email, name, role, avatar, theme, created_at')
-                    .order('username', { ascending: true });
-
-                if (!error && data) {
-                    const profiles = data.map(profile => ({
-                        id: profile.id,
-                        username: normalizeUsername(profile.username),
-                        email: normalizeText(profile.email),
-                        name: normalizeText(profile.name),
-                        role: profile.role === 'admin' ? 'admin' : 'editor',
-                        avatar: sanitizeAvatarUrl(profile.avatar),
-                        theme: normalizeText(profile.theme) || '#4f46e5',
-                        created_at: profile.created_at
-                    }));
-
-                    setLocalJSON(CONFIG.localStorageKeys.users, profiles);
-                    return profiles;
-                }
-
-                if (error) {
-                    console.warn('Supabase: no se pudieron cargar los perfiles.', error);
-                }
-            } catch (error) {
-                console.warn('Supabase: error cargando perfiles.', error);
-            }
+        if (!supabaseClient) {
+            console.error('Supabase no está disponible. No se cargarán perfiles locales.');
+            return [];
         }
 
-        // Fallback únicamente para modo local/offline.
-        // En producción, Supabase Profiles es la fuente de autoridad.
-        const localUsers = getLocalJSON(CONFIG.localStorageKeys.users, []);
-        const baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
-        const allUsersMap = new Map();
+        try {
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('id, username, email, name, role, avatar, theme, created_at')
+                .order('username', { ascending: true });
 
-        baseUsers.forEach(user => {
-            if (user?.username) {
-                allUsersMap.set(normalizeUsername(user.username), { ...user });
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los perfiles.', error);
+                UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
+                return [];
             }
-        });
 
-        localUsers.forEach(user => {
-            if (!user?.username) return;
-            const key = normalizeUsername(user.username);
-            const existing = allUsersMap.get(key);
-
-            if (existing) {
-                allUsersMap.set(key, {
-                    ...existing,
-                    avatar: sanitizeAvatarUrl(user.avatar || existing.avatar || ''),
-                    theme: normalizeText(user.theme || existing.theme || '#4f46e5')
-                });
-            }
-        });
-
-        return Array.from(allUsersMap.values());
+            return (data || []).map(profile => ({
+                id: profile.id,
+                username: normalizeUsername(profile.username),
+                email: normalizeText(profile.email),
+                name: normalizeText(profile.name),
+                role: profile.role === 'admin' ? 'admin' : 'editor',
+                avatar: sanitizeAvatarUrl(profile.avatar),
+                theme: normalizeText(profile.theme) || '#4f46e5',
+                created_at: profile.created_at
+            }));
+        } catch (error) {
+            console.error('Supabase: error cargando perfiles.', error);
+            UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
+            return [];
+        }
     },
 
     async getProfileByAuthId(authId) {
@@ -654,11 +626,6 @@ const AuthService = {
                 theme: profile.theme || '#4f46e5'
             };
 
-            if (!setLocalJSON(CONFIG.localStorageKeys.authUser, sessionUser)) {
-                await supabaseClient.auth.signOut();
-                return false;
-            }
-
             UI.updateConnectionStatus(true);
             return true;
         } catch (error) {
@@ -675,7 +642,6 @@ const AuthService = {
             const { data, error } = await supabaseClient.auth.getUser();
 
             if (error || !data?.user) {
-                removeStorageItem(CONFIG.localStorageKeys.authUser);
                 return null;
             }
 
@@ -688,7 +654,6 @@ const AuthService = {
             if (!profile) {
                 console.error(`No existe un perfil de Supabase para el usuario "${username}".`);
                 await supabaseClient.auth.signOut();
-                removeStorageItem(CONFIG.localStorageKeys.authUser);
                 return null;
             }
 
@@ -701,11 +666,9 @@ const AuthService = {
                 theme: profile.theme || '#4f46e5'
             };
 
-            setLocalJSON(CONFIG.localStorageKeys.authUser, sessionUser);
             return sessionUser;
         } catch (error) {
             console.error('No fue posible validar la sesión:', error);
-            removeStorageItem(CONFIG.localStorageKeys.authUser);
             return null;
         }
     },
@@ -719,7 +682,6 @@ const AuthService = {
         } catch (error) {
             console.error('Error inesperado cerrando sesión:', error);
         } finally {
-            removeStorageItem(CONFIG.localStorageKeys.authUser);
             window.location.reload();
         }
     }
@@ -1548,27 +1510,19 @@ const App = {
             const avatar = sanitizeAvatarUrl(avatarData);
             const theme = normalizeText(selectedTheme) || '#4f46e5';
 
-            if (supabaseClient && this.user.id) {
-                const saved = await DataService.updateProfile(this.user.id, { avatar, theme });
-                if (!saved) {
-                    UI.showToast('No fue posible guardar el perfil en la nube.', 'error');
-                    return;
-                }
-            } else {
-                const localUsers = getLocalJSON(CONFIG.localStorageKeys.users, []);
-                const index = localUsers.findIndex(u =>
-                    normalizeUsername(u.username) === normalizeUsername(this.user.username)
-                );
-                if (index >= 0) {
-                    localUsers[index].avatar = avatar;
-                    localUsers[index].theme = theme;
-                    setLocalJSON(CONFIG.localStorageKeys.users, localUsers);
-                }
+            if (!supabaseClient || !this.user.id) {
+                UI.showToast('No se pudo identificar tu perfil en Supabase.', 'error');
+                return;
+            }
+
+            const saved = await DataService.updateProfile(this.user.id, { avatar, theme });
+            if (!saved) {
+                UI.showToast('No fue posible guardar el perfil en la nube.', 'error');
+                return;
             }
 
             this.user.avatar = avatar;
             this.user.theme = theme;
-            setLocalJSON(CONFIG.localStorageKeys.authUser, this.user);
             UI.showToast('Perfil actualizado', 'success');
             this.usersList = await DataService.getUsers();
             this.updateAvatarUI();
