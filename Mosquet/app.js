@@ -1194,6 +1194,18 @@ const App = {
                     break;
                 }
 
+                case 'expand-my-task': {
+                    if (!target.matches('.request-item')) return;
+                    document.querySelectorAll('.request-item.expanded').forEach(item => {
+                        if (item !== target) item.classList.remove('expanded');
+                    });
+                    target.classList.toggle('expanded');
+                    document.querySelectorAll('.task-table tr.expanded-row').forEach(row => {
+                        row.classList.remove('expanded-row');
+                    });
+                    break;
+                }
+
                 case 'toggle-star':
                     if (taskId) {
                         this.toggleTaskStar(taskId);
@@ -1276,10 +1288,20 @@ const App = {
 
             if (!target) return;
 
-            if (
-                target.dataset.action !== 'toggle-status' ||
-                (event.key !== 'Enter' && event.key !== ' ')
-            ) {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            if (target.dataset.action === 'expand-my-task') {
+                event.preventDefault();
+                target.classList.toggle('expanded');
+                document.querySelectorAll('.request-item.expanded').forEach(item => {
+                    if (item !== target) item.classList.remove('expanded');
+                });
+                return;
+            }
+
+            if (target.dataset.action !== 'toggle-status') {
                 return;
             }
 
@@ -1787,8 +1809,10 @@ const App = {
             const li = document.createElement('li');
             // Añadir clase de estrella para estilar en el CSS
             li.className = `request-item ${t.isStarred ? 'task-starred' : ''}`;
-            li.tabIndex = 0; 
+            li.tabIndex = 0;
             li.id = `li-${t.id}`;
+            li.setAttribute('role', 'button');
+            li.setAttribute('aria-label', `Abrir detalles de ${normalizeText(t.name)}`);
             
             // Prevent Event Bubbling
             const handleExpand = (e) => {
@@ -1798,8 +1822,8 @@ const App = {
                 document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
             };
 
-            li.onclick = handleExpand;
-            li.onkeydown = (e) => { if (e.key === 'Enter') handleExpand(e); };
+            li.dataset.action = 'expand-my-task';
+            li.dataset.taskId = t.id;
             
             const colorHex = this.getColor(t.assignee);
             
@@ -1822,7 +1846,7 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}"" aria-label="Destacar">
+                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar de destacados' : 'Destacar tarea'}">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
                         </button>
                         <span class="req-name-text">${escapeHTML(t.name)}</span>
@@ -1843,9 +1867,15 @@ const App = {
             sList.appendChild(li);
         });
         if(myTasks.length === 0) sList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default;">No tienes tareas asignadas</li>';
+        const buildAssigneeOptions = (selectedAssignee) => [
+            `<option value="No asignado"${selectedAssignee === 'No asignado' ? ' selected' : ''}>No asignado</option>`,
+            ...this.members.map(member => {
+                const safeMember = escapeHTML(member);
+                const selected = member === selectedAssignee ? ' selected' : '';
+                return `<option value="${safeMember}"${selected}>${safeMember}</option>`;
+            })
+        ].join('');
 
-        let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
-        
         activas.forEach(t => {
             const tr = document.createElement('tr');
             tr.id = `tr-${t.id}`;
@@ -1873,11 +1903,11 @@ const App = {
             }
             
             tr.innerHTML = `
-                <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}"></td>
+                <td style="text-align:center;" data-label="Completada"><input type="checkbox" id="complete-task-${escapeHTML(t.id)}" name="complete-task-${escapeHTML(t.id)}" class="custom-checkbox" aria-label="Marcar como entregado" data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}"></td>
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}"" aria-label="Destacar">
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar de destacados' : 'Destacar tarea'}">
                                 <i data-lucide="star"></i>
                             </button>
                             <span class="req-title-text">${escapeHTML(t.name)}</span>
@@ -1886,13 +1916,13 @@ const App = {
                     </div>
                 </td>
                 <td data-label="Asignación">
-                    <select class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
-                        ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
+                    <select id="assignee-task-${escapeHTML(t.id)}" name="assignee-task-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
+                        ${buildAssigneeOptions(t.assignee)}
                     </select>
                 </td>
                 <td class="date-info" data-label="Fechas (Rec - Ent)">
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                    <input type="text" class="inline-date-picker ${dateClass}" data-id="${t.id}" aria-label="Cambiar fecha de entrega" data-received="${t.dateReceived}" value="${dateDeliveredVal}" placeholder="Seleccionar">
+                    <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || '')}" value="${escapeHTML(dateDeliveredVal)}" placeholder="Seleccionar">
                 </td>
                 <td data-label="Estado">
                     <div id="status-switch-${t.id}" 
@@ -1900,6 +1930,7 @@ const App = {
                          role="switch" 
                          aria-checked="${isCurso ? 'true' : 'false'}" 
                          tabindex="0"
+                         aria-label="Cambiar estado de la tarea"
                          data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
                         <div class="switch-track"><div class="switch-thumb"></div></div>
                         <span class="switch-label">${escapeHTML(t.status)}</span>
@@ -1907,7 +1938,7 @@ const App = {
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
                     <div class="action-buttons">
-                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}""><i data-lucide="edit-3"></i></button>
+                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
                         <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
                     </div>
                 </td>
@@ -1921,7 +1952,7 @@ const App = {
             li.className = `request-item completed-item ${t.isStarred ? 'task-starred' : ''}`;
             li.innerHTML = `
                 <div style="display:flex; gap:10px;">
-                    <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}">
+                    <input type="checkbox" id="completed-task-${escapeHTML(t.id)}" name="completed-task-${escapeHTML(t.id)}" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}">
                     <div style="width: 100%;">
                         <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">
                             ${t.isStarred ? '<i data-lucide="star" style="width: 12px; height: 12px; color: #f59e0b; fill: #f59e0b; margin-right: 4px;"></i>' : ''}
