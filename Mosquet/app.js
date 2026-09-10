@@ -734,7 +734,9 @@ function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
         if (label) {
             const labelId = label.id || `${baseId}-label`;
             label.id = labelId;
-            label.removeAttribute('for');
+            // Flatpickr convierte el input original en hidden y crea este campo visible.
+            // La etiqueta debe apuntar al campo visible para que DevTools/AT la reconozcan.
+            label.setAttribute('for', altInput.id);
             altInput.setAttribute('aria-labelledby', labelId);
         } else if (!altInput.getAttribute('aria-label') && source?.getAttribute('aria-label')) {
             altInput.setAttribute('aria-label', source.getAttribute('aria-label'));
