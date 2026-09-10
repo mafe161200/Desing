@@ -515,142 +515,38 @@ const DataService = {
 };
 
 const AuthService = {
-    usernameToEmail: (username) => {
-        const clean = normalizeText(username);
-        if (!clean) return '';
-        return clean.includes('@')
-            ? clean.toLowerCase()
-            : `${normalizeUsername(clean)}@designhub.local`;
-    },
-
     login: async (username, password) => {
-        if (!supabaseClient) {
-            console.error('Supabase Auth no está disponible.');
-            return false;
-        }
-
-        const email = AuthService.usernameToEmail(username);
+        const users = await DataService.getUsers();
+        const userClean = normalizeUsername(username);
         const passClean = normalizeText(password);
 
-        if (!email || !passClean) return false;
+        const match = users.find(user =>
+            user &&
+            typeof user.username === 'string' &&
+            normalizeUsername(user.username) === userClean &&
+            user.password === passClean
+        );
 
-        try {
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email,
-                password: passClean
-            });
-
-            if (error || !data?.user) {
-                console.warn('Supabase Auth: inicio de sesión rechazado.', error?.message || 'Sin usuario.');
-                return false;
-            }
-
-            const profile = await AuthService.getProfile(data.user);
-
-            if (!profile) {
-                console.error('Supabase Auth: el usuario no tiene un perfil válido en public.profiles.');
-                await supabaseClient.auth.signOut();
-                return false;
-            }
-
-            const metadataUser = typeof INITIAL_USERS !== 'undefined'
-                ? INITIAL_USERS.find(
-                    user => normalizeUsername(user?.username) === normalizeUsername(profile.username || username)
-                )
-                : null;
-
+        if (match) {
             setLocalJSON(CONFIG.localStorageKeys.authUser, {
-                id: data.user.id,
-                email: data.user.email || email,
-                username: profile.username || metadataUser?.username || normalizeUsername(username),
-                name: profile.name || metadataUser?.name || data.user.email || username,
-                role: profile.role,
-                avatar: profile.avatar || metadataUser?.avatar || '',
-                theme: profile.theme || metadataUser?.theme || '#4f46e5'
+                username: match.username,
+                name: match.name,
+                role: match.role,
+                avatar: match.avatar,
+                theme: match.theme
             });
-
             return true;
-        } catch (error) {
-            console.error('Supabase Auth: error durante el inicio de sesión.', error);
-            return false;
         }
+
+        return false;
     },
 
-    getProfile: async (authUser) => {
-        if (!supabaseClient || !authUser?.id) return null;
-
-        try {
-            const { data, error } = await supabaseClient
-                .from('profiles')
-                .select('*')
-                .eq('id', authUser.id)
-                .single();
-
-            if (error || !data) {
-                console.error('Supabase: no se pudo cargar el perfil.', error);
-                return null;
-            }
-
-            return data;
-        } catch (error) {
-            console.error('Supabase: error cargando el perfil.', error);
-            return null;
-        }
-    },
-
-    getUser: async () => {
-        if (!supabaseClient) return null;
-
-        try {
-            const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-
-            if (sessionError) {
-                console.error('Supabase Auth: no se pudo recuperar la sesión.', sessionError);
-                return null;
-            }
-
-            const authUser = sessionData?.session?.user;
-            if (!authUser) {
-                localStorage.removeItem(CONFIG.localStorageKeys.authUser);
-                return null;
-            }
-
-            const profile = await AuthService.getProfile(authUser);
-            if (!profile) return null;
-
-            const metadataUser = typeof INITIAL_USERS !== 'undefined'
-                ? INITIAL_USERS.find(
-                    user => normalizeUsername(user?.username) === normalizeUsername(profile.username || authUser.email?.split('@')[0] || '')
-                )
-                : null;
-
-            const user = {
-                id: authUser.id,
-                email: authUser.email || '',
-                username: profile.username || authUser.email?.split('@')[0] || '',
-                name: profile.name || metadataUser?.name || authUser.email?.split('@')[0] || 'Usuario',
-                role: profile.role,
-                avatar: profile.avatar || metadataUser?.avatar || '',
-                theme: profile.theme || metadataUser?.theme || '#4f46e5'
-            };
-
-            setLocalJSON(CONFIG.localStorageKeys.authUser, user);
-            return user;
-        } catch (error) {
-            console.error('Supabase Auth: error recuperando la sesión.', error);
-            return null;
-        }
-    },
-
-    logout: async () => {
-        if (supabaseClient) {
-            const { error } = await supabaseClient.auth.signOut();
-            if (error) console.error('Supabase Auth: error cerrando sesión.', error);
-        }
-
+    logout: () => {
         localStorage.removeItem(CONFIG.localStorageKeys.authUser);
         window.location.reload();
-    }
+    },
+
+    getUser: () => getLocalJSON(CONFIG.localStorageKeys.authUser, null)
 };
 
 const initDemoData = async () => {
@@ -811,7 +707,8 @@ const App = {
     cropperInstance: null,
 
     async init() {
-        this.user = await AuthService.getUser();
+        await initDemoData();
+        this.user = AuthService.getUser();
         
         if (!this.user) {
             this.showLogin();
@@ -829,7 +726,6 @@ const App = {
             document.querySelectorAll('.admin-only').forEach(el => el.remove());
         }
 
-        await initDemoData();
         await this.loadData();
         this.setupPlugins();
         this.setupEventListeners();
@@ -865,14 +761,8 @@ const App = {
             const pass = document.getElementById('passwordInput').value;
             
             try {
-                const loginOk = await AuthService.login(user, pass);
-                if (loginOk) {
-                    window.location.reload();
-                } else {
-                    const loginError = document.getElementById('loginError');
-                    loginError.textContent = 'Usuario o contraseña incorrectos.';
-                    loginError.style.display = 'block';
-                }
+                if (await AuthService.login(user, pass)) window.location.reload();
+                else document.getElementById('loginError').style.display = 'block';
             } catch (err) {
                 UI.showToast("Error al iniciar sesión.", "error");
             }
@@ -1112,14 +1002,8 @@ const App = {
     },
 
     setupDynamicEventDelegation() {
-        /*
-         * Los elementos de tareas, miembros y solicitantes se generan
-         * dinámicamente. En lugar de insertar JavaScript dentro del HTML
-         * (onclick/onchange/onkeydown), centralizamos sus eventos aquí.
-         */
         document.addEventListener('click', async (event) => {
             const target = event.target.closest('[data-action]');
-
             if (!target) return;
 
             const action = target.dataset.action;
@@ -1128,76 +1012,36 @@ const App = {
             switch (action) {
                 case 'remove-member': {
                     const index = Number(target.dataset.index);
-                    if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
-                    if (!confirm('¿Quitar del equipo?')) return;
-
-                    const removedName = this.members[index];
-                    const removed = await DataService.removeMember(removedName);
-                    if (!removed) {
-                        UI.showToast('No fue posible eliminar el colaborador.', 'error');
-                        return;
-                    }
-
-                    this.members.splice(index, 1);
-                    setLocalJSON(CONFIG.localStorageKeys.members, this.members);
-                    this.usersList = await DataService.getUsers();
-                    this.renderAll();
-                    UI.showToast('Colaborador eliminado', 'success');
+                    if (!Number.isInteger(index)) return;
+                    await this.removeMember(index);
                     break;
                 }
 
                 case 'remove-requester': {
                     const index = Number(target.dataset.index);
-                    if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
-                    if (!confirm('¿Eliminar solicitante?')) return;
-
-                    const removedName = this.requesters[index];
-                    const removed = await DataService.removeRequester(removedName);
-                    if (!removed) {
-                        UI.showToast('No fue posible eliminar el solicitante.', 'error');
-                        return;
-                    }
-
-                    this.requesters.splice(index, 1);
-                    setLocalJSON(CONFIG.localStorageKeys.requesters, this.requesters);
-                    this.renderAll();
-                    UI.showToast('Solicitante eliminado', 'success');
+                    if (!Number.isInteger(index)) return;
+                    await this.removeRequester(index);
                     break;
                 }
 
                 case 'toggle-star':
-                    if (taskId) {
-                        this.toggleTaskStar(taskId);
-                    }
+                    if (taskId) this.toggleTaskStar(taskId);
                     break;
 
                 case 'toggle-status':
-                    if (taskId) {
-                        this.toggleTaskStatus(taskId);
-                    }
+                    if (taskId) this.toggleTaskStatus(taskId);
                     break;
 
                 case 'edit-task':
-                    if (taskId) {
-                        this.openEditModal(taskId);
-                    }
+                    if (taskId) this.openEditModal(taskId);
                     break;
 
                 case 'delete-task':
-                    if (!taskId) return;
-
-                    if (confirm('¿Eliminar?')) {
-                        this.tasks = this.tasks.filter(
-                            task => task.id !== taskId
-                        );
-
+                    if (taskId && confirm('¿Eliminar?')) {
+                        this.tasks = this.tasks.filter(task => task.id !== taskId);
                         this.markAsUnsaved();
                         this.renderBoard();
-
-                        UI.showToast(
-                            'Tarea eliminada',
-                            'success'
-                        );
+                        UI.showToast('Tarea eliminada', 'success');
                     }
                     break;
 
@@ -1208,22 +1052,18 @@ const App = {
 
         document.addEventListener('change', (event) => {
             const target = event.target.closest('[data-action]');
-
             if (!target) return;
 
             const action = target.dataset.action;
             const taskId = target.dataset.taskId;
-
             if (!taskId) return;
 
             switch (action) {
-                case 'toggle-completed':
+                case 'complete-task':
                     this.updateTask(
                         taskId,
                         'status',
-                        target.checked
-                            ? 'Entregado'
-                            : 'En curso',
+                        target.checked ? 'Entregado' : 'En curso',
                         true
                     );
                     break;
@@ -1244,22 +1084,15 @@ const App = {
 
         document.addEventListener('keydown', (event) => {
             const target = event.target.closest('[data-action]');
-
             if (!target) return;
 
             if (
-                target.dataset.action !== 'toggle-status' ||
-                (event.key !== 'Enter' && event.key !== ' ')
+                target.dataset.action === 'toggle-status' &&
+                (event.key === 'Enter' || event.key === ' ')
             ) {
-                return;
-            }
-
-            event.preventDefault();
-
-            const taskId = target.dataset.taskId;
-
-            if (taskId) {
-                this.toggleTaskStatus(taskId);
+                event.preventDefault();
+                const taskId = target.dataset.taskId;
+                if (taskId) this.toggleTaskStatus(taskId);
             }
         });
     },
