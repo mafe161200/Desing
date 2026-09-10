@@ -252,18 +252,22 @@
                         <select id="assignee" name="assignee" class="native-select-hidden" required></select>
                     </div>
                     <div class="field">
-                        <label id="dateReceived-label">Fecha de solicitud (Recepción)</label>
-                        <div class="input-with-icon">
-                            <i data-lucide="calendar"></i>
-                            <input type="text" id="dateReceived" name="dateReceived" class="date-picker modal-date custom-input" placeholder="Seleccionar...">
-                        </div>
+                        <label id="dateReceived-label">
+                            Fecha de solicitud (Recepción)
+                            <span class="input-with-icon">
+                                <i data-lucide="calendar" aria-hidden="true"></i>
+                                <input type="text" id="dateReceived" name="dateReceived" class="date-picker modal-date custom-input" placeholder="Seleccionar...">
+                            </span>
+                        </label>
                     </div>
                     <div class="field">
-                        <label id="dateDelivered-label">Fecha de entrega esperada</label>
-                        <div class="input-with-icon">
-                            <i data-lucide="calendar-check"></i>
-                            <input type="text" id="dateDelivered" name="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." required>
-                        </div>
+                        <label id="dateDelivered-label">
+                            Fecha de entrega esperada
+                            <span class="input-with-icon">
+                                <i data-lucide="calendar-check" aria-hidden="true"></i>
+                                <input type="text" id="dateDelivered" name="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." required>
+                            </span>
+                        </label>
                     </div>
                     <div class="field full-width">
                         <label for="status">Estado inicial</label>
@@ -299,11 +303,13 @@
                         <select id="editRequesterSelect" name="editRequester" class="native-select-hidden" required></select>
                     </div>
                     <div class="field">
-                        <label id="editDateReceived-label">Fecha de recepción</label>
-                        <div class="input-with-icon">
-                            <i data-lucide="calendar"></i>
-                            <input type="text" id="editDateReceived" name="editDateReceived" class="date-picker modal-date custom-input" required>
-                        </div>
+                        <label id="editDateReceived-label">
+                            Fecha de recepción
+                            <span class="input-with-icon">
+                                <i data-lucide="calendar" aria-hidden="true"></i>
+                                <input type="text" id="editDateReceived" name="editDateReceived" class="date-picker modal-date custom-input" required>
+                            </span>
+                        </label>
                     </div>
                 </div>
                 <div class="form-actions">
