@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://npmcdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://gbltrfqxohrmkopanghx.supabase.co wss://gbltrfqxohrmkopanghx.supabase.co; worker-src 'self' blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://npmcdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://gbltrfqxohrmkopanghx.supabase.co wss://gbltrfqxohrmkopanghx.supabase.co https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://npmcdn.com; worker-src 'self' blob:;">
     <title>Design Hub | Plataforma Colaborativa</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%234f46e5%27/%3E%3Ctext x=%2732%27 y=%2744%27 text-anchor=%27middle%27 font-size=%2738%27 font-family=%27Georgia%27 font-style=%27italic%27 fill=%27white%27%3ED%3C/text%3E%3C/svg%3E">
         
@@ -15,7 +15,7 @@
     
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1"></script>
+    <script type="module" src="https://unpkg.com/emoji-picker-element@1.29.1/index.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -99,7 +99,7 @@
             <aside class="sidebar-col">
                 <div class="card sidebar-card card-accent-primary">
                     <div class="card-header">
-                        <h2><i data-lucide="user-focus" class="icon-primary"></i> Mis Tareas</h2>
+                        <h2><i data-lucide="user-round" class="icon-primary"></i> Mis Tareas</h2>
                     </div>
                     <div class="sidebar-content">
                         <ul id="sidebarList" class="request-list"></ul>
@@ -252,14 +252,14 @@
                         <select id="assignee" name="assignee" class="native-select-hidden" required></select>
                     </div>
                     <div class="field">
-                        <label for="dateReceived">Fecha de solicitud (Recepción)</label>
+                        <label id="dateReceived-label" for="dateReceived-display">Fecha de solicitud (Recepción)</label>
                         <div class="input-with-icon">
                             <i data-lucide="calendar"></i>
                             <input type="text" id="dateReceived" name="dateReceived" class="date-picker modal-date custom-input" placeholder="Seleccionar...">
                         </div>
                     </div>
                     <div class="field">
-                        <label id="dateDelivered-label">Fecha de entrega esperada</label>
+                        <label id="dateDelivered-label" for="dateDelivered-display">Fecha de entrega esperada</label>
                         <div class="input-with-icon">
                             <i data-lucide="calendar-check"></i>
                             <input type="text" id="dateDelivered" name="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." required>
@@ -299,7 +299,7 @@
                         <select id="editRequesterSelect" name="editRequester" class="native-select-hidden" required></select>
                     </div>
                     <div class="field">
-                        <label id="editDateReceived-label">Fecha de recepción</label>
+                        <label id="editDateReceived-label" for="editDateReceived-display">Fecha de recepción</label>
                         <div class="input-with-icon">
                             <i data-lucide="calendar"></i>
                             <input type="text" id="editDateReceived" name="editDateReceived" class="date-picker modal-date custom-input" required>

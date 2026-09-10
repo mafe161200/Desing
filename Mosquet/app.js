@@ -724,9 +724,11 @@ function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
 
         // Con altInput, Flatpickr oculta el input original.
         // La etiqueta debe quedar asociada al campo visible.
-        const label = document.querySelector(`label[for="${baseId}"]`);
+        const label = Array.from(document.querySelectorAll('label')).find(
+            candidate => candidate.htmlFor === baseId || candidate.getAttribute('for') === baseId
+        );
         if (label) {
-            const labelId = `${baseId}-label`;
+            const labelId = label.id || `${baseId}-label`;
             label.id = labelId;
             label.removeAttribute('for');
             altInput.setAttribute('aria-labelledby', labelId);
@@ -1374,7 +1376,9 @@ const App = {
 
         if (picker) {
             picker.addEventListener('emoji-click', event => {
-                input.value += event.detail.unicode;
+                const unicode = event?.detail?.unicode;
+                if (!unicode || !input) return;
+                input.value += unicode;
                 input.focus();
             });
         }
@@ -1862,7 +1866,7 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}"" aria-label="Destacar">
+                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
                         </button>
                         <span class="req-name-text">${escapeHTML(t.name)}</span>
@@ -1917,7 +1921,7 @@ const App = {
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}"" aria-label="Destacar">
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
                                 <i data-lucide="star"></i>
                             </button>
                             <span class="req-title-text">${escapeHTML(t.name)}</span>
