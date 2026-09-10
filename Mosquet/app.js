@@ -572,6 +572,27 @@ const initDemoData = async () => {
 /* =========================================
    UI COMPONENT: CUSTOM DROPDOWNS 
    ========================================= */
+function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
+    if (!instance) return;
+
+    const source = instance.input;
+    const baseId = source?.id || `${prefix}-${Date.now()}`;
+    const baseName = source?.name || baseId;
+
+    if (instance.altInput) {
+        instance.altInput.id = `${baseId}-display`;
+        instance.altInput.name = `${baseName}-display`;
+    }
+
+    const calendar = instance.calendarContainer;
+    if (!calendar) return;
+
+    calendar.querySelectorAll('input, select, textarea').forEach((field, index) => {
+        if (!field.id) field.id = `${baseId}-calendar-field-${index + 1}`;
+        if (!field.name) field.name = `${baseName}-calendar-field-${index + 1}`;
+    });
+}
+
 function buildCustomSelects(container = document) {
     container.querySelectorAll('.select-wrapper').forEach(w => {
         const select = w.querySelector('select');
@@ -836,12 +857,18 @@ const App = {
     setupPlugins() {
         flatpickr(".date-range-picker", {
             mode: "range", locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'filter-date');
+            },
             onChange: (dates) => { this.filterDates = dates; this.renderBoard(); }
         });
         
         flatpickr(".modal-date", { 
             locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
-            appendTo: document.body 
+            appendTo: document.body,
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'modal-date');
+            }
         });
     },
 
@@ -1761,6 +1788,9 @@ const App = {
             altInputClass: "inline-date-picker-alt",
             disableMobile: "true",
             appendTo: document.body,
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'inline-date');
+            },
             onChange: (selectedDates, dateStr, instance) => {
                 if(selectedDates.length === 0) return;
                 const id = instance.element.getAttribute('data-id');
