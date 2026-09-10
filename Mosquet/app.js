@@ -23,10 +23,12 @@ const CONFIG = Object.freeze({
     supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU",
     demoDataEnabled: true,
     localStorageKeys: Object.freeze({
+        users: 'db_users',
         tasks: 'db_tasks',
         notes: 'db_notes',
         members: 'db_members',
         requesters: 'db_reqs',
+        authUser: 'auth_user',
         firstLoad: 'dh_first_load'
     })
 });
@@ -50,16 +52,6 @@ const getLocalJSON = (key, fallback) => {
     } catch (error) {
         console.warn(`No se pudo leer "${key}" desde LocalStorage.`, error);
         return fallback;
-    }
-};
-
-const removeStorageItem = (key) => {
-    try {
-        localStorage.removeItem(key);
-        return true;
-    } catch (error) {
-        console.warn(`No se pudo eliminar "${key}" de LocalStorage.`, error);
-        return false;
     }
 };
 
@@ -237,97 +229,40 @@ const NotificationService = {
    ========================================= */
 const DataService = {
     async getUsers() {
-        if (!supabaseClient) {
-            console.error('Supabase no está disponible. No se cargarán perfiles locales.');
-            return [];
-        }
+        const localUsers = getLocalJSON(CONFIG.localStorageKeys.users, []);
+        const baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
+        const allUsersMap = new Map();
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('profiles')
-                .select('id, username, email, name, role, avatar, theme, created_at')
-                .order('username', { ascending: true });
-
-            if (error) {
-                console.error('Supabase: no se pudieron cargar los perfiles.', error);
-                UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
-                return [];
+        baseUsers.forEach(user => {
+            if (user?.username) {
+                allUsersMap.set(normalizeUsername(user.username), { ...user });
             }
+        });
 
-            return (data || []).map(profile => ({
-                id: profile.id,
-                username: normalizeUsername(profile.username),
-                email: normalizeText(profile.email),
-                name: normalizeText(profile.name),
-                role: profile.role === 'admin' ? 'admin' : 'editor',
-                avatar: sanitizeAvatarUrl(profile.avatar),
-                theme: normalizeText(profile.theme) || '#4f46e5',
-                created_at: profile.created_at
-            }));
-        } catch (error) {
-            console.error('Supabase: error cargando perfiles.', error);
-            UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
-            return [];
-        }
+        localUsers.forEach(user => {
+            if (!user?.username) return;
+
+            const key = normalizeUsername(user.username);
+            const existing = allUsersMap.get(key);
+
+            if (existing) {
+                allUsersMap.set(key, {
+                    ...existing,
+                    avatar: user.avatar || existing.avatar || "",
+                    theme: user.theme || existing.theme || '#4f46e5'
+                });
+            } else {
+                allUsersMap.set(key, { ...user });
+            }
+        });
+
+        const finalUsers = Array.from(allUsersMap.values());
+        setLocalJSON(CONFIG.localStorageKeys.users, finalUsers);
+        return finalUsers;
     },
 
-    async getProfileByAuthId(authId) {
-        if (!supabaseClient || !authId) return null;
-
-        try {
-            const { data, error } = await supabaseClient
-                .from('profiles')
-                .select('id, username, email, name, role, avatar, theme, created_at')
-                .eq('id', authId)
-                .maybeSingle();
-
-            if (error) {
-                console.error('Supabase: no se pudo cargar el perfil.', error);
-                return null;
-            }
-
-            if (!data) return null;
-
-            return {
-                id: data.id,
-                username: normalizeUsername(data.username),
-                email: normalizeText(data.email),
-                name: normalizeText(data.name),
-                role: data.role === 'admin' ? 'admin' : 'editor',
-                avatar: sanitizeAvatarUrl(data.avatar),
-                theme: normalizeText(data.theme) || '#4f46e5',
-                created_at: data.created_at
-            };
-        } catch (error) {
-            console.error('Supabase: error cargando el perfil.', error);
-            return null;
-        }
-    },
-
-    async updateProfile(authId, changes) {
-        if (!supabaseClient || !authId) return false;
-
-        const payload = {
-            avatar: sanitizeAvatarUrl(changes?.avatar),
-            theme: normalizeText(changes?.theme) || '#4f46e5'
-        };
-
-        try {
-            const { error } = await supabaseClient
-                .from('profiles')
-                .update(payload)
-                .eq('id', authId);
-
-            if (error) {
-                console.error('Supabase: no se pudo actualizar el perfil.', error);
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Supabase: error actualizando el perfil.', error);
-            return false;
-        }
+    async saveUsers(users) {
+        return setLocalJSON(CONFIG.localStorageKeys.users, users);
     },
 
     async getTasks() {
@@ -580,111 +515,38 @@ const DataService = {
 };
 
 const AuthService = {
-    usernameToEmail: (username) => {
-        const cleanUsername = normalizeUsername(username);
-        if (!cleanUsername) return '';
-        return `${cleanUsername}@designhub.local`;
-    },
-
     login: async (username, password) => {
-        if (!supabaseClient) {
-            console.error('Supabase Auth no está disponible.');
-            UI.showToast('No fue posible conectar con el servicio de autenticación.', 'error');
-            return false;
-        }
-
+        const users = await DataService.getUsers();
         const userClean = normalizeUsername(username);
-        const passClean = String(password ?? '');
-        if (!userClean || !passClean) return false;
+        const passClean = normalizeText(password);
 
-        try {
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email: AuthService.usernameToEmail(userClean),
-                password: passClean
+        const match = users.find(user =>
+            user &&
+            typeof user.username === 'string' &&
+            normalizeUsername(user.username) === userClean &&
+            user.password === passClean
+        );
+
+        if (match) {
+            setLocalJSON(CONFIG.localStorageKeys.authUser, {
+                username: match.username,
+                name: match.name,
+                role: match.role,
+                avatar: match.avatar,
+                theme: match.theme
             });
-
-            if (error || !data?.user) {
-                if (error) console.warn('Inicio de sesión rechazado:', error.message);
-                return false;
-            }
-
-            const profile = await DataService.getProfileByAuthId(data.user.id);
-
-            if (!profile) {
-                console.error('El usuario autenticado no tiene un perfil válido en Supabase.');
-                await supabaseClient.auth.signOut();
-                UI.showToast('Tu cuenta no tiene un perfil configurado. Contacta al administrador.', 'error');
-                return false;
-            }
-
-            const sessionUser = {
-                id: data.user.id,
-                username: profile.username || userClean,
-                name: profile.name || userClean,
-                role: profile.role,
-                avatar: profile.avatar || '',
-                theme: profile.theme || '#4f46e5'
-            };
-
-            UI.updateConnectionStatus(true);
             return true;
-        } catch (error) {
-            console.error('Error durante la autenticación con Supabase:', error);
-            UI.showToast('No fue posible iniciar sesión. Inténtalo nuevamente.', 'error');
-            return false;
         }
+
+        return false;
     },
 
-    getUser: async () => {
-        if (!supabaseClient) return null;
-
-        try {
-            const { data, error } = await supabaseClient.auth.getUser();
-
-            if (error || !data?.user) {
-                return null;
-            }
-
-            const authUser = data.user;
-            let username = normalizeUsername(authUser.user_metadata?.username || '');
-            if (!username && authUser.email) username = normalizeUsername(authUser.email.split('@')[0]);
-            if (!username) return null;
-
-            const profile = await DataService.getProfileByAuthId(authUser.id);
-            if (!profile) {
-                console.error(`No existe un perfil de Supabase para el usuario "${username}".`);
-                await supabaseClient.auth.signOut();
-                return null;
-            }
-
-            const sessionUser = {
-                id: authUser.id,
-                username: profile.username || username,
-                name: profile.name || username,
-                role: profile.role,
-                avatar: profile.avatar || '',
-                theme: profile.theme || '#4f46e5'
-            };
-
-            return sessionUser;
-        } catch (error) {
-            console.error('No fue posible validar la sesión:', error);
-            return null;
-        }
+    logout: () => {
+        localStorage.removeItem(CONFIG.localStorageKeys.authUser);
+        window.location.reload();
     },
 
-    logout: async () => {
-        try {
-            if (supabaseClient) {
-                const { error } = await supabaseClient.auth.signOut();
-                if (error) console.error('Error cerrando sesión en Supabase:', error);
-            }
-        } catch (error) {
-            console.error('Error inesperado cerrando sesión:', error);
-        } finally {
-            window.location.reload();
-        }
-    }
+    getUser: () => getLocalJSON(CONFIG.localStorageKeys.authUser, null)
 };
 
 const initDemoData = async () => {
@@ -846,7 +708,7 @@ const App = {
 
     async init() {
         await initDemoData();
-        this.user = await AuthService.getUser();
+        this.user = AuthService.getUser();
         
         if (!this.user) {
             this.showLogin();
@@ -867,6 +729,7 @@ const App = {
         await this.loadData();
         this.setupPlugins();
         this.setupEventListeners();
+        this.setupDynamicEventDelegation();
         this.setupNotesPanel();
         this.renderAll();
         
@@ -1043,7 +906,6 @@ const App = {
         
         this.setupProfileListeners();
         this.setupAdminListeners();
-        this.setupDynamicEventDelegation();
 
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
@@ -1135,182 +997,6 @@ const App = {
                 document.getElementById('modalEditTask').classList.remove('active');
                 UI.showToast("Solicitud editada", "success");
                 this.renderBoard();
-            }
-        });
-    },
-
-
-    setupDynamicEventDelegation() {
-        /*
-         * Los elementos de tareas, miembros y solicitantes se generan
-         * dinámicamente. En lugar de insertar JavaScript dentro del HTML
-         * (onclick/onchange/onkeydown), centralizamos sus eventos aquí.
-         */
-        document.addEventListener('click', async (event) => {
-            const target = event.target.closest('[data-action]');
-
-            if (!target) return;
-
-            const action = target.dataset.action;
-            const taskId = target.dataset.taskId;
-
-            switch (action) {
-                case 'remove-member': {
-                    const index = Number(target.dataset.index);
-                    if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
-                    if (!confirm('¿Quitar del equipo?')) return;
-
-                    const removedName = this.members[index];
-                    const removed = await DataService.removeMember(removedName);
-                    if (!removed) {
-                        UI.showToast('No fue posible eliminar el colaborador.', 'error');
-                        return;
-                    }
-
-                    this.members.splice(index, 1);
-                    setLocalJSON(CONFIG.localStorageKeys.members, this.members);
-                    this.usersList = await DataService.getUsers();
-                    this.renderAll();
-                    UI.showToast('Colaborador eliminado', 'success');
-                    break;
-                }
-
-                case 'remove-requester': {
-                    const index = Number(target.dataset.index);
-                    if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
-                    if (!confirm('¿Eliminar solicitante?')) return;
-
-                    const removedName = this.requesters[index];
-                    const removed = await DataService.removeRequester(removedName);
-                    if (!removed) {
-                        UI.showToast('No fue posible eliminar el solicitante.', 'error');
-                        return;
-                    }
-
-                    this.requesters.splice(index, 1);
-                    setLocalJSON(CONFIG.localStorageKeys.requesters, this.requesters);
-                    this.renderAll();
-                    UI.showToast('Solicitante eliminado', 'success');
-                    break;
-                }
-
-                case 'expand-my-task': {
-                    if (!target.matches('.request-item')) return;
-                    document.querySelectorAll('.request-item.expanded').forEach(item => {
-                        if (item !== target) item.classList.remove('expanded');
-                    });
-                    target.classList.toggle('expanded');
-                    document.querySelectorAll('.task-table tr.expanded-row').forEach(row => {
-                        row.classList.remove('expanded-row');
-                    });
-                    break;
-                }
-
-                case 'toggle-star':
-                    if (taskId) {
-                        this.toggleTaskStar(taskId);
-                    }
-                    break;
-
-                case 'toggle-status':
-                    if (taskId) {
-                        this.toggleTaskStatus(taskId);
-                    }
-                    break;
-
-                case 'edit-task':
-                    if (taskId) {
-                        this.openEditModal(taskId);
-                    }
-                    break;
-
-                case 'delete-task':
-                    if (!taskId) return;
-
-                    if (confirm('¿Eliminar?')) {
-                        this.tasks = this.tasks.filter(
-                            task => task.id !== taskId
-                        );
-
-                        this.markAsUnsaved();
-                        this.renderBoard();
-
-                        UI.showToast(
-                            'Tarea eliminada',
-                            'success'
-                        );
-                    }
-                    break;
-
-                default:
-                    break;
-            }
-        });
-
-        document.addEventListener('change', (event) => {
-            const target = event.target.closest('[data-action]');
-
-            if (!target) return;
-
-            const action = target.dataset.action;
-            const taskId = target.dataset.taskId;
-
-            if (!taskId) return;
-
-            switch (action) {
-                case 'toggle-completed':
-                    this.updateTask(
-                        taskId,
-                        'status',
-                        target.checked
-                            ? 'Entregado'
-                            : 'En curso',
-                        true
-                    );
-                    break;
-
-                case 'change-assignee':
-                    this.updateTask(
-                        taskId,
-                        'assignee',
-                        target.value,
-                        false
-                    );
-                    break;
-
-                default:
-                    break;
-            }
-        });
-
-        document.addEventListener('keydown', (event) => {
-            const target = event.target.closest('[data-action]');
-
-            if (!target) return;
-
-            if (event.key !== 'Enter' && event.key !== ' ') {
-                return;
-            }
-
-            if (target.dataset.action === 'expand-my-task') {
-                event.preventDefault();
-                target.classList.toggle('expanded');
-                document.querySelectorAll('.request-item.expanded').forEach(item => {
-                    if (item !== target) item.classList.remove('expanded');
-                });
-                return;
-            }
-
-            if (target.dataset.action !== 'toggle-status') {
-                return;
-            }
-
-            event.preventDefault();
-
-            const taskId = target.dataset.taskId;
-
-            if (taskId) {
-                this.toggleTaskStatus(taskId);
             }
         });
     },
@@ -1529,23 +1215,21 @@ const App = {
         };
 
         const saveAndClose = async (avatarData) => {
-            const avatar = sanitizeAvatarUrl(avatarData);
-            const theme = normalizeText(selectedTheme) || '#4f46e5';
-
-            if (!supabaseClient || !this.user.id) {
-                UI.showToast('No se pudo identificar tu perfil en Supabase.', 'error');
-                return;
+            this.user.avatar = sanitizeAvatarUrl(avatarData);
+            this.user.theme = selectedTheme;
+            localStorage.setItem('auth_user', JSON.stringify(this.user));
+            
+            let allUsers = await DataService.getUsers();
+            let dbUser = allUsers.find(u => u.username === this.user.username);
+            if(dbUser) {
+                dbUser.avatar = this.user.avatar;
+                dbUser.theme = selectedTheme;
+                try {
+                    await DataService.saveUsers(allUsers);
+                    UI.showToast("Perfil actualizado", "success");
+                } catch (e) { return; }
             }
 
-            const saved = await DataService.updateProfile(this.user.id, { avatar, theme });
-            if (!saved) {
-                UI.showToast('No fue posible guardar el perfil en la nube.', 'error');
-                return;
-            }
-
-            this.user.avatar = avatar;
-            this.user.theme = theme;
-            UI.showToast('Perfil actualizado', 'success');
             this.usersList = await DataService.getUsers();
             this.updateAvatarUI();
             resetProfileModal();
@@ -1633,6 +1317,15 @@ const App = {
                     return;
                 }
                 
+                const themeOptions = ['#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488', '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c', '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'];
+                const randomTheme = themeOptions[Math.floor(Math.random() * themeOptions.length)];
+
+                let dbUsers = await DataService.getUsers();
+                if (!dbUsers.some(u => u.username === name.toLowerCase())) {
+                    dbUsers.push({ username: name.toLowerCase(), password: `${name}_DH2026!`, role: "editor", name: name, avatar: "", theme: randomTheme });
+                    await DataService.saveUsers(dbUsers);
+                }
+
                 this.usersList = await DataService.getUsers();
                 input.value = ''; 
                 this.renderAll();
@@ -1640,25 +1333,29 @@ const App = {
             }
         });
 
-        document.getElementById('addRequesterForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const input = document.getElementById('newRequesterInput');
-            const name = normalizeText(input.value);
-            if (name && !this.requesters.some(r => r.toLowerCase() === name.toLowerCase())) {
-                this.requesters.push(name); 
-                await DataService.addRequester(name);
-                const localSaved = await DataService.saveRequesters(this.requesters);
-                if (!localSaved) {
-                    this.requesters.pop();
-                    UI.showToast("No fue posible guardar el solicitante.", "error");
-                    return;
-                }
-                input.value = ''; 
+        this.removeMember = async (index) => {
+            if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
+            if (confirm('¿Eliminar miembro?')) {
+                const removedName = this.members[index];
+                this.members.splice(index, 1);
+                await DataService.removeMember(removedName);
+                await DataService.saveMembers(this.members);
                 this.renderAll();
-                UI.showToast("Solicitante añadido", "success");
+                UI.showToast("Miembro eliminado", "success");
             }
-        });
-        
+        };
+
+        this.removeRequester = async (index) => {
+            if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
+            if (confirm('¿Eliminar solicitante?')) {
+                const removedName = this.requesters[index];
+                this.requesters.splice(index, 1);
+                await DataService.removeRequester(removedName);
+                await DataService.saveRequesters(this.requesters);
+                this.renderAll();
+                UI.showToast("Solicitante eliminado", "success");
+            }
+        };
     },
 
     renderAll() {
@@ -1809,10 +1506,8 @@ const App = {
             const li = document.createElement('li');
             // Añadir clase de estrella para estilar en el CSS
             li.className = `request-item ${t.isStarred ? 'task-starred' : ''}`;
-            li.tabIndex = 0;
+            li.tabIndex = 0; 
             li.id = `li-${t.id}`;
-            li.setAttribute('role', 'button');
-            li.setAttribute('aria-label', `Abrir detalles de ${normalizeText(t.name)}`);
             
             // Prevent Event Bubbling
             const handleExpand = (e) => {
@@ -1822,8 +1517,8 @@ const App = {
                 document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
             };
 
-            li.dataset.action = 'expand-my-task';
-            li.dataset.taskId = t.id;
+            li.addEventListener('click', handleExpand);
+            li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExpand(e); } });
             
             const colorHex = this.getColor(t.assignee);
             
@@ -1846,7 +1541,7 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar de destacados' : 'Destacar tarea'}">
+                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
                         </button>
                         <span class="req-name-text">${escapeHTML(t.name)}</span>
@@ -1867,15 +1562,9 @@ const App = {
             sList.appendChild(li);
         });
         if(myTasks.length === 0) sList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default;">No tienes tareas asignadas</li>';
-        const buildAssigneeOptions = (selectedAssignee) => [
-            `<option value="No asignado"${selectedAssignee === 'No asignado' ? ' selected' : ''}>No asignado</option>`,
-            ...this.members.map(member => {
-                const safeMember = escapeHTML(member);
-                const selected = member === selectedAssignee ? ' selected' : '';
-                return `<option value="${safeMember}"${selected}>${safeMember}</option>`;
-            })
-        ].join('');
 
+        let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
+        
         activas.forEach(t => {
             const tr = document.createElement('tr');
             tr.id = `tr-${t.id}`;
@@ -1903,11 +1592,11 @@ const App = {
             }
             
             tr.innerHTML = `
-                <td style="text-align:center;" data-label="Completada"><input type="checkbox" id="complete-task-${escapeHTML(t.id)}" name="complete-task-${escapeHTML(t.id)}" class="custom-checkbox" aria-label="Marcar como entregado" data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}"></td>
+                <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" data-action="complete-task" data-task-id="${escapeHTML(t.id)}"></td>
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar de destacados' : 'Destacar tarea'}">
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
                                 <i data-lucide="star"></i>
                             </button>
                             <span class="req-title-text">${escapeHTML(t.name)}</span>
@@ -1916,13 +1605,13 @@ const App = {
                     </div>
                 </td>
                 <td data-label="Asignación">
-                    <select id="assignee-task-${escapeHTML(t.id)}" name="assignee-task-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
-                        ${buildAssigneeOptions(t.assignee)}
+                    <select class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}" id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}">
+                        ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
                     </select>
                 </td>
                 <td class="date-info" data-label="Fechas (Rec - Ent)">
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                    <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || '')}" value="${escapeHTML(dateDeliveredVal)}" placeholder="Seleccionar">
+                    <input type="text" class="inline-date-picker ${dateClass}" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${t.dateReceived}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td data-label="Estado">
                     <div id="status-switch-${t.id}" 
@@ -1930,8 +1619,8 @@ const App = {
                          role="switch" 
                          aria-checked="${isCurso ? 'true' : 'false'}" 
                          tabindex="0"
-                         aria-label="Cambiar estado de la tarea"
-                         data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
+                         data-action="toggle-status"
+                         data-task-id="${escapeHTML(t.id)}">
                         <div class="switch-track"><div class="switch-thumb"></div></div>
                         <span class="switch-label">${escapeHTML(t.status)}</span>
                     </div>
@@ -1952,7 +1641,7 @@ const App = {
             li.className = `request-item completed-item ${t.isStarred ? 'task-starred' : ''}`;
             li.innerHTML = `
                 <div style="display:flex; gap:10px;">
-                    <input type="checkbox" id="completed-task-${escapeHTML(t.id)}" name="completed-task-${escapeHTML(t.id)}" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}">
+                    <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="complete-task" data-task-id="${escapeHTML(t.id)}">
                     <div style="width: 100%;">
                         <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">
                             ${t.isStarred ? '<i data-lucide="star" style="width: 12px; height: 12px; color: #f59e0b; fill: #f59e0b; margin-right: 4px;"></i>' : ''}
