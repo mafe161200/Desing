@@ -722,24 +722,14 @@ function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
         altInput.id = `${baseId}-display`;
         altInput.name = `${baseName}-display`;
 
-        // Con altInput, Flatpickr oculta el input original.
-        // La etiqueta debe quedar asociada al campo visible.
-        const label = document.getElementById(`${baseId}-label`) ||
-            Array.from(document.querySelectorAll('label')).find(
-                candidate => {
-                    const target = candidate.getAttribute('for');
-                    return target === baseId || target === `${baseId}-display`;
-                }
-            );
-        if (label) {
-            const labelId = label.id || `${baseId}-label`;
-            label.id = labelId;
-            // Flatpickr convierte el input original en hidden y crea este campo visible.
-            // La etiqueta debe apuntar al campo visible para que DevTools/AT la reconozcan.
-            label.setAttribute('for', altInput.id);
-            altInput.setAttribute('aria-labelledby', labelId);
-        } else if (!altInput.getAttribute('aria-label') && source?.getAttribute('aria-label')) {
-            altInput.setAttribute('aria-label', source.getAttribute('aria-label'));
+        // Flatpickr oculta el input original y crea un campo visible alternativo.
+        // No manipulamos <label for> aquí: el campo visible recibe su propia
+        // etiqueta accesible para que la asociación no dependa del timing de Flatpickr.
+        const sourceAriaLabel = source?.getAttribute('aria-label');
+        if (sourceAriaLabel) {
+            altInput.setAttribute('aria-label', sourceAriaLabel);
+        } else if (!altInput.getAttribute('aria-label')) {
+            altInput.setAttribute('aria-label', baseName);
         }
     }
 

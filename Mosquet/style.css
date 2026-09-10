@@ -30,7 +30,6 @@
     --danger-bg: #fef2f2;
     --warning: #f59e0b;        
     --warning-bg: #fffbeb;
-    --success-hover: #059669;
     --success: #10b981;        
     --info: #0ea5e9;           
 }
@@ -158,6 +157,7 @@ body {
 .btn-text:hover { color: var(--danger); }
 
 .field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--primary-cold); margin-bottom: 8px; }
+.field-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--primary-cold); margin-bottom: 8px; }
 .custom-input { font-size: 0.85rem; font-weight: 500; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-light); background: var(--card-bg); color: var(--text-main); outline: none; transition: 0.2s; width: 100%; box-sizing: border-box; }
 .custom-input:focus { border-color: var(--primary-cold); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
 .input-with-icon { position: relative; display: flex; align-items: center; width: 100%; }
