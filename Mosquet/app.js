@@ -20,20 +20,19 @@ const escapeHTML = (str) => {
 
 const CONFIG = Object.freeze({
     supabaseUrl: "https://gbltrfqxohrmkopanghx.supabase.co",
-    supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU",
-    demoDataEnabled: true,
-    localStorageKeys: Object.freeze({
-        tasks: 'db_tasks',
-        notes: 'db_notes',
-        members: 'db_members',
-        requesters: 'db_reqs',
-        firstLoad: 'dh_first_load'
-    })
+    supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU"
 });
 
 const normalizeText = (value) => String(value ?? '').trim();
 
 const normalizeUsername = (value) => normalizeText(value).toLowerCase();
+
+// Elimina únicamente claves antiguas de la aplicación. No se almacenan datos nuevos en LocalStorage.
+const clearLegacyLocalData = () => {
+    ['db_tasks', 'db_notes', 'db_members', 'db_reqs', 'dh_first_load'].forEach(key => {
+        try { localStorage.removeItem(key); } catch (error) { console.warn('No se pudo limpiar almacenamiento legado.', error); }
+    });
+};
 
 const createId = () => (
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -41,40 +40,9 @@ const createId = () => (
         : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 );
 
-const getLocalJSON = (key, fallback) => {
-    try {
-        const raw = localStorage.getItem(key);
-        if (raw === null) return fallback;
-        const parsed = JSON.parse(raw);
-        return parsed ?? fallback;
-    } catch (error) {
-        console.warn(`No se pudo leer "${key}" desde LocalStorage.`, error);
-        return fallback;
-    }
-};
-
-const removeStorageItem = (key) => {
-    try {
-        localStorage.removeItem(key);
-        return true;
-    } catch (error) {
-        console.warn(`No se pudo eliminar "${key}" de LocalStorage.`, error);
-        return false;
-    }
-};
-
-const setLocalJSON = (key, value) => {
-    try {
-        localStorage.setItem(key, JSON.stringify(value));
-        return true;
-    } catch (error) {
-        if (error?.name === 'QuotaExceededError') {
-            UI.showToast("Error: la memoria local está llena.", "error");
-        } else {
-            console.error(`No se pudo guardar "${key}" en LocalStorage.`, error);
-        }
-        return false;
-    }
+const normalizeThemeColor = (value, fallback = '#4f46e5') => {
+    const color = normalizeText(value);
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : fallback;
 };
 
 const sanitizeAvatarUrl = (value) => {
@@ -237,23 +205,17 @@ const NotificationService = {
    ========================================= */
 const DataService = {
     async getUsers() {
-        if (!supabaseClient) {
-            console.error('Supabase no está disponible. No se cargarán perfiles locales.');
-            return [];
-        }
-
+        if (!supabaseClient) return [];
         try {
             const { data, error } = await supabaseClient
                 .from('profiles')
                 .select('id, username, email, name, role, avatar, theme, created_at')
                 .order('username', { ascending: true });
-
             if (error) {
                 console.error('Supabase: no se pudieron cargar los perfiles.', error);
                 UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
                 return [];
             }
-
             return (data || []).map(profile => ({
                 id: profile.id,
                 username: normalizeUsername(profile.username),
@@ -261,7 +223,7 @@ const DataService = {
                 name: normalizeText(profile.name),
                 role: profile.role === 'admin' ? 'admin' : 'editor',
                 avatar: sanitizeAvatarUrl(profile.avatar),
-                theme: normalizeText(profile.theme) || '#4f46e5',
+                theme: normalizeThemeColor(profile.theme),
                 created_at: profile.created_at
             }));
         } catch (error) {
@@ -273,21 +235,16 @@ const DataService = {
 
     async getProfileByAuthId(authId) {
         if (!supabaseClient || !authId) return null;
-
         try {
             const { data, error } = await supabaseClient
                 .from('profiles')
                 .select('id, username, email, name, role, avatar, theme, created_at')
                 .eq('id', authId)
                 .maybeSingle();
-
-            if (error) {
-                console.error('Supabase: no se pudo cargar el perfil.', error);
+            if (error || !data) {
+                if (error) console.error('Supabase: no se pudo cargar el perfil.', error);
                 return null;
             }
-
-            if (!data) return null;
-
             return {
                 id: data.id,
                 username: normalizeUsername(data.username),
@@ -295,7 +252,7 @@ const DataService = {
                 name: normalizeText(data.name),
                 role: data.role === 'admin' ? 'admin' : 'editor',
                 avatar: sanitizeAvatarUrl(data.avatar),
-                theme: normalizeText(data.theme) || '#4f46e5',
+                theme: normalizeThemeColor(data.theme),
                 created_at: data.created_at
             };
         } catch (error) {
@@ -306,23 +263,16 @@ const DataService = {
 
     async updateProfile(authId, changes) {
         if (!supabaseClient || !authId) return false;
-
         const payload = {
             avatar: sanitizeAvatarUrl(changes?.avatar),
-            theme: normalizeText(changes?.theme) || '#4f46e5'
+            theme: normalizeThemeColor(changes?.theme)
         };
-
         try {
-            const { error } = await supabaseClient
-                .from('profiles')
-                .update(payload)
-                .eq('id', authId);
-
+            const { error } = await supabaseClient.from('profiles').update(payload).eq('id', authId);
             if (error) {
                 console.error('Supabase: no se pudo actualizar el perfil.', error);
                 return false;
             }
-
             return true;
         } catch (error) {
             console.error('Supabase: error actualizando el perfil.', error);
@@ -331,251 +281,157 @@ const DataService = {
     },
 
     async getTasks() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('tasks')
-                    .select('*');
-
-                if (!error && data) {
-                    UI.updateConnectionStatus(true);
-                    setLocalJSON(CONFIG.localStorageKeys.tasks, data);
-                    return data;
-                }
-
-                if (error) {
-                    UI.updateConnectionStatus(false, error.message);
-                    console.warn('Supabase: no se pudieron cargar las tareas.', error);
-                }
-            } catch (error) {
-                UI.updateConnectionStatus(false, error.message);
-                console.warn('Supabase: error cargando tareas.', error);
-            }
-        } else {
-            UI.updateConnectionStatus(false);
+        if (!supabaseClient) {
+            UI.updateConnectionStatus(false, 'Supabase no está disponible.');
+            return [];
         }
-
-        return getLocalJSON(CONFIG.localStorageKeys.tasks, []);
+        try {
+            const { data, error } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: true });
+            if (error) {
+                UI.updateConnectionStatus(false, error.message);
+                console.error('Supabase: no se pudieron cargar las tareas.', error);
+                UI.showToast('No se pudieron cargar las tareas.', 'error');
+                return [];
+            }
+            UI.updateConnectionStatus(true);
+            return data || [];
+        } catch (error) {
+            UI.updateConnectionStatus(false, error.message);
+            console.error('Supabase: error cargando tareas.', error);
+            UI.showToast('No se pudieron cargar las tareas.', 'error');
+            return [];
+        }
     },
 
-    async saveTasks(tasks) {
-        const localSaved = setLocalJSON(CONFIG.localStorageKeys.tasks, tasks);
-        let cloudSaved = false;
-
-        if (supabaseClient) {
-            try {
-                const { error } = await supabaseClient
-                    .from('tasks')
-                    .upsert(tasks);
-
-                if (error) {
-                    console.error('Supabase: no se pudieron guardar las tareas.', error);
-                    UI.updateConnectionStatus(false, error.message);
-                } else {
-                    cloudSaved = true;
-                    UI.updateConnectionStatus(true);
-                }
-            } catch (error) {
-                console.error('Supabase: error guardando tareas.', error);
-                UI.updateConnectionStatus(false, error.message);
+    async saveTasks(tasks, deletedIds = []) {
+        if (!supabaseClient) return { cloudSaved: false };
+        try {
+            if (tasks.length > 0) {
+                const { error } = await supabaseClient.from('tasks').upsert(tasks);
+                if (error) throw error;
             }
+            if (deletedIds.length > 0) {
+                const { error } = await supabaseClient.from('tasks').delete().in('id', deletedIds);
+                if (error) throw error;
+            }
+            UI.updateConnectionStatus(true);
+            return { cloudSaved: true };
+        } catch (error) {
+            UI.updateConnectionStatus(false, error.message);
+            console.error('Supabase: no se pudieron guardar las tareas.', error);
+            return { cloudSaved: false, error };
         }
-
-        return { localSaved, cloudSaved };
     },
 
     async getNotes() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('notes')
-                    .select('*')
-                    .order('created_at', { ascending: true });
-
-                if (!error && data) {
-                    setLocalJSON(CONFIG.localStorageKeys.notes, data);
-                    return data;
-                }
-
-                if (error) {
-                    console.warn('Supabase: no se pudieron cargar las notas.', error);
-                }
-            } catch (error) {
-                console.warn('Supabase: error cargando notas.', error);
+        if (!supabaseClient) return [];
+        try {
+            const { data, error } = await supabaseClient.from('notes').select('*').order('created_at', { ascending: true });
+            if (error) {
+                console.error('Supabase: no se pudieron cargar las notas.', error);
+                UI.showToast('No se pudieron cargar las notas.', 'error');
+                return [];
             }
+            return data || [];
+        } catch (error) {
+            console.error('Supabase: error cargando notas.', error);
+            UI.showToast('No se pudieron cargar las notas.', 'error');
+            return [];
         }
-
-        return getLocalJSON(CONFIG.localStorageKeys.notes, []);
     },
 
     async saveNote(note) {
-        const notes = getLocalJSON(CONFIG.localStorageKeys.notes, []);
-        notes.push(note);
-
-        const localSaved = setLocalJSON(CONFIG.localStorageKeys.notes, notes);
-        let cloudSaved = false;
-
-        if (supabaseClient) {
-            try {
-                const { error } = await supabaseClient
-                    .from('notes')
-                    .insert([note]);
-
-                if (error) {
-                    console.error('Supabase: no se pudo guardar la nota.', error);
-                } else {
-                    cloudSaved = true;
-                }
-            } catch (error) {
-                console.error('Supabase: error guardando nota.', error);
-            }
+        if (!supabaseClient) return { cloudSaved: false };
+        try {
+            const { error } = await supabaseClient.from('notes').insert([note]);
+            if (error) throw error;
+            return { cloudSaved: true };
+        } catch (error) {
+            console.error('Supabase: no se pudo guardar la nota.', error);
+            return { cloudSaved: false, error };
         }
-
-        return { localSaved, cloudSaved };
     },
 
     async getMembers() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('members')
-                    .select('name');
-
-                if (!error && data) {
-                    const members = data.map(item => item.name).filter(Boolean);
-                    setLocalJSON(CONFIG.localStorageKeys.members, members);
-                    return members;
-                }
-
-                if (error) {
-                    console.warn('Supabase: no se pudieron cargar los miembros.', error);
-                }
-            } catch (error) {
-                console.warn('Supabase: error cargando miembros.', error);
+        if (!supabaseClient) return [];
+        try {
+            const { data, error } = await supabaseClient.from('members').select('name').order('name', { ascending: true });
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los miembros.', error);
+                UI.showToast('No se pudieron cargar los colaboradores.', 'error');
+                return [];
             }
+            return (data || []).map(item => normalizeText(item.name)).filter(Boolean);
+        } catch (error) {
+            console.error('Supabase: error cargando miembros.', error);
+            UI.showToast('No se pudieron cargar los colaboradores.', 'error');
+            return [];
         }
-
-        return getLocalJSON(
-            CONFIG.localStorageKeys.members,
-            ['Camilo', 'David', 'Mafe']
-        );
     },
 
     async addMember(name) {
-        if (!supabaseClient) return true;
-
+        if (!supabaseClient) return false;
         try {
-            const { error } = await supabaseClient
-                .from('members')
-                .upsert([{ name }]);
-
-            if (error) {
-                console.error('Supabase: no se pudo añadir el miembro.', error);
-                return false;
-            }
-
+            const { error } = await supabaseClient.from('members').upsert([{ name }]);
+            if (error) throw error;
             return true;
         } catch (error) {
-            console.error('Supabase: error añadiendo miembro.', error);
+            console.error('Supabase: no se pudo añadir el miembro.', error);
             return false;
         }
     },
 
     async removeMember(name) {
-        if (!supabaseClient) return true;
-
+        if (!supabaseClient) return false;
         try {
-            const { error } = await supabaseClient
-                .from('members')
-                .delete()
-                .eq('name', name);
-
-            if (error) {
-                console.error('Supabase: no se pudo eliminar el miembro.', error);
-                return false;
-            }
-
+            const { error } = await supabaseClient.from('members').delete().eq('name', name);
+            if (error) throw error;
             return true;
         } catch (error) {
-            console.error('Supabase: error eliminando miembro.', error);
+            console.error('Supabase: no se pudo eliminar el miembro.', error);
             return false;
         }
     },
 
-    async saveMembers(members) {
-        return setLocalJSON(CONFIG.localStorageKeys.members, members);
-    },
-
     async getRequesters() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('requesters')
-                    .select('name');
-
-                if (!error && data) {
-                    const requesters = data.map(item => item.name).filter(Boolean);
-                    setLocalJSON(CONFIG.localStorageKeys.requesters, requesters);
-                    return requesters;
-                }
-
-                if (error) {
-                    console.warn('Supabase: no se pudieron cargar los solicitantes.', error);
-                }
-            } catch (error) {
-                console.warn('Supabase: error cargando solicitantes.', error);
+        if (!supabaseClient) return [];
+        try {
+            const { data, error } = await supabaseClient.from('requesters').select('name').order('name', { ascending: true });
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los solicitantes.', error);
+                UI.showToast('No se pudieron cargar los solicitantes.', 'error');
+                return [];
             }
+            return (data || []).map(item => normalizeText(item.name)).filter(Boolean);
+        } catch (error) {
+            console.error('Supabase: error cargando solicitantes.', error);
+            UI.showToast('No se pudieron cargar los solicitantes.', 'error');
+            return [];
         }
-
-        return getLocalJSON(
-            CONFIG.localStorageKeys.requesters,
-            ['Comunicaciones Internas', 'Comercial', 'Mkt Interno']
-        );
     },
 
     async addRequester(name) {
-        if (!supabaseClient) return true;
-
+        if (!supabaseClient) return false;
         try {
-            const { error } = await supabaseClient
-                .from('requesters')
-                .upsert([{ name }]);
-
-            if (error) {
-                console.error('Supabase: no se pudo añadir el solicitante.', error);
-                return false;
-            }
-
+            const { error } = await supabaseClient.from('requesters').upsert([{ name }]);
+            if (error) throw error;
             return true;
         } catch (error) {
-            console.error('Supabase: error añadiendo solicitante.', error);
+            console.error('Supabase: no se pudo añadir el solicitante.', error);
             return false;
         }
     },
 
     async removeRequester(name) {
-        if (!supabaseClient) return true;
-
+        if (!supabaseClient) return false;
         try {
-            const { error } = await supabaseClient
-                .from('requesters')
-                .delete()
-                .eq('name', name);
-
-            if (error) {
-                console.error('Supabase: no se pudo eliminar el solicitante.', error);
-                return false;
-            }
-
+            const { error } = await supabaseClient.from('requesters').delete().eq('name', name);
+            if (error) throw error;
             return true;
         } catch (error) {
-            console.error('Supabase: error eliminando solicitante.', error);
+            console.error('Supabase: no se pudo eliminar el solicitante.', error);
             return false;
         }
-    },
-
-    async saveRequesters(requesters) {
-        return setLocalJSON(CONFIG.localStorageKeys.requesters, requesters);
     }
 };
 
@@ -687,25 +543,6 @@ const AuthService = {
     }
 };
 
-const initDemoData = async () => {
-    if (!CONFIG.demoDataEnabled || localStorage.getItem(CONFIG.localStorageKeys.firstLoad)) return;
-
-    {
-        const tasks = await DataService.getTasks();
-        if (tasks.length === 0) {
-            await DataService.saveTasks([
-                {id: "1", name: "Rediseño Logo Corporativo", requester: "Comercial", assignee: "Camilo", status: "En curso", dateReceived: "2026-08-20", dateDelivered: "2026-08-30", isStarred: false}
-            ]);
-        }
-        if (supabaseClient) {
-            const currentMembers = await DataService.getMembers();
-            if(currentMembers.length === 0) await supabaseClient.from('members').upsert([{name: 'Camilo'}, {name: 'David'}, {name: 'Mafe'}]);
-            const currentReqs = await DataService.getRequesters();
-            if(currentReqs.length === 0) await supabaseClient.from('requesters').upsert([{name: 'Comunicaciones Internas'}, {name: 'Comercial'}, {name: 'Mkt Interno'}]);
-        }
-        localStorage.setItem(CONFIG.localStorageKeys.firstLoad, '1');
-    }
-};
 
 /* =========================================
    UI COMPONENT: CUSTOM DROPDOWNS + ACCESIBILIDAD
@@ -874,10 +711,11 @@ const App = {
     filterDates: [],
     fpInstances: [],
     hasUnsavedChanges: false,
+    pendingDeletedTaskIds: [],
     cropperInstance: null,
 
     async init() {
-        await initDemoData();
+        clearLegacyLocalData();
         this.user = await AuthService.getUser();
         
         if (!this.user) {
@@ -939,38 +777,37 @@ const App = {
     },
 
     setupCrossTabSync() {
-        window.addEventListener('storage', async (e) => {
-            if (e.key && e.key.startsWith('db_')) {
-                await this.loadData();
-                this.renderAll();
-                if(e.key === 'db_notes') this.renderNotes();
-            }
-        });
+        // La sincronización entre pestañas se realiza mediante Supabase Realtime.
     },
 
     setupRealtimeSubscription() {
-        if (supabaseClient) {
-            supabaseClient
-                .channel('public-changes')
-                .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-                    
-                    if (payload.table === 'notes') {
-                        const panel = document.getElementById('notesPanel');
-                        if(panel && !panel.classList.contains('open')) {
-                            document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
-                        }
-                    } else {
-                        UI.showToast(`Actualización Recibida`, "info", 3000);
-                    }
-                    
-                    await this.loadData();
-                    this.renderAll();
-                    this.renderNotes();
-                })
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') console.log("Conectado a WebSockets");
-                });
-        }
+        if (!supabaseClient) return;
+
+        const channel = supabaseClient.channel('design-hub-realtime');
+        channel
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
+                if (this.hasUnsavedChanges) {
+                    UI.showToast('Hay cambios locales pendientes. Guarda o revierte antes de sincronizar.', 'warning', 5000);
+                    return;
+                }
+                await this.loadData();
+                this.renderAll();
+                UI.showToast('Actualización de tareas recibida', 'info', 3000);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async () => {
+                this.notes = await DataService.getNotes();
+                this.renderNotes();
+                const panel = document.getElementById('notesPanel');
+                if (panel && !panel.classList.contains('open')) {
+                    document.getElementById('btnToggleNotes')?.querySelector('.notification-badge')?.classList.add('active');
+                }
+            })
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') console.info('WebSocket conectado');
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.error('Supabase Realtime:', status);
+            });
+
+        this.realtimeChannel = channel;
     },
 
     updateAvatarUI() {
@@ -1026,23 +863,17 @@ const App = {
     },
 
     async saveChanges() {
-        const result = await DataService.saveTasks(this.tasks);
-
-        if (!result.localSaved) {
-            UI.showToast("No fue posible guardar los cambios localmente.", "error");
+        const result = await DataService.saveTasks(this.tasks, this.pendingDeletedTaskIds);
+        if (!result.cloudSaved) {
+            UI.showToast('No fue posible guardar los cambios en la nube. Tus cambios siguen pendientes.', 'error');
             return;
         }
 
         this.originalTasks = JSON.parse(JSON.stringify(this.tasks));
+        this.pendingDeletedTaskIds = [];
         this.hasUnsavedChanges = false;
         document.getElementById('unsavedChangesBar').classList.remove('active');
-
-        if (supabaseClient && !result.cloudSaved) {
-            UI.showToast("Guardado localmente. No se pudo sincronizar con la nube.", "warning");
-        } else {
-            UI.showToast("Cambios guardados con éxito", "success");
-        }
-
+        UI.showToast('Cambios guardados con éxito', 'success');
         this.renderBoard();
     },
 
@@ -1206,7 +1037,6 @@ const App = {
                     }
 
                     this.members.splice(index, 1);
-                    setLocalJSON(CONFIG.localStorageKeys.members, this.members);
                     this.usersList = await DataService.getUsers();
                     this.renderAll();
                     UI.showToast('Colaborador eliminado', 'success');
@@ -1226,7 +1056,6 @@ const App = {
                     }
 
                     this.requesters.splice(index, 1);
-                    setLocalJSON(CONFIG.localStorageKeys.requesters, this.requesters);
                     this.renderAll();
                     UI.showToast('Solicitante eliminado', 'success');
                     break;
@@ -1257,6 +1086,9 @@ const App = {
                         this.tasks = this.tasks.filter(
                             task => task.id !== taskId
                         );
+                        if (!this.pendingDeletedTaskIds.includes(taskId)) {
+                            this.pendingDeletedTaskIds.push(taskId);
+                        }
 
                         this.markAsUnsaved();
                         this.renderBoard();
@@ -1401,17 +1233,14 @@ const App = {
 
             const result = await DataService.saveNote(newNote);
 
-            if (!result.localSaved) {
-                UI.showToast("No fue posible guardar la nota.", "error");
+            if (!result.cloudSaved) {
+                UI.showToast("No fue posible guardar la nota en la nube.", "error");
                 return;
             }
 
             this.notes.push(newNote);
             input.value = '';
 
-            if (supabaseClient && !result.cloudSaved) {
-                UI.showToast("Nota guardada localmente; no se pudo sincronizar.", "warning");
-            }
             if(pickerWrapper) pickerWrapper.style.display = 'none';
             this.renderNotes();
         });
@@ -1438,17 +1267,28 @@ const App = {
 
             const cleanContent = escapeHTML(n.content);
 
-            container.innerHTML += `
-                <div class="chat-msg ${alignClass}">
-                    <div class="chat-meta">
-                        <span style="color: ${isMine ? 'var(--text-muted)' : authorColor}; font-weight: 700;">${authorText}</span> 
-                        <span>${dateStr}</span>
-                    </div>
-                    <div class="chat-bubble ${isMine ? '' : 'chat-bubble-other'}" style="${isMine ? `background-color: var(--primary-cold); color: #ffffff;` : `border-left-color: ${authorColor};`}">
-                        ${cleanContent}
-                    </div>
-                </div>
-            `;
+            const msg = document.createElement('div');
+            msg.className = `chat-msg ${alignClass}`;
+            const meta = document.createElement('div');
+            meta.className = 'chat-meta';
+            const authorEl = document.createElement('span');
+            authorEl.textContent = isMine ? 'Tú' : normalizeText(n.author);
+            authorEl.style.color = isMine ? 'var(--text-muted)' : normalizeThemeColor(authorColor, '#4f46e5');
+            authorEl.style.fontWeight = '700';
+            const dateEl = document.createElement('span');
+            dateEl.textContent = dateStr;
+            meta.append(authorEl, dateEl);
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${isMine ? '' : 'chat-bubble-other'}`;
+            if (isMine) {
+                bubble.style.backgroundColor = 'var(--primary-cold)';
+                bubble.style.color = '#ffffff';
+            } else {
+                bubble.style.borderLeftColor = normalizeThemeColor(authorColor, '#4f46e5');
+            }
+            bubble.textContent = normalizeText(n.content);
+            msg.append(meta, bubble);
+            container.appendChild(msg);
         });
         
         container.scrollTop = container.scrollHeight;
@@ -1509,7 +1349,7 @@ const App = {
         const btnCancelCrop = document.getElementById('btnCancelCrop');
         const btnRemoveAvatar = document.getElementById('btnRemoveAvatar');
 
-        let selectedTheme = this.user.theme || '#4f46e5';
+        let selectedTheme = normalizeThemeColor(this.user.theme);
 
         const checkTakenColors = () => {
             const takenColors = this.usersList.filter(u => u.username !== this.user.username).map(u => u.theme);
@@ -1548,7 +1388,7 @@ const App = {
 
         const saveAndClose = async (avatarData) => {
             const avatar = sanitizeAvatarUrl(avatarData);
-            const theme = normalizeText(selectedTheme) || '#4f46e5';
+            const theme = normalizeThemeColor(selectedTheme);
 
             if (!supabaseClient || !this.user.id) {
                 UI.showToast('No se pudo identificar tu perfil en Supabase.', 'error');
@@ -1575,7 +1415,7 @@ const App = {
         document.getElementById('userProfileBtn').addEventListener('click', () => {
             resetProfileModal();
             urlInput.value = this.user.avatar && this.user.avatar.startsWith('http') ? this.user.avatar : '';
-            selectedTheme = this.user.theme || '#4f46e5';
+            selectedTheme = normalizeThemeColor(this.user.theme);
             
             checkTakenColors();
             
@@ -1642,14 +1482,12 @@ const App = {
             const input = document.getElementById('newMemberInput');
             const name = normalizeText(input.value);
             if (name && !this.members.some(m => m.toLowerCase() === name.toLowerCase())) {
-                this.members.push(name); 
-                await DataService.addMember(name);
-                const localSaved = await DataService.saveMembers(this.members);
-                if (!localSaved) {
-                    this.members.pop();
+                const saved = await DataService.addMember(name);
+                if (!saved) {
                     UI.showToast("No fue posible guardar el colaborador.", "error");
                     return;
                 }
+                this.members.push(name);
                 
                 this.usersList = await DataService.getUsers();
                 input.value = ''; 
@@ -1663,14 +1501,12 @@ const App = {
             const input = document.getElementById('newRequesterInput');
             const name = normalizeText(input.value);
             if (name && !this.requesters.some(r => r.toLowerCase() === name.toLowerCase())) {
-                this.requesters.push(name); 
-                await DataService.addRequester(name);
-                const localSaved = await DataService.saveRequesters(this.requesters);
-                if (!localSaved) {
-                    this.requesters.pop();
+                const saved = await DataService.addRequester(name);
+                if (!saved) {
                     UI.showToast("No fue posible guardar el solicitante.", "error");
                     return;
                 }
+                this.requesters.push(name);
                 input.value = ''; 
                 this.renderAll();
                 UI.showToast("Solicitante añadido", "success");
@@ -1686,27 +1522,23 @@ const App = {
     },
 
     renderDropdowns() {
-        const sAssignee = ['assignee', 'filterAssignee'];
-        sAssignee.forEach(id => {
+        const assigneeIds = ['assignee', 'filterAssignee'];
+        assigneeIds.forEach(id => {
             const el = document.getElementById(id);
-            if(!el) return;
-            el.innerHTML = id === 'filterAssignee' ? '<option value="Todos">Asignación: Todos</option>' : '';
-            el.innerHTML += '<option value="No asignado">No asignado</option>'; 
-            this.members.forEach(m => {
-                const safeM = escapeHTML(m);
-                el.innerHTML += `<option value="${safeM}">${safeM}</option>`;
-            });
+            if (!el) return;
+            el.replaceChildren();
+            if (id === 'filterAssignee') el.add(new Option('Asignación: Todos', 'Todos'));
+            el.add(new Option('No asignado', 'No asignado'));
+            this.members.forEach(member => el.add(new Option(member, member)));
         });
 
-        const sReq = ['requesterSelect', 'filterRequester', 'editRequesterSelect'];
-        sReq.forEach(id => {
+        const requesterIds = ['requesterSelect', 'filterRequester', 'editRequesterSelect'];
+        requesterIds.forEach(id => {
             const el = document.getElementById(id);
-            if(!el) return;
-            el.innerHTML = id === 'filterRequester' ? '<option value="Todos">Solicitante: Todos</option>' : '';
-            this.requesters.forEach(r => {
-                const safeR = escapeHTML(r);
-                el.innerHTML += `<option value="${safeR}">${safeR}</option>`;
-            });
+            if (!el) return;
+            el.replaceChildren();
+            if (id === 'filterRequester') el.add(new Option('Solicitante: Todos', 'Todos'));
+            this.requesters.forEach(requester => el.add(new Option(requester, requester)));
         });
         buildCustomSelects(document.querySelector('.inline-filters-bar'));
         buildCustomSelects(document.querySelector('#taskForm'));
@@ -1714,20 +1546,47 @@ const App = {
     },
 
     renderTags() {
-        if(this.user.role !== 'admin') return;
+        if (this.user.role !== 'admin') return;
         const mList = document.getElementById('membersList');
-        mList.innerHTML = '';
-        this.members.forEach((m) => {
-            const safeM = escapeHTML(m);
-            const hexColor = this.getColor(m);
-            mList.innerHTML += `<div class="member-chip" style="color: ${hexColor}; background-color: ${hexColor}20; border-color: ${hexColor}40;"><span>${safeM}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeM}" data-action="remove-member" data-index="${this.members.indexOf(m)}"><i data-lucide="x"></i></button></div>`;
+        const rList = document.getElementById('requestersList');
+        if (!mList || !rList) return;
+        mList.replaceChildren();
+        rList.replaceChildren();
+
+        this.members.forEach((member, index) => {
+            const color = normalizeThemeColor(this.getColor(member), '#94a3b8');
+            const chip = document.createElement('div');
+            chip.className = 'member-chip';
+            chip.style.color = color;
+            chip.style.backgroundColor = `${color}20`;
+            chip.style.borderColor = `${color}40`;
+            const span = document.createElement('span');
+            span.textContent = member;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'remove-member';
+            button.setAttribute('aria-label', `Eliminar ${member}`);
+            button.dataset.action = 'remove-member';
+            button.dataset.index = String(index);
+            button.appendChild(document.createElement('i')).setAttribute('data-lucide', 'x');
+            chip.append(span, button);
+            mList.appendChild(chip);
         });
 
-        const rList = document.getElementById('requestersList');
-        rList.innerHTML = '';
-        this.requesters.forEach((r, i) => {
-            const safeR = escapeHTML(r);
-            rList.innerHTML += `<div class="member-chip"><span>${safeR}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeR}" data-action="remove-requester" data-index="${i}"><i data-lucide="x"></i></button></div>`;
+        this.requesters.forEach((requester, index) => {
+            const chip = document.createElement('div');
+            chip.className = 'member-chip';
+            const span = document.createElement('span');
+            span.textContent = requester;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'remove-member';
+            button.setAttribute('aria-label', `Eliminar ${requester}`);
+            button.dataset.action = 'remove-requester';
+            button.dataset.index = String(index);
+            button.appendChild(document.createElement('i')).setAttribute('data-lucide', 'x');
+            chip.append(span, button);
+            rList.appendChild(chip);
         });
         lucide.createIcons();
     },
@@ -1741,7 +1600,7 @@ const App = {
                 (u.username && u.username.toLowerCase().trim() === userClean)
             )
         );
-        if (dbUser && dbUser.theme) return dbUser.theme;
+        if (dbUser && dbUser.theme) return normalizeThemeColor(dbUser.theme);
 
         const allColors = ['#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488', '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c', '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'];
         let hash = 0;
@@ -2035,17 +1894,24 @@ const App = {
             const color = this.getColor(name);
             const safeName = escapeHTML(name);
             
-            wContainer.innerHTML += `
-                <div class="workload-item">
-                    <div class="workload-header">
-                        <span>${safeName}</span>
-                        <span>${count}</span>
-                    </div>
-                    <div class="workload-bar-bg">
-                        <div class="workload-bar-fill" style="width: ${percentage}%; background-color: ${color};"></div>
-                    </div>
-                </div>
-            `;
+            const item = document.createElement('div');
+            item.className = 'workload-item';
+            const header = document.createElement('div');
+            header.className = 'workload-header';
+            const nameEl = document.createElement('span');
+            nameEl.textContent = name;
+            const countEl = document.createElement('span');
+            countEl.textContent = String(count);
+            header.append(nameEl, countEl);
+            const barBg = document.createElement('div');
+            barBg.className = 'workload-bar-bg';
+            const bar = document.createElement('div');
+            bar.className = 'workload-bar-fill';
+            bar.style.width = `${percentage}%`;
+            bar.style.backgroundColor = normalizeThemeColor(color, '#94a3b8');
+            barBg.appendChild(bar);
+            item.append(header, barBg);
+            wContainer.appendChild(item);
         });
 
         if(sortedWorkload.length === 0 || maxTasks === 0) {
