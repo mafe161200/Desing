@@ -1381,16 +1381,28 @@ const App = {
             if (!taskId) return;
 
             switch (action) {
-                case 'toggle-completed':
+                case 'toggle-completed': {
+                    const completed = Boolean(target.checked);
+
                     this.updateTask(
                         taskId,
                         'status',
-                        target.checked
-                            ? 'Entregado'
-                            : 'En curso',
+                        completed ? 'Entregado' : 'En curso',
                         true
                     );
+
+                    /*
+                     * Al marcarla, la tarea deja de estar en Pendientes y
+                     * aparece inmediatamente en Realizadas. Al desmarcarla,
+                     * vuelve a Pendientes.
+                     */
+                    if (completed) {
+                        UI.showToast('Tarea enviada a Realizadas', 'success');
+                    } else {
+                        UI.showToast('Tarea devuelta a Pendientes', 'info');
+                    }
                     break;
+                }
 
                 case 'change-assignee':
                     this.updateTask(
@@ -2057,32 +2069,42 @@ const App = {
         const fSort = fSortEl ? fSortEl.value : 'asc';
         const sortModifier = fSort === 'desc' ? -1 : 1;
 
-        let filtered = this.tasks.filter(t => {
-            let mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
-            let mReq = fRequester === 'Todos' || t.requester === fRequester;
-            let mStat = fStatus === 'Todos' || t.status === fStatus;
-            let mSearch = !fSearch ||
+        /*
+         * Importante: los filtros generales NO deben eliminar las tareas
+         * completadas antes de construir la sección "Realizadas".
+         * Antes, el filtro "Pendientes" hacía que "completadas" quedara
+         * siempre vacío; por eso una tarea marcada parecía desaparecer.
+         */
+        const matchesCommonFilters = (t) => {
+            const mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
+            const mReq = fRequester === 'Todos' || t.requester === fRequester;
+            const mStat = fStatus === 'Todos' || t.status === fStatus;
+            const mSearch = !fSearch ||
                 normalizeText(t.name).toLowerCase().includes(fSearch) ||
                 normalizeText(t.requester).toLowerCase().includes(fSearch) ||
                 normalizeText(t.assignee).toLowerCase().includes(fSearch) ||
                 normalizeText(t.notes).toLowerCase().includes(fSearch);
-            let mCompletion =
-                fCompletion === 'Todas' ||
-                (fCompletion === 'Pendientes' && t.status !== 'Entregado') ||
-                (fCompletion === 'Realizadas' && t.status === 'Entregado');
+
             let mDate = true;
             if (this.filterDates.length > 0) {
-                if(!t.dateDelivered) {
+                if (!t.dateDelivered) {
                     mDate = false;
                 } else {
-                    const start = new Date(this.filterDates[0]); start.setHours(0,0,0,0);
-                    const end = this.filterDates.length > 1 ? new Date(this.filterDates[1]) : new Date(this.filterDates[0]); end.setHours(23,59,59,999);
+                    const start = new Date(this.filterDates[0]);
+                    start.setHours(0, 0, 0, 0);
+                    const end = this.filterDates.length > 1
+                        ? new Date(this.filterDates[1])
+                        : new Date(this.filterDates[0]);
+                    end.setHours(23, 59, 59, 999);
                     const taskDate = new Date(t.dateDelivered + 'T12:00:00');
                     mDate = taskDate >= start && taskDate <= end;
                 }
             }
-            return mAsig && mReq && mStat && mSearch && mCompletion && mDate;
-        });
+
+            return mAsig && mReq && mStat && mSearch && mDate;
+        };
+
+        const filtered = this.tasks.filter(matchesCommonFilters);
 
         // REGLA DE ORDENAMIENTO DOBLE (Estrellas Arriba O(N log N))
         const sortTasks = (a, b) => {
