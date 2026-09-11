@@ -138,6 +138,19 @@
                     </div>
 
                     <div class="inline-filters-bar">
+                        <div class="inline-filter-item task-search-filter">
+                            <div class="input-with-icon">
+                                <i data-lucide="search"></i>
+                                <input type="search" id="taskSearch" name="taskSearch" class="custom-input" placeholder="Buscar tarea..." aria-label="Buscar tareas por nombre, solicitante, asignación o notas" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterCompletion" name="filterCompletion" class="native-select-hidden" aria-label="Filtrar tareas realizadas o pendientes">
+                                <option value="Pendientes" selected>Tareas: Pendientes</option>
+                                <option value="Realizadas">Tareas: Realizadas</option>
+                                <option value="Todas">Tareas: Todas</option>
+                            </select>
+                        </div>
                         <div class="inline-filter-item">
                             <div class="input-with-icon">
                                 <i data-lucide="calendar"></i>

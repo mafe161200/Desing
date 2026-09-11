@@ -1126,6 +1126,23 @@ const App = {
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
+            const form = document.getElementById('taskForm');
+            if (form) form.reset();
+
+            const requesterSelect = document.getElementById('requesterSelect');
+            const assigneeSelect = document.getElementById('assignee');
+            const statusSelect = document.getElementById('status');
+
+            if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
+            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
+            if (statusSelect) updateCustomSelectUI(statusSelect, 'En cola');
+
+            const taskNotes = document.getElementById('taskNotes');
+            if (taskNotes) taskNotes.value = '';
+
+            const dateDelivered = document.getElementById('dateDelivered');
+            if (dateDelivered?._flatpickr) dateDelivered._flatpickr.clear();
+
             const d = new Date();
             const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             
@@ -1146,13 +1163,22 @@ const App = {
             }
         });
         
-        ['filterAssignee', 'filterRequester', 'filterStatus', 'filterSort'].forEach(id => {
+        ['filterAssignee', 'filterRequester', 'filterStatus', 'filterSort', 'filterCompletion'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.addEventListener('change', () => this.renderBoard());
         });
 
+        const taskSearch = document.getElementById('taskSearch');
+        if (taskSearch) {
+            taskSearch.addEventListener('input', () => this.renderBoard());
+        }
+
         document.getElementById('clearFilters').addEventListener('click', () => {
             ['filterAssignee', 'filterRequester', 'filterStatus'].forEach(id => document.getElementById(id).value = 'Todos');
+            const taskSearch = document.getElementById('taskSearch');
+            if (taskSearch) taskSearch.value = '';
+            const filterCompletion = document.getElementById('filterCompletion');
+            if (filterCompletion) filterCompletion.value = 'Pendientes';
             document.getElementById('filterSort').value = 'asc';
             this.filterDates = [];
             const fpInput = document.getElementById('filterDate');
@@ -1206,6 +1232,15 @@ const App = {
             
             this.markAsUnsaved(); 
             e.target.reset();
+            const newRequesterSelect = document.getElementById('requesterSelect');
+            const newAssigneeSelect = document.getElementById('assignee');
+            const newStatusSelect = document.getElementById('status');
+            if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
+            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, 'No asignado');
+            if (newStatusSelect) updateCustomSelectUI(newStatusSelect, 'En cola');
+            document.getElementById('taskNotes')?.setAttribute('value', '');
+            const newDateDelivered = document.getElementById('dateDelivered');
+            if (newDateDelivered?._flatpickr) newDateDelivered._flatpickr.clear();
             document.getElementById('modalTask').classList.remove('active');
             UI.showToast("Solicitud añadida", "success");
             this.renderBoard();
@@ -1746,14 +1781,16 @@ const App = {
     },
 
     renderDropdowns() {
-        const buildOptions = (select, options, placeholder) => {
+        const buildOptions = (select, options, placeholder, emptyOption = false) => {
             if (!select) return;
             const fragment = document.createDocumentFragment();
 
             if (placeholder) {
                 const option = document.createElement('option');
-                option.value = 'Todos';
+                option.value = emptyOption ? '' : 'Todos';
                 option.textContent = placeholder;
+                if (emptyOption) option.disabled = true;
+                option.selected = true;
                 fragment.appendChild(option);
             }
 
@@ -1786,7 +1823,8 @@ const App = {
             buildOptions(
                 el,
                 this.requesters,
-                id === 'filterRequester' ? 'Solicitante: Todos' : null
+                id === 'filterRequester' ? 'Solicitante: Todos' : 'Seleccionar solicitante...',
+                id !== 'filterRequester'
             );
         });
 
@@ -1926,6 +1964,8 @@ const App = {
         const fAssignee = document.getElementById('filterAssignee').value;
         const fRequester = document.getElementById('filterRequester').value;
         const fStatus = document.getElementById('filterStatus').value;
+        const fSearch = normalizeText(document.getElementById('taskSearch')?.value || '').toLowerCase();
+        const fCompletion = document.getElementById('filterCompletion')?.value || 'Pendientes';
         const fSortEl = document.getElementById('filterSort');
         const fSort = fSortEl ? fSortEl.value : 'asc';
         const sortModifier = fSort === 'desc' ? -1 : 1;
@@ -1934,6 +1974,15 @@ const App = {
             let mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
             let mReq = fRequester === 'Todos' || t.requester === fRequester;
             let mStat = fStatus === 'Todos' || t.status === fStatus;
+            let mSearch = !fSearch ||
+                normalizeText(t.name).toLowerCase().includes(fSearch) ||
+                normalizeText(t.requester).toLowerCase().includes(fSearch) ||
+                normalizeText(t.assignee).toLowerCase().includes(fSearch) ||
+                normalizeText(t.notes).toLowerCase().includes(fSearch);
+            let mCompletion =
+                fCompletion === 'Todas' ||
+                (fCompletion === 'Pendientes' && t.status !== 'Entregado') ||
+                (fCompletion === 'Realizadas' && t.status === 'Entregado');
             let mDate = true;
             if (this.filterDates.length > 0) {
                 if(!t.dateDelivered) {
@@ -1945,7 +1994,7 @@ const App = {
                     mDate = taskDate >= start && taskDate <= end;
                 }
             }
-            return mAsig && mReq && mStat && mDate;
+            return mAsig && mReq && mStat && mSearch && mCompletion && mDate;
         });
 
         // REGLA DE ORDENAMIENTO DOBLE (Estrellas Arriba O(N log N))
@@ -1963,12 +2012,17 @@ const App = {
 
         const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
         const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
+        const boardTasks = fCompletion === 'Realizadas'
+            ? completadas
+            : fCompletion === 'Todas'
+                ? [...activas, ...completadas].sort(sortTasks)
+                : activas;
         const activeFragment = document.createDocumentFragment();
         const completedFragment = document.createDocumentFragment();
         const sidebarFragment = document.createDocumentFragment();
         const sidebarCompletedFragment = document.createDocumentFragment();
 
-        document.getElementById('countPrioridades').textContent = activas.length;
+        document.getElementById('countPrioridades').textContent = boardTasks.length;
         document.getElementById('countRealizadas').textContent = completadas.length;
 
         this.renderWorkloadChart(activas);
@@ -2056,7 +2110,7 @@ const App = {
 
         let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
         
-        activas.forEach(t => {
+        boardTasks.forEach(t => {
             const tr = document.createElement('tr');
             tr.id = `tr-${t.id}`;
             tr.className = `${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
