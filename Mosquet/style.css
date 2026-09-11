@@ -93,51 +93,8 @@ body {
 .btn-star:hover { color: #f59e0b; background: var(--warning-bg); transform: scale(1.1); }
 .btn-star.active { color: #f59e0b; }
 .btn-star.active svg { fill: #f59e0b; }
-/* Destacadas: prioridad visible integrada al Dark Tech */
-.task-starred {
-    border-left: 3px solid #f59e0b !important;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(245, 158, 11, 0.12) 0%,
-            rgba(245, 158, 11, 0.045) 40%,
-            rgba(5, 8, 20, 0.94) 100%
-        ) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(245, 158, 11, 0.08),
-        inset 0 -1px 0 rgba(245, 158, 11, 0.04);
-}
-
-.task-starred:hover {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(245, 158, 11, 0.17) 0%,
-            rgba(245, 158, 11, 0.065) 42%,
-            rgba(7, 11, 23, 0.97) 100%
-        ) !important;
-}
-
-.task-starred .btn-star.active {
-    color: #fbbf24 !important;
-    filter: drop-shadow(0 0 7px rgba(251, 191, 36, 0.42));
-}
-
-.task-starred .btn-star.active svg {
-    fill: #fbbf24;
-    stroke: #fbbf24;
-}
-
-.task-starred.completed-item {
-    border-left: 3px solid rgba(148, 163, 184, 0.35) !important;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(148, 163, 184, 0.055) 0%,
-            rgba(5, 8, 20, 0.96) 100%
-        ) !important;
-    box-shadow: none;
-}
+.task-starred { border-left: 4px solid #f59e0b !important; background-color: #fffbeb !important; }
+.task-starred.completed-item { border-left: 4px solid var(--border-light) !important; background-color: var(--bg-subtle) !important;}
 
 /* ESTADO DE CONEXION EN TIEMPO REAL */
 .connection-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); background: var(--card-bg); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border-light); }
@@ -1090,5 +1047,75 @@ textarea:disabled {
 
     .inline-filters-bar {
         background: rgba(8, 15, 28, 0.98);
+    }
+}
+/* =========================================================
+   DARK TECH — DESTACADAS / PRIORIDAD
+   Ajuste incremental sobre la ÚLTIMA versión Dark Tech validada.
+   No reemplaza ni reinterpreta el resto del tema.
+   ========================================================= */
+
+.task-table tr.task-starred,
+.task-starred {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(245, 158, 11, 0.12) 0%,
+            rgba(245, 158, 11, 0.045) 38%,
+            rgba(8, 15, 30, 0.94) 100%
+        ) !important;
+    background-color: transparent !important;
+    border-left: 3px solid rgba(245, 158, 11, 0.95) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(245, 158, 11, 0.08),
+        inset 0 -1px 0 rgba(245, 158, 11, 0.05);
+}
+
+.task-table tr.task-starred:hover,
+.task-starred:hover {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(245, 158, 11, 0.17) 0%,
+            rgba(245, 158, 11, 0.065) 40%,
+            rgba(8, 15, 30, 0.96) 100%
+        ) !important;
+    background-color: transparent !important;
+}
+
+.task-table tr.task-starred td,
+.task-starred td {
+    border-bottom-color: rgba(245, 158, 11, 0.10);
+}
+
+.task-table tr.task-starred .btn-star.active,
+.task-starred .btn-star.active {
+    color: #fbbf24 !important;
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.32));
+}
+
+.task-table tr.task-starred .btn-star.active svg,
+.task-starred .btn-star.active svg {
+    fill: #fbbf24;
+    stroke: #fbbf24;
+}
+
+.task-table tr.task-starred.completed-item,
+.task-starred.completed-item {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(148, 163, 184, 0.055) 0%,
+            rgba(8, 15, 30, 0.96) 100%
+        ) !important;
+    background-color: transparent !important;
+    border-left-color: rgba(148, 163, 184, 0.35) !important;
+    box-shadow: none;
+}
+
+@media (max-width: 768px) {
+    .task-table tr.task-starred,
+    .task-starred {
+        border-left-width: 3px !important;
     }
 }
