@@ -1744,112 +1744,189 @@ textarea:disabled {
 
 
 /* =========================================================
-   CORRECCIÓN DEFINITIVA — ESTADO Y ACCIONES
-   El botón de notas NO debe montarse sobre el estado.
+   ESTADOS — DIFERENCIACIÓN VISUAL CLARA
+   "En cola" = pendiente de iniciar
+   "En curso" = trabajo actualmente activo
    ========================================================= */
 
-/* Reserva real de espacio para las dos últimas columnas */
-.task-table th:nth-child(5),
-.task-table td:nth-child(5) {
-    width: 170px !important;
-    min-width: 170px !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-    white-space: nowrap;
+/* Base común: mismo tamaño y legibilidad */
+.status-badge,
+.status-pill,
+.task-status,
+.task-status-badge {
+    font-weight: 650 !important;
+    letter-spacing: .01em;
 }
 
-.task-table th:nth-child(6),
-.task-table td:nth-child(6) {
-    width: 132px !important;
-    min-width: 132px !important;
-    padding: 12px 10px !important;
-    white-space: nowrap;
+/* EN COLA — violeta: pendiente / esperando inicio */
+.status-badge.status-pending,
+.status-badge.status-queue,
+.status-badge.en-cola,
+.status-pill.status-pending,
+.status-pill.status-queue,
+.status-pill.en-cola,
+.task-status.status-pending,
+.task-status.status-queue,
+.task-status.en-cola,
+[data-status="En cola"],
+[data-status="En Cola"] {
+    color: #d8b4fe !important;
+    border-color: #a855f7 !important;
+    background: linear-gradient(
+        135deg,
+        rgba(168, 85, 247, .22),
+        rgba(126, 34, 206, .10)
+    ) !important;
+    box-shadow: 0 0 10px rgba(168, 85, 247, .10);
 }
 
-/* Estado separado completamente de las acciones */
-.task-table td:nth-child(5) {
-    text-align: center !important;
+/* EN CURSO — azul/cian: actividad actual */
+.status-badge.status-progress,
+.status-badge.status-in-progress,
+.status-badge.en-curso,
+.status-pill.status-progress,
+.status-pill.status-in-progress,
+.status-pill.en-curso,
+.task-status.status-progress,
+.task-status.status-in-progress,
+.task-status.en-curso,
+[data-status="En curso"],
+[data-status="En Curso"] {
+    color: #67e8f9 !important;
+    border-color: #06b6d4 !important;
+    background: linear-gradient(
+        135deg,
+        rgba(6, 182, 212, .24),
+        rgba(14, 116, 144, .11)
+    ) !important;
+    box-shadow: 0 0 11px rgba(6, 182, 212, .12);
 }
 
-.task-table td:nth-child(5) .status-switch {
-    display: inline-flex !important;
-    position: relative !important;
-    z-index: 1 !important;
-    margin: 0 auto !important;
+/* Diferencia también el interruptor que aparece dentro del estado */
+.task-table .status-switch[data-status="En cola"],
+.task-table .status-switch[data-status="En Cola"] {
+    border-color: #a855f7 !important;
+    background: rgba(168, 85, 247, .12) !important;
 }
 
-/* Las acciones son un grupo independiente */
-.task-table td:nth-child(6) .action-buttons {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 9px !important;
-    width: 100% !important;
-    position: relative !important;
-    z-index: 2 !important;
+.task-table .status-switch[data-status="En curso"],
+.task-table .status-switch[data-status="En Curso"] {
+    border-color: #06b6d4 !important;
+    background: rgba(6, 182, 212, .12) !important;
 }
 
-/* Cada acción tiene su propio espacio */
-.task-table td:nth-child(6) .action-buttons .btn-icon {
-    position: relative !important;
-    flex: 0 0 30px !important;
-    width: 30px !important;
-    min-width: 30px !important;
-    height: 30px !important;
-    margin: 0 !important;
+/* Si el proyecto usa clases de estado directamente en el botón */
+button.status-pending,
+button.status-queue,
+button.en-cola {
+    color: #d8b4fe !important;
+    border-color: #a855f7 !important;
+    background: rgba(168, 85, 247, .14) !important;
 }
 
-/* El indicador de nota se queda dentro de su botón */
-.task-table td:nth-child(6) .task-notes-button {
-    margin: 0 !important;
+button.status-progress,
+button.status-in-progress,
+button.en-curso {
+    color: #67e8f9 !important;
+    border-color: #06b6d4 !important;
+    background: rgba(6, 182, 212, .15) !important;
 }
 
-/* Evita que el punto de nota se salga del botón */
-.task-table td:nth-child(6) .task-notes-dot {
-    top: 3px !important;
-    right: 3px !important;
+/* Micro-indicador visual: espera vs actividad */
+.status-badge.status-pending::before,
+.status-badge.status-queue::before,
+.status-badge.en-cola::before,
+.status-pill.status-pending::before,
+.status-pill.status-queue::before,
+.status-pill.en-cola::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    background: #c084fc;
+    box-shadow: 0 0 7px rgba(192, 132, 252, .55);
 }
 
-/* Nunca permitir que el grupo de acciones se superponga */
-.task-table td:nth-child(6) {
-    overflow: visible !important;
+.status-badge.status-progress::before,
+.status-badge.status-in-progress::before,
+.status-badge.en-curso::before,
+.status-pill.status-progress::before,
+.status-pill.status-in-progress::before,
+.status-pill.en-curso::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 50%;
+    display: inline-block;
+    background: #22d3ee;
+    box-shadow: 0 0 8px rgba(34, 211, 238, .65);
 }
 
-.task-table td:nth-child(6) .action-buttons {
-    overflow: visible !important;
+/* No aplicar los puntos si el estado ya usa un switch con indicador propio */
+.task-table .status-switch::before {
+    content: none !important;
 }
 
-/* En pantallas medianas */
-@media (max-width: 1100px) {
-    .task-table th:nth-child(5),
-    .task-table td:nth-child(5) {
-        width: 155px !important;
-        min-width: 155px !important;
-    }
 
-    .task-table th:nth-child(6),
-    .task-table td:nth-child(6) {
-        width: 122px !important;
-        min-width: 122px !important;
-    }
+/* =========================================================
+   CORRECCIÓN — CLASES REALES DEL PROYECTO
+   .status-cola = En cola
+   .status-curso = En curso
+   ========================================================= */
 
-    .task-table td:nth-child(6) .action-buttons {
-        gap: 6px !important;
-    }
+/* EN COLA — violeta más apagado y claramente "espera" */
+.status-badge.status-cola,
+.status-switch.status-cola {
+    color: #d8b4fe !important;
+    border-color: #a855f7 !important;
+    background:
+        linear-gradient(135deg,
+            rgba(168, 85, 247, .20),
+            rgba(88, 28, 135, .10)
+        ) !important;
+    box-shadow: 0 0 8px rgba(168, 85, 247, .10) !important;
 }
 
-/* En móvil la tabla pasa a su comportamiento responsive original */
-@media (max-width: 700px) {
-    .task-table th:nth-child(5),
-    .task-table td:nth-child(5),
-    .task-table th:nth-child(6),
-    .task-table td:nth-child(6) {
-        width: auto !important;
-        min-width: 0 !important;
-    }
+/* EN CURSO — cian/azul más activo y luminoso */
+.status-badge.status-curso,
+.status-switch.status-curso {
+    color: #67e8f9 !important;
+    border-color: #06b6d4 !important;
+    background:
+        linear-gradient(135deg,
+            rgba(6, 182, 212, .25),
+            rgba(14, 116, 144, .12)
+        ) !important;
+    box-shadow:
+        0 0 12px rgba(6, 182, 212, .16),
+        inset 0 0 8px rgba(34, 211, 238, .06) !important;
+}
 
-    .task-table td:nth-child(6) .action-buttons {
-        justify-content: flex-end !important;
-        width: auto !important;
-    }
+/* El punto/indicador interno también distingue los estados */
+.status-cola .status-dot,
+.status-cola .req-status-dot {
+    background: #c084fc !important;
+    box-shadow: 0 0 7px rgba(192, 132, 252, .65) !important;
+}
+
+.status-curso .status-dot,
+.status-curso .req-status-dot {
+    background: #22d3ee !important;
+    box-shadow: 0 0 8px rgba(34, 211, 238, .75) !important;
+}
+
+/* Hover de cada estado conserva su identidad */
+.status-badge.status-cola:hover,
+.status-switch.status-cola:hover {
+    border-color: #c084fc !important;
+    background: rgba(168, 85, 247, .24) !important;
+}
+
+.status-badge.status-curso:hover,
+.status-switch.status-curso:hover {
+    border-color: #22d3ee !important;
+    background: rgba(6, 182, 212, .30) !important;
 }
