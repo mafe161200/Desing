@@ -1069,6 +1069,48 @@ const App = {
         });
     },
 
+    resetNewTaskForm() {
+        const form = document.getElementById('taskForm');
+        if (!form) return;
+
+        // Limpiar por completo cualquier dato de la solicitud anterior.
+        form.reset();
+
+        const today = new Date();
+        const todayLocal = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+        const dateReceived = document.getElementById('dateReceived');
+        const dateDelivered = document.getElementById('dateDelivered');
+
+        // Flatpickr mantiene su propio estado y su input visible alterno.
+        if (dateReceived?._flatpickr) dateReceived._flatpickr.setDate(todayLocal, true);
+        else if (dateReceived) dateReceived.value = todayLocal;
+
+        if (dateDelivered?._flatpickr) dateDelivered._flatpickr.clear();
+        else if (dateDelivered) dateDelivered.value = '';
+
+        // Valores iniciales explícitos para evitar conservar la última selección.
+        const requester = document.getElementById('requesterSelect');
+        const assignee = document.getElementById('assignee');
+        const status = document.getElementById('status');
+
+        if (requester) requester.selectedIndex = 0;
+        if (assignee) assignee.value = 'No asignado';
+        if (status) status.value = 'En cola';
+
+        // Los selects personalizados tienen una representación visual independiente.
+        updateCustomSelectUI(requester, requester?.value || '');
+        updateCustomSelectUI(assignee, 'No asignado');
+        updateCustomSelectUI(status, 'En cola');
+
+        // Evita que el navegador/autocompletado vuelva a introducir datos anteriores.
+        form.setAttribute('autocomplete', 'off');
+        if (document.getElementById('taskName')) {
+            document.getElementById('taskName').value = '';
+            document.getElementById('taskName').setAttribute('autocomplete', 'off');
+        }
+    },
+
     markAsUnsaved() {
         this.hasUnsavedChanges = true;
         document.getElementById('unsavedChangesBar').classList.add('active');
@@ -1115,13 +1157,7 @@ const App = {
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
-            const d = new Date();
-            const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            
-            const dateRecInput = document.getElementById('dateReceived');
-            if(dateRecInput._flatpickr) dateRecInput._flatpickr.setDate(todayLocal);
-            else dateRecInput.value = todayLocal;
-            
+            this.resetNewTaskForm();
             mTask.classList.add('active');
         });
         
@@ -1191,8 +1227,8 @@ const App = {
                 isStarred: false // Nueva propiedad
             });
             
-            this.markAsUnsaved(); 
-            e.target.reset();
+            this.markAsUnsaved();
+            this.resetNewTaskForm();
             document.getElementById('modalTask').classList.remove('active');
             UI.showToast("Solicitud añadida", "success");
             this.renderBoard();
