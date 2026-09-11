@@ -1350,29 +1350,39 @@ const App = {
             return;
         }
 
+        const fragment = document.createDocumentFragment();
         this.notes.forEach(n => {
             const dateObj = new Date(n.created_at);
             const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
-            
             const isMine = n.author === this.user.name;
-            const alignClass = isMine ? 'mine' : 'other';
-            const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
-            const cleanContent = escapeHTML(n.content);
+            const message = document.createElement('div');
+            message.className = `chat-msg ${isMine ? 'mine' : 'other'}`;
 
-            container.innerHTML += `
-                <div class="chat-msg ${alignClass}">
-                    <div class="chat-meta">
-                        <span style="color: ${isMine ? 'var(--text-muted)' : authorColor}; font-weight: 700;">${authorText}</span> 
-                        <span>${dateStr}</span>
-                    </div>
-                    <div class="chat-bubble ${isMine ? '' : 'chat-bubble-other'}" style="${isMine ? `background-color: var(--primary-cold); color: #ffffff;` : `border-left-color: ${authorColor};`}">
-                        ${cleanContent}
-                    </div>
-                </div>
-            `;
+            const meta = document.createElement('div');
+            meta.className = 'chat-meta';
+            const author = document.createElement('span');
+            author.textContent = isMine ? 'Tú' : normalizeText(n.author);
+            author.style.color = isMine ? 'var(--text-muted)' : authorColor;
+            author.style.fontWeight = '700';
+            const time = document.createElement('span');
+            time.textContent = dateStr;
+            meta.append(author, time);
+
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${isMine ? '' : 'chat-bubble-other'}`;
+            bubble.textContent = normalizeText(n.content);
+            if (isMine) {
+                bubble.style.backgroundColor = 'var(--primary-cold)';
+                bubble.style.color = '#ffffff';
+            } else {
+                bubble.style.borderLeftColor = authorColor;
+            }
+            message.append(meta, bubble);
+            fragment.appendChild(message);
         });
+        container.replaceChildren(fragment);
         
         container.scrollTop = container.scrollHeight;
     },
@@ -1805,6 +1815,10 @@ const App = {
 
         const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
         const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
+        const activeFragment = document.createDocumentFragment();
+        const completedFragment = document.createDocumentFragment();
+        const sidebarFragment = document.createDocumentFragment();
+        const sidebarCompletedFragment = document.createDocumentFragment();
 
         document.getElementById('countPrioridades').textContent = activas.length;
         document.getElementById('countRealizadas').textContent = completadas.length;
@@ -1870,9 +1884,16 @@ const App = {
                     <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(t.assignee)}</span></div>
                 </div>
             `;
-            sList.appendChild(li);
+            sidebarFragment.appendChild(li);
         });
-        if(myTasks.length === 0) sList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default;">No tienes tareas asignadas</li>';
+        if(myTasks.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'request-item';
+            empty.style.cssText = 'color:var(--text-muted); text-align:center; padding:20px 10px; border:none; box-shadow:none; cursor:default;';
+            empty.textContent = 'No tienes tareas asignadas';
+            sidebarFragment.appendChild(empty);
+        }
+        sList.replaceChildren(sidebarFragment);
 
         let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
         
@@ -1916,13 +1937,13 @@ const App = {
                     </div>
                 </td>
                 <td data-label="Asignación">
-                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
+                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
                         ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
                     </select>
                 </td>
                 <td class="date-info" data-label="Fechas (Rec - Ent)">
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                    <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${t.dateReceived}" value="${dateDeliveredVal}" placeholder="Seleccionar">
+                    <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td data-label="Estado">
                     <div id="status-switch-${t.id}" 
@@ -1937,14 +1958,23 @@ const App = {
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
                     <div class="action-buttons">
-                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}""><i data-lucide="edit-3"></i></button>
+                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
                         <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
                     </div>
                 </td>
             `;
-            tBody.appendChild(tr);
+            activeFragment.appendChild(tr);
         });
-        if(activas.length === 0) tBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--text-muted);">No hay tareas pendientes.</td></tr>';
+        if(activas.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 6;
+            cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
+            cell.textContent = 'No hay tareas pendientes.';
+            row.appendChild(cell);
+            activeFragment.appendChild(row);
+        }
+        tBody.replaceChildren(activeFragment);
 
         completadas.forEach(t => {
             const li = document.createElement('li');
@@ -1961,9 +1991,16 @@ const App = {
                     </div>
                 </div>
             `;
-            sCompList.appendChild(li);
+            sidebarCompletedFragment.appendChild(li);
         });
-        if(completadas.length === 0) sCompList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default; background:transparent;">Sin historial</li>';
+        if(completadas.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'request-item';
+            empty.style.cssText = 'color:var(--text-muted); text-align:center; padding:20px 10px; border:none; box-shadow:none; cursor:default; background:transparent;';
+            empty.textContent = 'Sin historial';
+            sidebarCompletedFragment.appendChild(empty);
+        }
+        sCompList.replaceChildren(sidebarCompletedFragment);
 
         buildCustomSelects(tBody);
         
