@@ -1248,3 +1248,128 @@ textarea:disabled {
 .request-item.task-selected {
     transform: translateX(1px);
 }
+
+
+/* =========================================================
+   AJUSTE FINAL — ANIMACIÓN DE SELECCIÓN SOBRE DESTACADAS
+   La señal de selección debe quedar visualmente por encima
+   del fondo ámbar de las tareas con estrella.
+   ========================================================= */
+
+/* La animación de selección gana prioridad visual */
+.task-table tr.task-highlight-pulse,
+.request-item.task-highlight-pulse {
+    position: relative;
+    z-index: 5;
+    isolation: isolate;
+    border-left-color: var(--primary-cold) !important;
+    animation-name: pulseHighlightAbovePriority;
+}
+
+/* Mantiene visible el ámbar de una tarea destacada durante la animación,
+   pero coloca encima una señal cian sutil. */
+.task-table tr.task-highlight-pulse.task-starred,
+.request-item.task-highlight-pulse.task-starred {
+    border-left-color: var(--primary-cold) !important;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(34, 211, 238, 0.16) 0%,
+            rgba(245, 158, 11, 0.09) 30%,
+            rgba(34, 211, 238, 0.045) 58%,
+            rgba(8, 15, 30, 0.96) 100%
+        ) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(34, 211, 238, 0.34),
+        inset 0 -1px 0 rgba(34, 211, 238, 0.18),
+        0 0 16px rgba(34, 211, 238, 0.10);
+}
+
+/* Animación propia: el resplandor queda sobre el amarillo sin
+   convertir la fila en un destello demasiado fuerte. */
+@keyframes pulseHighlightAbovePriority {
+    0% {
+        box-shadow:
+            inset 0 1px 0 rgba(34, 211, 238, 0.45),
+            inset 0 -1px 0 rgba(34, 211, 238, 0.20),
+            0 0 0 0 rgba(34, 211, 238, 0.42);
+    }
+    45% {
+        box-shadow:
+            inset 0 1px 0 rgba(34, 211, 238, 0.55),
+            inset 0 -1px 0 rgba(34, 211, 238, 0.25),
+            0 0 0 7px rgba(34, 211, 238, 0);
+    }
+    100% {
+        box-shadow:
+            inset 0 1px 0 rgba(34, 211, 238, 0.12),
+            inset 0 -1px 0 rgba(34, 211, 238, 0.06),
+            0 0 0 0 rgba(34, 211, 238, 0);
+    }
+}
+
+/* La selección persistente también queda por encima de la prioridad */
+.task-table tr.task-selected.task-starred,
+.request-item.task-selected.task-starred {
+    position: relative;
+    z-index: 4;
+}
+
+/* =========================================================
+   LOGIN — VISIBILIDAD Y ACCESIBILIDAD DEL BOTÓN DE CONTRASEÑA
+   ========================================================= */
+.password-wrapper {
+    position: relative;
+    isolation: isolate;
+}
+
+.password-wrapper .custom-input {
+    padding-right: 48px !important;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    z-index: 5;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.toggle-password-btn .lucide {
+    width: 19px;
+    height: 19px;
+    stroke-width: 2;
+    pointer-events: none;
+}
+
+.toggle-password-btn:hover,
+.toggle-password-btn:focus-visible {
+    color: var(--primary-cold);
+    background: rgba(34, 211, 238, 0.10);
+    border-color: rgba(34, 211, 238, 0.24);
+    outline: none;
+}
+
+.login-form button[type="submit"]:disabled {
+    opacity: 0.72;
+    cursor: wait;
+    transform: none;
+}
+
+.login-error {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
