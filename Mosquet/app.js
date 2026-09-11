@@ -1094,7 +1094,12 @@ const App = {
         const assignee = document.getElementById('assignee');
         const status = document.getElementById('status');
 
-        if (requester) requester.selectedIndex = 0;
+        // Una solicitud nueva no debe heredar ni seleccionar automáticamente
+        // ningún solicitante de la lista anterior.
+        if (requester) {
+            requester.value = '';
+            requester.selectedIndex = 0;
+        }
         if (assignee) assignee.value = 'No asignado';
         if (status) status.value = 'En cola';
 
@@ -1192,6 +1197,11 @@ const App = {
             
             const taskNameRaw = document.getElementById('taskName').value.trim();
             const requesterRaw = document.getElementById('requesterSelect').value;
+
+            if (!requesterRaw) {
+                UI.showToast('Selecciona un solicitante antes de crear la solicitud.', 'error');
+                return;
+            }
             
             const isDuplicate = this.tasks.some(t => 
                 t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
@@ -1800,7 +1810,19 @@ const App = {
             );
         });
 
-        ['requesterSelect', 'filterRequester', 'editRequesterSelect'].forEach(id => {
+        // El formulario de nueva solicitud comienza sin solicitante seleccionado.
+        const requesterSelect = document.getElementById('requesterSelect');
+        if (requesterSelect) {
+            buildOptions(requesterSelect, this.requesters, null);
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Seleccionar solicitante...';
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            requesterSelect.insertBefore(placeholder, requesterSelect.firstChild);
+        }
+
+        ['filterRequester', 'editRequesterSelect'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
 
