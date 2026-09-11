@@ -157,7 +157,6 @@ body {
 .btn-text:hover { color: var(--danger); }
 
 .field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--primary-cold); margin-bottom: 8px; }
-.field-label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--primary-cold); margin-bottom: 8px; }
 .custom-input { font-size: 0.85rem; font-weight: 500; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-light); background: var(--card-bg); color: var(--text-main); outline: none; transition: 0.2s; width: 100%; box-sizing: border-box; }
 .custom-input:focus { border-color: var(--primary-cold); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); }
 .input-with-icon { position: relative; display: flex; align-items: center; width: 100%; }
@@ -419,3 +418,542 @@ html body div.flatpickr-calendar .flatpickr-day.today { border-color: var(--prim
 html body div.flatpickr-calendar .flatpickr-day.selected, html body div.flatpickr-calendar .flatpickr-day.startRange, html body div.flatpickr-calendar .flatpickr-day.endRange { background: var(--primary-cold); border-color: var(--primary-cold); color: #ffffff; font-weight: 600; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3); }
 html body div.flatpickr-calendar .flatpickr-day.inRange { background: var(--status-curso-bg); color: var(--status-curso); box-shadow: none; }
 html body div.flatpickr-calendar .flatpickr-day.prevMonthDay, html body div.flatpickr-calendar .flatpickr-day.nextMonthDay { color: var(--text-muted); opacity: 0.5;}
+/* =========================================================
+   DESIGN HUB — RESPONSIVE UX V2
+   Capa adicional sobre la base estable.
+   No modifica la lógica JavaScript ni la estructura HTML.
+   ========================================================= */
+
+/* Variables de interacción y safe-area */
+:root {
+    --touch-target: 44px;
+    --mobile-gutter: 14px;
+}
+
+/* Evita desbordamientos horizontales accidentales */
+html {
+    overflow-x: hidden;
+}
+
+body {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg {
+    max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+/* Áreas táctiles consistentes */
+.btn,
+.btn-icon,
+.btn-text,
+.close-modal,
+.btn-star,
+.select-trigger,
+.custom-checkbox {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn,
+.btn-icon,
+.close-modal {
+    min-height: var(--touch-target);
+}
+
+.btn-icon,
+.close-modal {
+    min-width: var(--touch-target);
+}
+
+/* Mejor foco sin alterar el diseño */
+.btn:focus-visible,
+.btn-icon:focus-visible,
+.btn-text:focus-visible,
+.close-modal:focus-visible,
+.select-trigger:focus-visible,
+.select-option:focus-visible,
+.custom-input:focus-visible,
+.custom-checkbox:focus-visible,
+.status-switch:focus-visible,
+.request-item:focus-visible {
+    outline: 3px solid rgba(79, 70, 229, 0.24);
+    outline-offset: 2px;
+}
+
+/* El contenido principal nunca debe forzar el viewport */
+.app-container,
+.layout-grid,
+.main-board,
+.sidebar-col,
+.card,
+.card-header,
+.card-header-flex,
+.inline-filters-bar,
+.modal-content,
+.notes-panel {
+    min-width: 0;
+}
+
+.main-board,
+.sidebar-col {
+    width: 100%;
+}
+
+/* Filtros: mejor distribución en tablet */
+@media (max-width: 1100px) {
+    .inline-filters-bar {
+        gap: 10px;
+        padding: 12px 16px;
+    }
+
+    .inline-filter-item {
+        min-width: 180px;
+    }
+
+    .task-table {
+        font-size: 0.82rem;
+    }
+
+    .task-table th,
+    .task-table td {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+}
+
+/* Tablet / móvil */
+@media (max-width: 768px) {
+    :root {
+        --mobile-gutter: 12px;
+    }
+
+    .app-container {
+        min-height: 100dvh;
+    }
+
+    .app-header {
+        position: relative;
+        padding:
+            max(14px, env(safe-area-inset-top))
+            var(--mobile-gutter)
+            14px;
+        gap: 12px;
+    }
+
+    .header-content {
+        min-width: 0;
+    }
+
+    .header-title,
+    .header-subtitle {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .top-actions {
+        width: 100%;
+        gap: 8px;
+    }
+
+    .top-actions .btn,
+    .top-actions .btn-icon {
+        min-height: 44px;
+    }
+
+    .top-actions .btn {
+        flex: 1 1 auto;
+    }
+
+    .layout-grid {
+        gap: 14px;
+    }
+
+    .sidebar-col {
+        order: 2;
+    }
+
+    .main-board {
+        order: 1;
+    }
+
+    .card {
+        border-radius: 12px;
+    }
+
+    .card-header {
+        padding: 14px 16px;
+    }
+
+    .card-header h2 {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    /* Filtros apilados, sin botones aplastados */
+    .inline-filters-bar {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 10px var(--mobile-gutter);
+    }
+
+    .inline-filter-item {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .inline-filter-item .custom-input,
+    .inline-filter-item .select-trigger,
+    .inline-filter-item .inline-date-picker-alt {
+        min-height: 44px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .inline-filters-bar > #clearFilters {
+        justify-self: end;
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Tarjetas de tareas */
+    .task-table tr {
+        margin-bottom: 12px;
+        padding: 14px !important;
+    }
+
+    .task-table td {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .task-table td > *,
+    .task-table .req-title-cell,
+    .task-table .req-title-cell strong {
+        max-width: 100%;
+    }
+
+    .req-title-cell strong {
+        align-items: flex-start;
+    }
+
+    .req-title-text {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .action-buttons {
+        min-height: 44px;
+    }
+
+    .action-buttons .btn-icon {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Select personalizado */
+    .select-options {
+        max-height: min(280px, 45dvh);
+    }
+
+    .select-option {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Formularios */
+    .form-actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+
+    .input-group {
+        flex-wrap: wrap;
+    }
+
+    .input-group .custom-input {
+        min-width: 0;
+    }
+
+    /* Modales: aprovechar viewport y respetar notch */
+    .modal-overlay {
+        align-items: flex-start;
+        padding:
+            max(12px, env(safe-area-inset-top))
+            var(--mobile-gutter)
+            max(12px, env(safe-area-inset-bottom));
+        overflow-y: auto;
+    }
+
+    .modal-content {
+        width: 100%;
+        max-width: 100%;
+        max-height: calc(100dvh - 24px);
+        margin: auto 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .modal-header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--card-bg);
+    }
+
+    /* Perfil / cropper */
+    #cropperWrapper {
+        max-height: min(42dvh, 320px) !important;
+    }
+
+    #cropperImage {
+        max-height: min(42dvh, 320px) !important;
+    }
+
+    /* Barra de cambios */
+    .unsaved-bar {
+        left: var(--mobile-gutter);
+        right: var(--mobile-gutter);
+        bottom: max(10px, env(safe-area-inset-bottom));
+        width: auto;
+        box-sizing: border-box;
+    }
+
+    /* Toasts */
+    .toast-container {
+        bottom: max(10px, env(safe-area-inset-bottom));
+        left: var(--mobile-gutter);
+        right: var(--mobile-gutter);
+        width: auto;
+    }
+
+    /* Panel de notas */
+    .notes-panel {
+        width: 100%;
+        max-width: 100%;
+        height: 100dvh;
+        height: 100svh;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .notes-header {
+        padding:
+            14px
+            var(--mobile-gutter);
+        min-height: 56px;
+    }
+
+    .notes-body {
+        padding: 14px var(--mobile-gutter);
+        gap: 12px;
+    }
+
+    .notes-footer {
+        padding:
+            12px
+            var(--mobile-gutter)
+            max(14px, env(safe-area-inset-bottom));
+    }
+
+    .chat-bubble {
+        max-width: 90%;
+    }
+
+    /* Emoji picker no debe salirse de la pantalla */
+    #emojiPickerWrapper {
+        max-width: calc(100vw - 24px);
+        box-sizing: border-box;
+    }
+
+    emoji-picker {
+        max-width: 100%;
+    }
+
+    /* Flatpickr: centrado y usable */
+    html body div.flatpickr-calendar {
+        width: min(280px, calc(100vw - 24px));
+        min-width: min(280px, calc(100vw - 24px));
+        max-width: calc(100vw - 24px);
+    }
+
+    html body div.flatpickr-calendar .flatpickr-days {
+        width: 100%;
+    }
+
+    html body div.flatpickr-calendar .dayContainer {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* Móviles pequeños */
+@media (max-width: 480px) {
+    .app-header {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .top-actions {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(44px, 1fr));
+    }
+
+    .top-actions .btn,
+    .top-actions .btn-icon {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .top-actions .btn {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .layout-grid {
+        gap: 10px;
+    }
+
+    .card-header {
+        padding: 12px;
+    }
+
+    .sidebar-content {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .task-table tr {
+        padding: 12px !important;
+        border-radius: 10px;
+    }
+
+    .task-table td {
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+    }
+
+    .req-dates {
+        width: 100%;
+    }
+
+    .date-info {
+        gap: 6px;
+    }
+
+    .inline-date-picker-alt,
+    .select-trigger.table-select,
+    .status-switch {
+        min-height: 44px;
+    }
+
+    .unsaved-actions {
+        flex-direction: column;
+    }
+
+    .unsaved-actions button {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    .modal-content {
+        border-radius: 10px;
+    }
+
+    .modal-header h2 {
+        font-size: 0.95rem;
+    }
+
+    .chat-bubble {
+        max-width: 94%;
+    }
+}
+
+/* Pantallas táctiles: elimina efectos hover que pueden quedarse "pegados" */
+@media (hover: none) and (pointer: coarse) {
+    .btn:hover,
+    .btn-icon:hover,
+    .select-trigger:hover,
+    .select-option:hover,
+    .request-item:hover,
+    .task-table tr:hover {
+        transform: none;
+    }
+
+    .task-table tr:hover {
+        background: inherit;
+    }
+
+    .btn,
+    .btn-icon,
+    .close-modal,
+    .select-trigger,
+    .select-option {
+        touch-action: manipulation;
+    }
+}
+
+/* Reduce movimiento si el usuario lo solicita */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Evita que textos largos rompan tarjetas o botones */
+.request-item,
+.workload-item,
+.chat-msg,
+.chat-bubble,
+.members-tags,
+.field,
+.form-actions {
+    overflow-wrap: anywhere;
+}
+
+/* Estados de carga/botones: evita que el texto salte */
+.btn {
+    white-space: nowrap;
+}
+
+/* La barra de notas y overlays respetan dispositivos con notch */
+.notes-overlay {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* En orientación horizontal de móviles, aprovechar mejor el espacio */
+@media (max-width: 768px) and (orientation: landscape) {
+    .app-header {
+        gap: 8px;
+        padding-top: max(8px, env(safe-area-inset-top));
+        padding-bottom: 8px;
+    }
+
+    .modal-content {
+        max-height: calc(100dvh - 16px);
+    }
+
+    .notes-body {
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+}
