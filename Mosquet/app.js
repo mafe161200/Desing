@@ -41,6 +41,17 @@ const clearLegacyLocalData = () => {
 
 const normalizeText = (value) => String(value ?? '').trim();
 
+const getInitials = (value) => {
+    const parts = normalizeText(value)
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+};
+
 const normalizeUsername = (value) => normalizeText(value).toLowerCase();
 
 const createId = () => (
@@ -1069,53 +1080,6 @@ const App = {
         });
     },
 
-    resetNewTaskForm() {
-        const form = document.getElementById('taskForm');
-        if (!form) return;
-
-        // Limpiar por completo cualquier dato de la solicitud anterior.
-        form.reset();
-
-        const today = new Date();
-        const todayLocal = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-        const dateReceived = document.getElementById('dateReceived');
-        const dateDelivered = document.getElementById('dateDelivered');
-
-        // Flatpickr mantiene su propio estado y su input visible alterno.
-        if (dateReceived?._flatpickr) dateReceived._flatpickr.setDate(todayLocal, true);
-        else if (dateReceived) dateReceived.value = todayLocal;
-
-        if (dateDelivered?._flatpickr) dateDelivered._flatpickr.clear();
-        else if (dateDelivered) dateDelivered.value = '';
-
-        // Valores iniciales explícitos para evitar conservar la última selección.
-        const requester = document.getElementById('requesterSelect');
-        const assignee = document.getElementById('assignee');
-        const status = document.getElementById('status');
-
-        // Una solicitud nueva no debe heredar ni seleccionar automáticamente
-        // ningún solicitante de la lista anterior.
-        if (requester) {
-            requester.value = '';
-            requester.selectedIndex = 0;
-        }
-        if (assignee) assignee.value = 'No asignado';
-        if (status) status.value = 'En cola';
-
-        // Los selects personalizados tienen una representación visual independiente.
-        updateCustomSelectUI(requester, requester?.value || '');
-        updateCustomSelectUI(assignee, 'No asignado');
-        updateCustomSelectUI(status, 'En cola');
-
-        // Evita que el navegador/autocompletado vuelva a introducir datos anteriores.
-        form.setAttribute('autocomplete', 'off');
-        if (document.getElementById('taskName')) {
-            document.getElementById('taskName').value = '';
-            document.getElementById('taskName').setAttribute('autocomplete', 'off');
-        }
-    },
-
     markAsUnsaved() {
         this.hasUnsavedChanges = true;
         document.getElementById('unsavedChangesBar').classList.add('active');
@@ -1162,7 +1126,13 @@ const App = {
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
-            this.resetNewTaskForm();
+            const d = new Date();
+            const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            
+            const dateRecInput = document.getElementById('dateReceived');
+            if(dateRecInput._flatpickr) dateRecInput._flatpickr.setDate(todayLocal);
+            else dateRecInput.value = todayLocal;
+            
             mTask.classList.add('active');
         });
         
@@ -1197,11 +1167,6 @@ const App = {
             
             const taskNameRaw = document.getElementById('taskName').value.trim();
             const requesterRaw = document.getElementById('requesterSelect').value;
-
-            if (!requesterRaw) {
-                UI.showToast('Selecciona un solicitante antes de crear la solicitud.', 'error');
-                return;
-            }
             
             const isDuplicate = this.tasks.some(t => 
                 t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
@@ -1237,8 +1202,8 @@ const App = {
                 isStarred: false // Nueva propiedad
             });
             
-            this.markAsUnsaved();
-            this.resetNewTaskForm();
+            this.markAsUnsaved(); 
+            e.target.reset();
             document.getElementById('modalTask').classList.remove('active');
             UI.showToast("Solicitud añadida", "success");
             this.renderBoard();
@@ -1810,19 +1775,7 @@ const App = {
             );
         });
 
-        // El formulario de nueva solicitud comienza sin solicitante seleccionado.
-        const requesterSelect = document.getElementById('requesterSelect');
-        if (requesterSelect) {
-            buildOptions(requesterSelect, this.requesters, null);
-            const placeholder = document.createElement('option');
-            placeholder.value = '';
-            placeholder.textContent = 'Seleccionar solicitante...';
-            placeholder.disabled = true;
-            placeholder.selected = true;
-            requesterSelect.insertBefore(placeholder, requesterSelect.firstChild);
-        }
-
-        ['filterRequester', 'editRequesterSelect'].forEach(id => {
+        ['requesterSelect', 'filterRequester', 'editRequesterSelect'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
 
@@ -2261,6 +2214,49 @@ const App = {
 
         const fragment = document.createDocumentFragment();
 
+        const findUser = (name) => {
+            if (!name || name === 'No asignado') return null;
+            const normalized = normalizeText(name).toLowerCase();
+            return this.usersList.find(user => {
+                const userName = normalizeText(user?.name).toLowerCase();
+                const username = normalizeText(user?.username).toLowerCase();
+                return userName === normalized || username === normalized;
+            }) || null;
+        };
+
+        const createAvatar = (name, color) => {
+            const avatar = document.createElement('div');
+            avatar.className = 'workload-avatar';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.style.setProperty('--avatar-color', sanitizeThemeColor(color, '#4f46e5'));
+
+            const user = findUser(name);
+            const avatarUrl = sanitizeAvatarUrl(user?.avatar);
+
+            if (avatarUrl) {
+                const image = document.createElement('img');
+                image.src = avatarUrl;
+                image.alt = '';
+                image.loading = 'lazy';
+                image.decoding = 'async';
+                image.addEventListener('error', () => {
+                    image.remove();
+                    avatar.textContent = getInitials(name);
+                    avatar.classList.add('workload-avatar-fallback');
+                }, { once: true });
+                avatar.appendChild(image);
+            } else if (name !== 'No asignado') {
+                avatar.textContent = getInitials(name);
+                avatar.classList.add('workload-avatar-fallback');
+            } else {
+                const icon = document.createElement('i');
+                icon.setAttribute('data-lucide', 'user-round');
+                avatar.appendChild(icon);
+            }
+
+            return avatar;
+        };
+
         sortedWorkload.forEach(([name, count]) => {
             if (count === 0 && name === 'No asignado') return;
 
@@ -2273,13 +2269,22 @@ const App = {
             const header = document.createElement('div');
             header.className = 'workload-header';
 
+            const identity = document.createElement('div');
+            identity.className = 'workload-identity';
+
+            identity.appendChild(createAvatar(name, color));
+
             const nameEl = document.createElement('span');
+            nameEl.className = 'workload-name';
             nameEl.textContent = normalizeText(name);
 
+            identity.appendChild(nameEl);
+
             const countEl = document.createElement('span');
+            countEl.className = 'workload-count';
             countEl.textContent = String(count);
 
-            header.append(nameEl, countEl);
+            header.append(identity, countEl);
 
             const barBg = document.createElement('div');
             barBg.className = 'workload-bar-bg';
@@ -2302,6 +2307,7 @@ const App = {
         }
 
         wContainer.replaceChildren(fragment);
+        lucide.createIcons();
     },
 };
 
