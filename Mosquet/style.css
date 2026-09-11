@@ -1516,137 +1516,128 @@ textarea:disabled {
 
 
 /* =========================================================
-   JERARQUÍA VISUAL — TÍTULOS DE SOLICITUD EN TODAS LAS CARDS
-   Aumenta el título sin modificar solicitante, asignación
-   ni la estructura de las tarjetas.
+   AJUSTE VISUAL DEFINITIVO
+   - Conserva los avatares de Carga de Trabajo.
+   - Títulos con tamaño moderado.
+   - Selección azul/cian.
    ========================================================= */
 
-.task-table .task-title,
-.task-table .request-title,
-.request-item .request-title,
-.request-item .task-title,
-.my-task-card .task-title,
-.my-task-card .request-title {
-    font-size: 1.18rem !important;
-    line-height: 1.38 !important;
-    font-weight: 650 !important;
-    letter-spacing: 0.004em;
-}
-
-/* Las cards de Mis Tareas pueden tener un poco más de presencia */
-.request-item .request-title,
-.my-task-card .task-title,
-.my-task-card .request-title {
-    font-size: 1.2rem !important;
-    line-height: 1.34 !important;
-}
-
-/* Mantener el solicitante claramente como información secundaria */
-.task-table .task-requester,
-.task-table .requester,
-.request-item .task-requester,
-.request-item .requester {
-    font-size: 0.92rem !important;
-    line-height: 1.35 !important;
-}
-
-/* Responsive */
-@media (max-width: 700px) {
-    .task-table .task-title,
-    .task-table .request-title,
-    .request-item .request-title,
-    .request-item .task-title,
-    .my-task-card .task-title,
-    .my-task-card .request-title {
-        font-size: 1.08rem !important;
-        line-height: 1.32 !important;
-    }
-}
-
-
-/* =========================================================
-   AJUSTE VISUAL FINAL
-   1. Títulos reales de las solicitudes más grandes.
-   2. Selección siempre azul/cian, incluso en tareas con estrella.
-   ========================================================= */
-
-/* ---------- TÍTULO REAL DE LA TABLA ---------- */
 .task-table .req-title-cell .req-title-text {
-    font-size: 1.18rem !important;
-    line-height: 1.38 !important;
-    font-weight: 650 !important;
-    letter-spacing: 0.004em;
-}
-
-/* Solicitante: claramente secundario */
-.task-table .req-title-cell > span {
-    font-size: 0.88rem !important;
-    line-height: 1.35 !important;
-    font-weight: 500 !important;
-    color: var(--text-muted) !important;
-}
-
-/* ---------- TÍTULO REAL DE MIS TAREAS ---------- */
-.request-item .req-name-text {
-    font-size: 1.16rem !important;
+    font-size: 1.04rem !important;
     line-height: 1.34 !important;
     font-weight: 650 !important;
+    letter-spacing: 0.003em;
 }
 
-/* El título puede ocupar más de una línea */
 .request-item .req-name-text {
+    font-size: 1.06rem !important;
+    line-height: 1.32 !important;
+    font-weight: 650 !important;
+    white-space: normal !important;
     -webkit-line-clamp: 3 !important;
     line-clamp: 3;
-    white-space: normal !important;
 }
 
-/* ---------- SELECCIÓN: AZUL/CÍAN, NUNCA AMARILLA ---------- */
+.task-table .task-title,
+.request-item .task-title,
+.request-item .request-title {
+    font-size: 1.04rem !important;
+    line-height: 1.34 !important;
+}
+
+.task-table .req-title-cell > span:not(.req-title-text),
+.request-item .requester,
+.request-item .task-requester {
+    font-size: 0.76rem !important;
+    line-height: 1.3 !important;
+    font-weight: 500 !important;
+}
+
 .task-table tr.task-selected,
 .request-item.task-selected {
     position: relative;
-    z-index: 4;
-    outline: 1px solid rgba(34, 211, 238, 0.95) !important;
+    z-index: 5;
+    border-left: 2px solid #22d3ee !important;
+    outline: 1px solid rgba(34, 211, 238, 0.82) !important;
     outline-offset: -1px;
-    border-left: 2px solid rgba(34, 211, 238, 1) !important;
     background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.17) 0%,
-            rgba(34, 211, 238, 0.08) 48%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
+        linear-gradient(90deg,
+            rgba(34, 211, 238, 0.15) 0%,
+            rgba(34, 211, 238, 0.07) 52%,
+            rgba(8, 15, 30, 0.96) 100%) !important;
     box-shadow:
-        inset 0 1px 0 rgba(34, 211, 238, 0.42),
-        inset 0 -1px 0 rgba(34, 211, 238, 0.18),
-        0 0 14px rgba(34, 211, 238, 0.10) !important;
+        inset 0 1px 0 rgba(34, 211, 238, 0.34),
+        inset 0 -1px 0 rgba(34, 211, 238, 0.14),
+        0 0 14px rgba(34, 211, 238, 0.08) !important;
 }
 
-/* Una tarea con ⭐ conserva la estrella amarilla,
-   pero la selección sigue siendo azul. */
 .task-table tr.task-selected.task-starred,
 .request-item.task-selected.task-starred {
-    border-left-color: rgba(34, 211, 238, 1) !important;
+    border-left-color: #22d3ee !important;
     background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.17) 0%,
-            rgba(245, 158, 11, 0.055) 32%,
-            rgba(34, 211, 238, 0.055) 58%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
+        linear-gradient(90deg,
+            rgba(34, 211, 238, 0.15) 0%,
+            rgba(245, 158, 11, 0.045) 34%,
+            rgba(34, 211, 238, 0.045) 60%,
+            rgba(8, 15, 30, 0.96) 100%) !important;
 }
 
-/* El título seleccionado gana contraste sin cambiar su color de marca */
-.task-table tr.task-selected .req-title-text,
-.request-item.task-selected .req-name-text {
-    color: #e8f7ff !important;
+.task-table tr.task-selected .star,
+.task-table tr.task-selected [data-action="toggle-star"],
+.request-item.task-selected .star,
+.request-item.task-selected [data-action="toggle-star"] {
+    color: #f59e0b !important;
 }
 
-/* ---------- RESPONSIVE ---------- */
+/* Garantiza que las fotos de Carga de Trabajo sigan visibles */
+.workload-avatar {
+    width: 27px !important;
+    height: 27px !important;
+    min-width: 27px !important;
+    min-height: 27px !important;
+    flex: 0 0 27px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    border-radius: 50% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.workload-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100% !important;
+    min-height: 100% !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    object-fit: cover !important;
+}
+
+.workload-identity {
+    display: inline-flex !important;
+    align-items: center !important;
+    min-width: 0 !important;
+    gap: 9px !important;
+}
+
 @media (max-width: 700px) {
     .task-table .req-title-cell .req-title-text,
-    .request-item .req-name-text {
-        font-size: 1.08rem !important;
-        line-height: 1.32 !important;
+    .request-item .req-name-text,
+    .task-table .task-title,
+    .request-item .task-title,
+    .request-item .request-title {
+        font-size: 1rem !important;
+        line-height: 1.3 !important;
+    }
+
+    .workload-avatar {
+        width: 25px !important;
+        height: 25px !important;
+        min-width: 25px !important;
+        min-height: 25px !important;
+        flex-basis: 25px !important;
     }
 }

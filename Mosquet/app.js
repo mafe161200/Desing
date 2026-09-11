@@ -41,6 +41,17 @@ const clearLegacyLocalData = () => {
 
 const normalizeText = (value) => String(value ?? '').trim();
 
+const getInitials = (value) => {
+    const parts = normalizeText(value)
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+};
+
 const normalizeUsername = (value) => normalizeText(value).toLowerCase();
 
 const createId = () => (
@@ -92,8 +103,6 @@ class UI {
     static showToast(message, type = 'info', duration = 8000, onClickCallback = null, persistent = false) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
-
-        NotificationSoundService.play(type);
 
         const toast = document.createElement('div');
         toast.className = `toast ${type}${persistent ? ' toast-persistent' : ''}`;
@@ -169,67 +178,6 @@ class UI {
         }
     }
 }
-
-
-// ----------------------------------------------------------------------
-// SERVICIO DE SONIDO PARA NOTIFICACIONES
-// Usa Web Audio API; no requiere archivos externos.
-// ----------------------------------------------------------------------
-const NotificationSoundService = {
-    audioContext: null,
-
-    unlock() {
-        try {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContextClass) return;
-
-            if (!this.audioContext) {
-                this.audioContext = new AudioContextClass();
-            }
-
-            if (this.audioContext.state === 'suspended') {
-                this.audioContext.resume().catch(() => {});
-            }
-        } catch (error) {
-            console.debug('Audio de notificaciones no disponible:', error);
-        }
-    },
-
-    play(type = 'info') {
-        try {
-            this.unlock();
-            const ctx = this.audioContext;
-            if (!ctx || ctx.state !== 'running') return;
-
-            const now = ctx.currentTime;
-            const settings = {
-                success: { frequency: 880, duration: 0.12, volume: 0.055, wave: 'sine' },
-                info:    { frequency: 660, duration: 0.13, volume: 0.045, wave: 'sine' },
-                warning: { frequency: 740, duration: 0.16, volume: 0.060, wave: 'triangle' },
-                error:   { frequency: 440, duration: 0.22, volume: 0.065, wave: 'triangle' }
-            };
-
-            const sound = settings[type] || settings.info;
-            const oscillator = ctx.createOscillator();
-            const gain = ctx.createGain();
-
-            oscillator.type = sound.wave;
-            oscillator.frequency.setValueAtTime(sound.frequency, now);
-
-            gain.gain.setValueAtTime(0.0001, now);
-            gain.gain.exponentialRampToValueAtTime(sound.volume, now + 0.012);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + sound.duration);
-
-            oscillator.connect(gain);
-            gain.connect(ctx.destination);
-
-            oscillator.start(now);
-            oscillator.stop(now + sound.duration + 0.02);
-        } catch (error) {
-            console.debug('No se pudo reproducir el sonido:', error);
-        }
-    }
-};
 
 // ----------------------------------------------------------------------
 // SERVICIO DE NOTIFICACIONES (Clean Architecture)
@@ -1008,17 +956,11 @@ const App = {
             });
         }
 
-        document.addEventListener('pointerdown', () => NotificationSoundService.unlock(), {
-            once: true,
-            passive: true
-        });
-
         const loginForm = document.getElementById('loginForm');
         if (loginForm && !loginForm.dataset.bound) {
             loginForm.dataset.bound = 'true';
             loginForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                NotificationSoundService.unlock();
                 const user = document.getElementById('usernameInput').value;
                 const pass = document.getElementById('passwordInput').value;
                 const loginError = document.getElementById('loginError');
@@ -2272,6 +2214,49 @@ const App = {
 
         const fragment = document.createDocumentFragment();
 
+        const findUser = (name) => {
+            if (!name || name === 'No asignado') return null;
+            const normalized = normalizeText(name).toLowerCase();
+            return this.usersList.find(user => {
+                const userName = normalizeText(user?.name).toLowerCase();
+                const username = normalizeText(user?.username).toLowerCase();
+                return userName === normalized || username === normalized;
+            }) || null;
+        };
+
+        const createAvatar = (name, color) => {
+            const avatar = document.createElement('div');
+            avatar.className = 'workload-avatar';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.style.setProperty('--avatar-color', sanitizeThemeColor(color, '#4f46e5'));
+
+            const user = findUser(name);
+            const avatarUrl = sanitizeAvatarUrl(user?.avatar);
+
+            if (avatarUrl) {
+                const image = document.createElement('img');
+                image.src = avatarUrl;
+                image.alt = '';
+                image.loading = 'lazy';
+                image.decoding = 'async';
+                image.addEventListener('error', () => {
+                    image.remove();
+                    avatar.textContent = getInitials(name);
+                    avatar.classList.add('workload-avatar-fallback');
+                }, { once: true });
+                avatar.appendChild(image);
+            } else if (name !== 'No asignado') {
+                avatar.textContent = getInitials(name);
+                avatar.classList.add('workload-avatar-fallback');
+            } else {
+                const icon = document.createElement('i');
+                icon.setAttribute('data-lucide', 'user-round');
+                avatar.appendChild(icon);
+            }
+
+            return avatar;
+        };
+
         sortedWorkload.forEach(([name, count]) => {
             if (count === 0 && name === 'No asignado') return;
 
@@ -2284,13 +2269,22 @@ const App = {
             const header = document.createElement('div');
             header.className = 'workload-header';
 
+            const identity = document.createElement('div');
+            identity.className = 'workload-identity';
+
+            identity.appendChild(createAvatar(name, color));
+
             const nameEl = document.createElement('span');
+            nameEl.className = 'workload-name';
             nameEl.textContent = normalizeText(name);
 
+            identity.appendChild(nameEl);
+
             const countEl = document.createElement('span');
+            countEl.className = 'workload-count';
             countEl.textContent = String(count);
 
-            header.append(nameEl, countEl);
+            header.append(identity, countEl);
 
             const barBg = document.createElement('div');
             barBg.className = 'workload-bar-bg';
@@ -2313,6 +2307,7 @@ const App = {
         }
 
         wContainer.replaceChildren(fragment);
+        lucide.createIcons();
     },
 };
 
