@@ -1666,3 +1666,78 @@ textarea:disabled {
 /* Título de solicitud — tamaño discreto definitivo */
 .task-table .req-title-cell .req-title-text { font-size: .96rem !important; line-height: 1.32 !important; }
 .request-item .req-name-text { font-size: .98rem !important; line-height: 1.30 !important; }
+
+
+/* =========================================================
+   RESALTADO CYAN UNIFICADO — MIS TAREAS + PRIORIDAD
+   Las tareas destacadas usan el mismo lenguaje visual:
+   cyan para el resalto y amarillo únicamente para ⭐.
+   ========================================================= */
+
+/* Mis Tareas — tarea destacada */
+.request-item.task-starred,
+.my-task-card.task-starred {
+    border-left: 2px solid #22d3ee !important;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(34, 211, 238, 0.14) 0%,
+            rgba(34, 211, 238, 0.055) 45%,
+            rgba(8, 15, 30, 0.96) 100%
+        ) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(34, 211, 238, 0.22),
+        inset 0 -1px 0 rgba(34, 211, 238, 0.10);
+}
+
+/* Hover: mantiene el mismo lenguaje cyan */
+.request-item.task-starred:hover,
+.my-task-card.task-starred:hover {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(34, 211, 238, 0.19) 0%,
+            rgba(34, 211, 238, 0.075) 48%,
+            rgba(8, 15, 30, 0.96) 100%
+        ) !important;
+}
+
+/* Si está seleccionada, el cyan sigue siendo dominante */
+.request-item.task-starred.task-selected,
+.my-task-card.task-starred.task-selected {
+    border-left-color: #22d3ee !important;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(34, 211, 238, 0.21) 0%,
+            rgba(34, 211, 238, 0.08) 52%,
+            rgba(8, 15, 30, 0.96) 100%
+        ) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(34, 211, 238, 0.40),
+        inset 0 -1px 0 rgba(34, 211, 238, 0.16),
+        0 0 14px rgba(34, 211, 238, 0.09) !important;
+}
+
+/* La estrella continúa siendo amarilla: solo indica prioridad */
+.request-item.task-starred .star,
+.request-item.task-starred [data-action="toggle-star"],
+.request-item.task-starred .lucide-star,
+.my-task-card.task-starred .star,
+.my-task-card.task-starred [data-action="toggle-star"],
+.my-task-card.task-starred .lucide-star {
+    color: #f59e0b !important;
+    stroke: #f59e0b !important;
+}
+
+/* Refuerzo para cualquier card que use el nombre de la tarea como clase */
+.request-item.task-starred .req-name-text {
+    color: #e2e8f0 !important;
+}
+
+@media (max-width: 700px) {
+    .request-item.task-starred,
+    .my-task-card.task-starred {
+        border-left-width: 2px !important;
+    }
+}
