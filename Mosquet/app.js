@@ -626,29 +626,33 @@ const AuthService = {
         if (!userClean || !passClean) return false;
 
         try {
-            const email = AuthService.usernameToEmail(userClean);
             const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email,
+                email: AuthService.usernameToEmail(userClean),
                 password: passClean
             });
 
             if (error || !data?.user) {
-                const authMessage = normalizeText(error?.message);
-                console.warn('Inicio de sesión rechazado:', authMessage || 'Credenciales no válidas.');
-                return {
-                    ok: false,
-                    message: authMessage === 'Email not confirmed'
-                        ? 'La cuenta aún no está confirmada en Supabase.'
-                        : authMessage || 'Usuario o contraseña incorrectos.'
-                };
+                const message = error?.message || 'Supabase no devolvió un usuario autenticado.';
+                console.error('Inicio de sesión rechazado:', error);
+                const loginError = document.getElementById('loginError');
+                if (loginError) {
+                    loginError.textContent = `No fue posible iniciar sesión: ${message}`;
+                    loginError.style.display = 'block';
+                }
+                return false;
             }
 
             const profile = await DataService.getProfileByAuthId(data.user.id);
 
             if (!profile) {
-                console.error('El usuario autenticado no tiene un perfil válido en Supabase.');
+                const message = 'La autenticación funcionó, pero no existe un perfil válido para este usuario en public.profiles.';
+                console.error(message, { authUserId: data.user.id });
+                const loginError = document.getElementById('loginError');
+                if (loginError) {
+                    loginError.textContent = message;
+                    loginError.style.display = 'block';
+                }
                 await supabaseClient.auth.signOut();
-                UI.showToast('Tu cuenta no tiene un perfil configurado. Contacta al administrador.', 'error');
                 return false;
             }
 
@@ -662,13 +666,11 @@ const AuthService = {
             };
 
             UI.updateConnectionStatus(true);
-            return { ok: true };
+            return true;
         } catch (error) {
             console.error('Error durante la autenticación con Supabase:', error);
-            return {
-                ok: false,
-                message: 'No fue posible conectar con el servicio de autenticación.'
-            };
+            UI.showToast('No fue posible iniciar sesión. Inténtalo nuevamente.', 'error');
+            return false;
         }
     },
 
@@ -934,63 +936,53 @@ const App = {
         const togglePwdBtn = document.getElementById('togglePasswordBtn');
         const pwdInput = document.getElementById('passwordInput');
         if (togglePwdBtn && pwdInput) {
-            const updatePasswordToggle = () => {
-                const isPassword = pwdInput.type === 'password';
-                togglePwdBtn.setAttribute('aria-label', isPassword ? 'Mostrar contraseña' : 'Ocultar contraseña');
-                togglePwdBtn.setAttribute('title', isPassword ? 'Mostrar contraseña' : 'Ocultar contraseña');
-                togglePwdBtn.replaceChildren();
-                const icon = document.createElement('i');
-                icon.setAttribute('data-lucide', isPassword ? 'eye' : 'eye-off');
-                icon.setAttribute('aria-hidden', 'true');
-                togglePwdBtn.appendChild(icon);
-                if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-            };
-
-            updatePasswordToggle();
             togglePwdBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                pwdInput.type = pwdInput.type === 'password' ? 'text' : 'password';
-                updatePasswordToggle();
-                pwdInput.focus();
+                e.preventDefault(); 
+                const isPassword = pwdInput.type === 'password';
+                pwdInput.type = isPassword ? 'text' : 'password';
+                togglePwdBtn.innerHTML = `<i data-lucide="${isPassword ? 'eye-off' : 'eye'}"></i>`;
+                lucide.createIcons();
             });
         }
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const userInput = document.getElementById('usernameInput');
-            const passInput = document.getElementById('passwordInput');
-            const loginError = document.getElementById('loginError');
-            const submitBtn = e.currentTarget.querySelector('button[type="submit"]');
-            const user = userInput.value;
-            const pass = passInput.value;
-
-            loginError.style.display = 'none';
-            loginError.textContent = '';
-            submitBtn.disabled = true;
-            submitBtn.setAttribute('aria-busy', 'true');
-            submitBtn.dataset.originalText = submitBtn.textContent.trim();
-            submitBtn.textContent = 'Verificando…';
-
-            try {
-                const result = await AuthService.login(user, pass);
-                if (result?.ok) {
-                    window.location.reload();
-                    return;
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm && !loginForm.dataset.bound) {
+            loginForm.dataset.bound = 'true';
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const user = document.getElementById('usernameInput').value;
+                const pass = document.getElementById('passwordInput').value;
+                const loginError = document.getElementById('loginError');
+                const submitBtn = loginForm.querySelector('button[type="submit"]');
+                if (loginError) {
+                    loginError.textContent = '';
+                    loginError.style.display = 'none';
                 }
-
-                const message = result?.message || 'Usuario o contraseña incorrectos.';
-                loginError.textContent = message;
-                loginError.style.display = 'block';
-            } catch (err) {
-                console.error('Error inesperado al iniciar sesión:', err);
-                loginError.textContent = 'No fue posible iniciar sesión. Revisa tu conexión e inténtalo nuevamente.';
-                loginError.style.display = 'block';
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.removeAttribute('aria-busy');
-                submitBtn.textContent = submitBtn.dataset.originalText || 'Ingresar al workspace';
-            }
-        });
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.setAttribute('aria-busy', 'true');
+                    submitBtn.dataset.originalText = submitBtn.textContent;
+                    submitBtn.textContent = 'Verificando…';
+                }
+                try {
+                    if (await AuthService.login(user, pass)) {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    console.error('Error inesperado al iniciar sesión:', err);
+                    if (loginError) {
+                        loginError.textContent = `Error al iniciar sesión: ${err?.message || err}`;
+                        loginError.style.display = 'block';
+                    }
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.removeAttribute('aria-busy');
+                        submitBtn.textContent = submitBtn.dataset.originalText || 'Ingresar al workspace';
+                    }
+                }
+            });
+        }
     },
 
     setupCrossTabSync() {
