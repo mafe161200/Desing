@@ -1262,6 +1262,7 @@ const App = {
                 task.name = normalizeText(document.getElementById('editTaskName').value);
                 task.requester = normalizeText(document.getElementById('editRequesterSelect').value);
                 task.dateReceived = newRecDate;
+                task.notes = normalizeText(document.getElementById('editTaskNotes')?.value);
                 
                 this.markAsUnsaved();
                 document.getElementById('modalEditTask').classList.remove('active');
@@ -1334,6 +1335,10 @@ const App = {
                     if (taskId) {
                         this.toggleTaskStatus(taskId);
                     }
+                    break;
+
+                case 'view-task-notes':
+                    if (taskId) this.openTaskNotes(taskId);
                     break;
 
                 case 'edit-task':
@@ -1930,6 +1935,88 @@ const App = {
         }
     },
 
+    openTaskNotes(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task) return;
+
+        document.getElementById('taskNotesViewer')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'taskNotesViewer';
+        overlay.className = 'task-notes-viewer-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'taskNotesViewerTitle');
+
+        const card = document.createElement('div');
+        card.className = 'task-notes-viewer-card';
+
+        const header = document.createElement('div');
+        header.className = 'task-notes-viewer-header';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'task-notes-viewer-title-wrap';
+
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'message-square-text');
+
+        const title = document.createElement('h2');
+        title.id = 'taskNotesViewerTitle';
+        title.textContent = 'Notas de la solicitud';
+
+        titleWrap.append(icon, title);
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-icon task-notes-viewer-close';
+        close.setAttribute('aria-label', 'Cerrar notas');
+        const closeIcon = document.createElement('i');
+        closeIcon.setAttribute('data-lucide', 'x');
+        close.appendChild(closeIcon);
+
+        header.append(titleWrap, close);
+
+        const taskName = document.createElement('div');
+        taskName.className = 'task-notes-viewer-task-name';
+        taskName.textContent = normalizeText(task.name);
+
+        const meta = document.createElement('div');
+        meta.className = 'task-notes-viewer-meta';
+        meta.textContent = `Solicitante: ${normalizeText(task.requester || 'No indicado')}`;
+
+        const body = document.createElement('div');
+        body.className = 'task-notes-viewer-body';
+
+        const noteText = document.createElement('p');
+        noteText.className = 'task-notes-viewer-text';
+
+        const notes = normalizeText(task.notes);
+        noteText.textContent = notes || 'Esta solicitud no tiene notas todavía.';
+        if (!notes) body.classList.add('is-empty');
+
+        body.appendChild(noteText);
+        card.append(header, taskName, meta, body);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        lucide.createIcons();
+
+        const closeViewer = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', onKeyDown);
+        };
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') closeViewer();
+        };
+
+        close.addEventListener('click', closeViewer);
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) closeViewer();
+        });
+        document.addEventListener('keydown', onKeyDown);
+
+        requestAnimationFrame(() => overlay.classList.add('active'));
+    },
+
     selectTask(taskId, render = false) {
         const id = taskId == null ? null : String(taskId);
         if (id && !this.tasks.some(t => String(t.id) === id)) return;
@@ -2173,6 +2260,7 @@ const App = {
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
                     <div class="action-buttons">
+                        <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
                         <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
                         <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
                     </div>
