@@ -1604,49 +1604,121 @@ const App = {
     },
 
     renderDropdowns() {
-        const sAssignee = ['assignee', 'filterAssignee'];
-        sAssignee.forEach(id => {
-            const el = document.getElementById(id);
-            if(!el) return;
-            el.innerHTML = id === 'filterAssignee' ? '<option value="Todos">Asignación: Todos</option>' : '';
-            el.innerHTML += '<option value="No asignado">No asignado</option>'; 
-            this.members.forEach(m => {
-                const safeM = escapeHTML(m);
-                el.innerHTML += `<option value="${safeM}">${safeM}</option>`;
+        const buildOptions = (select, options, placeholder) => {
+            if (!select) return;
+            const fragment = document.createDocumentFragment();
+
+            if (placeholder) {
+                const option = document.createElement('option');
+                option.value = 'Todos';
+                option.textContent = placeholder;
+                fragment.appendChild(option);
+            }
+
+            options.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                fragment.appendChild(option);
             });
+
+            select.replaceChildren(fragment);
+        };
+
+        ['assignee', 'filterAssignee'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            const options = ['No asignado', ...this.members];
+            buildOptions(
+                el,
+                options,
+                id === 'filterAssignee' ? 'Asignación: Todos' : null
+            );
         });
 
-        const sReq = ['requesterSelect', 'filterRequester', 'editRequesterSelect'];
-        sReq.forEach(id => {
+        ['requesterSelect', 'filterRequester', 'editRequesterSelect'].forEach(id => {
             const el = document.getElementById(id);
-            if(!el) return;
-            el.innerHTML = id === 'filterRequester' ? '<option value="Todos">Solicitante: Todos</option>' : '';
-            this.requesters.forEach(r => {
-                const safeR = escapeHTML(r);
-                el.innerHTML += `<option value="${safeR}">${safeR}</option>`;
-            });
+            if (!el) return;
+
+            buildOptions(
+                el,
+                this.requesters,
+                id === 'filterRequester' ? 'Solicitante: Todos' : null
+            );
         });
+
         buildCustomSelects(document.querySelector('.inline-filters-bar'));
         buildCustomSelects(document.querySelector('#taskForm'));
         buildCustomSelects(document.querySelector('#editTaskForm'));
     },
 
     renderTags() {
-        if(this.user.role !== 'admin') return;
+        if (this.user.role !== 'admin') return;
+
         const mList = document.getElementById('membersList');
-        mList.innerHTML = '';
-        this.members.forEach((m) => {
-            const safeM = escapeHTML(m);
-            const hexColor = this.getColor(m);
-            mList.innerHTML += `<div class="member-chip" style="color: ${hexColor}; background-color: ${hexColor}20; border-color: ${hexColor}40;"><span>${safeM}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeM}" data-action="remove-member" data-index="${this.members.indexOf(m)}"><i data-lucide="x"></i></button></div>`;
+        const rList = document.getElementById('requestersList');
+        if (!mList || !rList) return;
+
+        const membersFragment = document.createDocumentFragment();
+
+        this.members.forEach((member, index) => {
+            const safeName = normalizeText(member);
+            const color = this.getColor(member);
+
+            const chip = document.createElement('div');
+            chip.className = 'member-chip';
+            chip.style.color = color;
+            chip.style.backgroundColor = `${color}20`;
+            chip.style.borderColor = `${color}40`;
+
+            const name = document.createElement('span');
+            name.textContent = safeName;
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'remove-member';
+            button.setAttribute('aria-label', `Eliminar ${safeName}`);
+            button.dataset.action = 'remove-member';
+            button.dataset.index = String(index);
+
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'x');
+
+            button.appendChild(icon);
+            chip.append(name, button);
+            membersFragment.appendChild(chip);
         });
 
-        const rList = document.getElementById('requestersList');
-        rList.innerHTML = '';
-        this.requesters.forEach((r, i) => {
-            const safeR = escapeHTML(r);
-            rList.innerHTML += `<div class="member-chip"><span>${safeR}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeR}" data-action="remove-requester" data-index="${i}"><i data-lucide="x"></i></button></div>`;
+        const requestersFragment = document.createDocumentFragment();
+
+        this.requesters.forEach((requester, index) => {
+            const safeName = normalizeText(requester);
+
+            const chip = document.createElement('div');
+            chip.className = 'member-chip';
+
+            const name = document.createElement('span');
+            name.textContent = safeName;
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'remove-member';
+            button.setAttribute('aria-label', `Eliminar ${safeName}`);
+            button.dataset.action = 'remove-requester';
+            button.dataset.index = String(index);
+
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'x');
+
+            button.appendChild(icon);
+            chip.append(name, button);
+            requestersFragment.appendChild(chip);
         });
+
+        mList.replaceChildren(membersFragment);
+        rList.replaceChildren(requestersFragment);
+
         lucide.createIcons();
     },
 
@@ -1929,47 +2001,67 @@ const App = {
     renderWorkloadChart(activasTasks) {
         const wContainer = document.getElementById('workloadContainer');
         if (!wContainer) return;
-        
-        const workload = {};
-        let maxTasks = 0;
-        
-        this.members.forEach(m => workload[m] = 0);
+
+        const workload = Object.fromEntries(this.members.map(member => [member, 0]));
         workload['No asignado'] = 0;
-        
-        activasTasks.forEach(t => {
-            const assignee = t.assignee || 'No asignado';
-            if (workload[assignee] === undefined) workload[assignee] = 0;
-            workload[assignee]++;
-            if (workload[assignee] > maxTasks) maxTasks = workload[assignee];
+
+        activasTasks.forEach(task => {
+            const assignee = task.assignee || 'No asignado';
+            workload[assignee] = (workload[assignee] || 0) + 1;
         });
 
-        wContainer.innerHTML = '';
-        const sortedWorkload = Object.entries(workload).sort((a, b) => b[1] - a[1]);
+        const sortedWorkload = Object.entries(workload)
+            .sort((a, b) => b[1] - a[1]);
+
+        const maxTasks = sortedWorkload.reduce(
+            (max, [, count]) => Math.max(max, count),
+            0
+        );
+
+        const fragment = document.createDocumentFragment();
 
         sortedWorkload.forEach(([name, count]) => {
-            if(count === 0 && name === 'No asignado') return; 
-            
+            if (count === 0 && name === 'No asignado') return;
+
             const percentage = maxTasks === 0 ? 0 : (count / maxTasks) * 100;
             const color = this.getColor(name);
-            const safeName = escapeHTML(name);
-            
-            wContainer.innerHTML += `
-                <div class="workload-item">
-                    <div class="workload-header">
-                        <span>${safeName}</span>
-                        <span>${count}</span>
-                    </div>
-                    <div class="workload-bar-bg">
-                        <div class="workload-bar-fill" style="width: ${percentage}%; background-color: ${color};"></div>
-                    </div>
-                </div>
-            `;
+
+            const item = document.createElement('div');
+            item.className = 'workload-item';
+
+            const header = document.createElement('div');
+            header.className = 'workload-header';
+
+            const nameEl = document.createElement('span');
+            nameEl.textContent = normalizeText(name);
+
+            const countEl = document.createElement('span');
+            countEl.textContent = String(count);
+
+            header.append(nameEl, countEl);
+
+            const barBg = document.createElement('div');
+            barBg.className = 'workload-bar-bg';
+
+            const barFill = document.createElement('div');
+            barFill.className = 'workload-bar-fill';
+            barFill.style.width = `${percentage}%`;
+            barFill.style.backgroundColor = color;
+
+            barBg.appendChild(barFill);
+            item.append(header, barBg);
+            fragment.appendChild(item);
         });
 
-        if(sortedWorkload.length === 0 || maxTasks === 0) {
-            wContainer.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No hay tareas activas</p>';
+        if (maxTasks === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'workload-empty-state';
+            empty.textContent = 'No hay tareas activas';
+            fragment.appendChild(empty);
         }
-    }
+
+        wContainer.replaceChildren(fragment);
+    },
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
