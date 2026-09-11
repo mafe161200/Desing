@@ -1393,3 +1393,39 @@ textarea:disabled {
     -webkit-line-clamp: unset;
     line-clamp: unset;
 }
+
+
+/* =========================================================
+   AJUSTE TIPOGRÁFICO — TÍTULO DE SOLICITUD
+   Mayor jerarquía visual sin alterar la estructura.
+   ========================================================= */
+
+.task-title,
+.request-title,
+.task-table .task-title,
+.request-item .request-title {
+    font-size: 1.05rem !important;
+    line-height: 1.35 !important;
+    font-weight: 650 !important;
+    letter-spacing: 0.005em;
+}
+
+.task-table .task-title {
+    max-width: 100%;
+}
+
+.request-item .request-title {
+    font-size: 1.08rem !important;
+    line-height: 1.3 !important;
+    font-weight: 650 !important;
+}
+
+/* En pantallas pequeñas conserva la jerarquía sin desbordar */
+@media (max-width: 700px) {
+    .task-title,
+    .task-table .task-title,
+    .request-item .request-title {
+        font-size: 1rem !important;
+        line-height: 1.3 !important;
+    }
+}
