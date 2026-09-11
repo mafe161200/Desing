@@ -334,28 +334,74 @@ const DataService = {
         }
     },
 
-    async saveTasks(tasks) {
+    async saveTasks(tasks, originalTasks = []) {
         if (!supabaseClient) {
-            UI.updateConnectionStatus(false);
-            return { cloudSaved: false };
+            UI.updateConnectionStatus(false, 'Supabase no está disponible.');
+            return { cloudSaved: false, error: new Error('Supabase no está disponible.') };
         }
 
-        try {
-            const safeTasks = Array.isArray(tasks) ? tasks : [];
-            const { error } = await supabaseClient
-                .from('tasks')
-                .upsert(safeTasks);
+        const safeTasks = Array.isArray(tasks) ? tasks : [];
+        const safeOriginal = Array.isArray(originalTasks) ? originalTasks : [];
+        const byId = new Map(safeOriginal.map(task => [String(task.id), task]));
+        const currentIds = new Set(safeTasks.map(task => String(task.id)));
 
-            if (error) {
-                console.error('Supabase: no se pudieron guardar las tareas.', error);
-                UI.updateConnectionStatus(false, error.message);
-                return { cloudSaved: false, error };
+        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred'];
+        const buildPayload = (task) => {
+            const payload = { id: task.id };
+            fields.forEach(field => {
+                payload[field] = task[field] ?? (field === 'isStarred' ? false : '');
+            });
+            return payload;
+        };
+
+        try {
+            const inserted = safeTasks.filter(task => !byId.has(String(task.id)));
+            const updated = safeTasks.filter(task => {
+                const oldTask = byId.get(String(task.id));
+                if (!oldTask) return false;
+                return fields.some(field => String(task[field] ?? '') !== String(oldTask[field] ?? ''));
+            });
+            const deleted = safeOriginal.filter(task => !currentIds.has(String(task.id)));
+
+            if (inserted.length) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .insert(inserted.map(buildPayload))
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== inserted.length) {
+                    throw new Error('Supabase no confirmó todas las tareas nuevas.');
+                }
+            }
+
+            for (const task of updated) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .update(buildPayload(task))
+                    .eq('id', task.id)
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== 1) {
+                    throw new Error(`Supabase no confirmó la actualización de la tarea ${task.id}.`);
+                }
+            }
+
+            for (const task of deleted) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .eq('id', task.id)
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== 1) {
+                    throw new Error(`Supabase no confirmó la eliminación de la tarea ${task.id}.`);
+                }
             }
 
             UI.updateConnectionStatus(true);
-            return { cloudSaved: true };
+            return { cloudSaved: true, inserted: inserted.length, updated: updated.length, deleted: deleted.length };
         } catch (error) {
-            console.error('Supabase: error guardando tareas.', error);
+            console.error('Supabase: no se pudieron guardar las tareas.', error);
             UI.updateConnectionStatus(false, error.message);
             return { cloudSaved: false, error };
         }
@@ -735,7 +781,7 @@ function buildCustomSelects(container = document) {
                     applyColor(newColor);
                 }
 
-                select.dispatchEvent(new Event('change'));
+                select.dispatchEvent(new Event('change', { bubbles: true }));
                 optionsDiv.classList.remove('open');
                 trigger.classList.remove('active');
                 Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
@@ -807,6 +853,7 @@ const App = {
     filterDates: [],
     fpInstances: [],
     hasUnsavedChanges: false,
+    selectedTaskId: null,
     cropperInstance: null,
 
     async init() {
@@ -961,18 +1008,21 @@ const App = {
     },
 
     async saveChanges() {
-        const result = await DataService.saveTasks(this.tasks);
+        const result = await DataService.saveTasks(this.tasks, this.originalTasks);
 
         if (!result.cloudSaved) {
-            UI.showToast("No se pudieron guardar los cambios en la nube.", "error");
+            const detail = result.error?.message ? `: ${result.error.message}` : '';
+            UI.showToast(`No se pudieron guardar los cambios${detail}`, 'error', 7000);
             return;
         }
 
-        this.originalTasks = JSON.parse(JSON.stringify(this.tasks));
+        const freshTasks = await DataService.getTasks();
+        this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
+        this.tasks = JSON.parse(JSON.stringify(freshTasks));
         this.hasUnsavedChanges = false;
         document.getElementById('unsavedChangesBar').classList.remove('active');
         UI.showToast("Cambios guardados con éxito", "success");
-        this.renderBoard();
+        this.renderAll();
     },
 
     undoChanges() {
@@ -1750,13 +1800,29 @@ const App = {
     },
 
     updateTask(id, field, value, shouldRender = false) {
-        const t = this.tasks.find(x => x.id === id);
+        const t = this.tasks.find(x => String(x.id) === String(id));
         if (t) {
-            t[field] = normalizeText(value);
-            this.markAsUnsaved(); 
+            t[field] = field === 'isStarred' ? Boolean(value) : normalizeText(value);
+            this.selectedTaskId = String(id);
+            this.markAsUnsaved();
             this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
-            if(shouldRender) this.renderBoard(); 
+            if (shouldRender) this.renderBoard();
         }
+    },
+
+    selectTask(taskId, render = false) {
+        const id = taskId == null ? null : String(taskId);
+        if (id && !this.tasks.some(t => String(t.id) === id)) return;
+        this.selectedTaskId = id;
+
+        document.querySelectorAll('.task-table tr[data-task-row]').forEach(row => {
+            row.classList.toggle('task-selected', row.dataset.taskRow === id);
+        });
+        document.querySelectorAll('.request-item[data-task-row]').forEach(item => {
+            item.classList.toggle('task-selected', item.dataset.taskRow === id);
+        });
+
+        if (render) this.renderBoard();
     },
 
     renderBoard() {
@@ -1830,9 +1896,10 @@ const App = {
         myTasks.forEach(t => {
             const li = document.createElement('li');
             // Añadir clase de estrella para estilar en el CSS
-            li.className = `request-item ${t.isStarred ? 'task-starred' : ''}`;
+            li.className = `request-item ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`;
             li.tabIndex = 0; 
             li.id = `li-${t.id}`;
+            li.dataset.taskRow = String(t.id);
             
             // Prevent Event Bubbling
             const handleExpand = (e) => {
@@ -1842,8 +1909,18 @@ const App = {
                 document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
             };
 
-            li.onclick = handleExpand;
-            li.onkeydown = (e) => { if (e.key === 'Enter') handleExpand(e); };
+            li.onclick = (e) => {
+                if (e.target.closest('input, button')) return;
+                this.selectTask(t.id);
+                handleExpand(e);
+            };
+            li.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.selectTask(t.id);
+                    handleExpand(e);
+                }
+            };
             
             const colorHex = this.getColor(t.assignee);
             
@@ -1900,7 +1977,8 @@ const App = {
         activas.forEach(t => {
             const tr = document.createElement('tr');
             tr.id = `tr-${t.id}`;
-            tr.className = t.isStarred ? 'task-starred' : ''; // Clase de Estrella Visual en la fila
+            tr.className = `${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
+            tr.dataset.taskRow = String(t.id);
             
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
@@ -1910,6 +1988,7 @@ const App = {
                 if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
                     return;
                 }
+                this.selectTask(t.id);
                 document.querySelectorAll('.task-table tr').forEach(r => {
                     if(r !== tr) r.classList.remove('expanded-row');
                 });
