@@ -418,74 +418,39 @@ html body div.flatpickr-calendar .flatpickr-day.today { border-color: var(--prim
 html body div.flatpickr-calendar .flatpickr-day.selected, html body div.flatpickr-calendar .flatpickr-day.startRange, html body div.flatpickr-calendar .flatpickr-day.endRange { background: var(--primary-cold); border-color: var(--primary-cold); color: #ffffff; font-weight: 600; box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3); }
 html body div.flatpickr-calendar .flatpickr-day.inRange { background: var(--status-curso-bg); color: var(--status-curso); box-shadow: none; }
 html body div.flatpickr-calendar .flatpickr-day.prevMonthDay, html body div.flatpickr-calendar .flatpickr-day.nextMonthDay { color: var(--text-muted); opacity: 0.5;}
-/* =========================================================
-   DARK TECH — AJUSTE DE SOLICITUDES DESTACADAS
-   Reduce el amarillo sólido de las filas con estrella.
-   Mantiene la prioridad visible sin competir con el contenido.
-   ========================================================= */
+/* DARK TECH — AJUSTE DEFINITIVO DE DESTACADAS */
+:root {
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.10);
+}
 
 .task-table tr.task-starred {
-    position: relative;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(245, 158, 11, 0.105) 0%,
-            rgba(245, 158, 11, 0.045) 42%,
-            rgba(245, 158, 11, 0.018) 100%
-        ) !important;
-    border-left: 3px solid rgba(245, 158, 11, 0.95) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(245, 158, 11, 0.08),
-        inset 0 -1px 0 rgba(245, 158, 11, 0.05);
+  position: relative !important;
+  background: linear-gradient(90deg, rgba(245,158,11,.10) 0%, rgba(245,158,11,.045) 45%, rgba(245,158,11,.015) 100%) !important;
+  border-left: 3px solid #f59e0b !important;
+  box-shadow: inset 0 1px 0 rgba(245,158,11,.08), inset 0 -1px 0 rgba(245,158,11,.05) !important;
 }
 
 .task-table tr.task-starred:hover {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(245, 158, 11, 0.15) 0%,
-            rgba(245, 158, 11, 0.065) 48%,
-            rgba(245, 158, 11, 0.025) 100%
-        ) !important;
+  background: linear-gradient(90deg, rgba(245,158,11,.15) 0%, rgba(245,158,11,.065) 48%, rgba(245,158,11,.025) 100%) !important;
 }
 
 .task-table tr.task-starred td {
-    border-bottom-color: rgba(245, 158, 11, 0.10);
+  border-bottom-color: rgba(245,158,11,.10) !important;
 }
 
 .task-table tr.task-starred .btn-star.active {
-    color: #fbbf24;
-    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.30));
+  color: #fbbf24 !important;
+  filter: drop-shadow(0 0 5px rgba(251,191,36,.30));
 }
 
 .task-table tr.task-starred .btn-star.active svg {
-    fill: #fbbf24;
-    stroke: #fbbf24;
-}
-
-.task-table tr.task-starred .btn-star.active:hover {
-    color: #fcd34d;
+  fill: #fbbf24 !important;
+  stroke: #fbbf24 !important;
 }
 
 .task-table tr.task-starred.completed-item {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(148, 163, 184, 0.055) 0%,
-            rgba(148, 163, 184, 0.018) 100%
-        ) !important;
-    border-left-color: rgba(148, 163, 184, 0.35) !important;
-    box-shadow: none;
-}
-
-/* La estrella comunica prioridad por sí sola;
-   no necesitamos teñir toda la tarjeta de amarillo. */
-.task-table tr.task-starred .req-title-cell strong {
-    color: var(--text-dark);
-}
-
-@media (max-width: 768px) {
-    .task-table tr.task-starred {
-        border-left-width: 3px !important;
-    }
+  background: var(--bg-subtle) !important;
+  border-left-color: var(--border-light) !important;
+  box-shadow: none !important;
 }
