@@ -386,7 +386,7 @@ const DataService = {
         const byId = new Map(safeOriginal.map(task => [String(task.id), task]));
         const currentIds = new Set(safeTasks.map(task => String(task.id)));
 
-        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred'];
+        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
         const buildPayload = (task) => {
             const payload = { id: task.id };
             fields.forEach(field => {
@@ -1199,7 +1199,9 @@ const App = {
                 status: normalizeText(document.getElementById('status').value),
                 dateReceived: dateReceivedValue, 
                 dateDelivered: dateDelivered,
-                isStarred: false // Nueva propiedad
+                isStarred: false,
+                notes: normalizeText(document.getElementById('taskNotes')?.value)
+
             });
             
             this.markAsUnsaved(); 
@@ -1521,6 +1523,8 @@ const App = {
 
         document.getElementById('editTaskId').value = task.id;
         document.getElementById('editTaskName').value = task.name;
+        const editNotes = document.getElementById('editTaskNotes');
+        if (editNotes) editNotes.value = task.notes || '';
         
         const reqSelect = document.getElementById('editRequesterSelect');
         updateCustomSelectUI(reqSelect, task.requester);
