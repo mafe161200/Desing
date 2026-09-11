@@ -1562,3 +1562,91 @@ textarea:disabled {
         line-height: 1.32 !important;
     }
 }
+
+
+/* =========================================================
+   AJUSTE VISUAL FINAL
+   1. Títulos reales de las solicitudes más grandes.
+   2. Selección siempre azul/cian, incluso en tareas con estrella.
+   ========================================================= */
+
+/* ---------- TÍTULO REAL DE LA TABLA ---------- */
+.task-table .req-title-cell .req-title-text {
+    font-size: 1.18rem !important;
+    line-height: 1.38 !important;
+    font-weight: 650 !important;
+    letter-spacing: 0.004em;
+}
+
+/* Solicitante: claramente secundario */
+.task-table .req-title-cell > span {
+    font-size: 0.88rem !important;
+    line-height: 1.35 !important;
+    font-weight: 500 !important;
+    color: var(--text-muted) !important;
+}
+
+/* ---------- TÍTULO REAL DE MIS TAREAS ---------- */
+.request-item .req-name-text {
+    font-size: 1.16rem !important;
+    line-height: 1.34 !important;
+    font-weight: 650 !important;
+}
+
+/* El título puede ocupar más de una línea */
+.request-item .req-name-text {
+    -webkit-line-clamp: 3 !important;
+    line-clamp: 3;
+    white-space: normal !important;
+}
+
+/* ---------- SELECCIÓN: AZUL/CÍAN, NUNCA AMARILLA ---------- */
+.task-table tr.task-selected,
+.request-item.task-selected {
+    position: relative;
+    z-index: 4;
+    outline: 1px solid rgba(34, 211, 238, 0.95) !important;
+    outline-offset: -1px;
+    border-left: 2px solid rgba(34, 211, 238, 1) !important;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(34, 211, 238, 0.17) 0%,
+            rgba(34, 211, 238, 0.08) 48%,
+            rgba(8, 15, 30, 0.96) 100%
+        ) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(34, 211, 238, 0.42),
+        inset 0 -1px 0 rgba(34, 211, 238, 0.18),
+        0 0 14px rgba(34, 211, 238, 0.10) !important;
+}
+
+/* Una tarea con ⭐ conserva la estrella amarilla,
+   pero la selección sigue siendo azul. */
+.task-table tr.task-selected.task-starred,
+.request-item.task-selected.task-starred {
+    border-left-color: rgba(34, 211, 238, 1) !important;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(34, 211, 238, 0.17) 0%,
+            rgba(245, 158, 11, 0.055) 32%,
+            rgba(34, 211, 238, 0.055) 58%,
+            rgba(8, 15, 30, 0.96) 100%
+        ) !important;
+}
+
+/* El título seleccionado gana contraste sin cambiar su color de marca */
+.task-table tr.task-selected .req-title-text,
+.request-item.task-selected .req-name-text {
+    color: #e8f7ff !important;
+}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 700px) {
+    .task-table .req-title-cell .req-title-text,
+    .request-item .req-name-text {
+        font-size: 1.08rem !important;
+        line-height: 1.32 !important;
+    }
+}
