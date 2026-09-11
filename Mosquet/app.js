@@ -20,24 +20,18 @@ const escapeHTML = (str) => {
 
 const CONFIG = Object.freeze({
     supabaseUrl: "https://gbltrfqxohrmkopanghx.supabase.co",
-    supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU"
+    supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU",
+    demoDataEnabled: true,
+    localStorageKeys: Object.freeze({
+        users: 'db_users',
+        tasks: 'db_tasks',
+        notes: 'db_notes',
+        members: 'db_members',
+        requesters: 'db_reqs',
+        authUser: 'auth_user',
+        firstLoad: 'dh_first_load'
+    })
 });
-
-const LEGACY_LOCAL_STORAGE_KEYS = Object.freeze([
-    'db_tasks',
-    'db_notes',
-    'db_members',
-    'db_reqs',
-    'dh_first_load'
-]);
-
-const clearLegacyLocalData = () => {
-    try {
-        LEGACY_LOCAL_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
-    } catch (error) {
-        console.warn('No fue posible limpiar datos locales heredados.', error);
-    }
-};
 
 const normalizeText = (value) => String(value ?? '').trim();
 
@@ -49,9 +43,30 @@ const createId = () => (
         : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 );
 
-const sanitizeThemeColor = (value, fallback = '#4f46e5') => {
-    const color = normalizeText(value);
-    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
+const getLocalJSON = (key, fallback) => {
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw === null) return fallback;
+        const parsed = JSON.parse(raw);
+        return parsed ?? fallback;
+    } catch (error) {
+        console.warn(`No se pudo leer "${key}" desde LocalStorage.`, error);
+        return fallback;
+    }
+};
+
+const setLocalJSON = (key, value) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+    } catch (error) {
+        if (error?.name === 'QuotaExceededError') {
+            UI.showToast("Error: la memoria local está llena.", "error");
+        } else {
+            console.error(`No se pudo guardar "${key}" en LocalStorage.`, error);
+        }
+        return false;
+    }
 };
 
 const sanitizeAvatarUrl = (value) => {
@@ -89,37 +104,67 @@ if (CONFIG.supabaseUrl && typeof supabase !== 'undefined') {
 }
 
 class UI {
-    static showToast(message, type = 'info', duration = 8000, onClickCallback = null) {
+    static showToast(message, type = 'info', duration = 8000, onClickCallback = null, persistent = false) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
-        
+
         const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        
+        toast.className = `toast ${type}${persistent ? ' toast-persistent' : ''}`;
+
         let icon = 'info';
         if (type === 'success') icon = 'check-circle';
         if (type === 'error') icon = 'alert-circle';
         if (type === 'warning') icon = 'alert-triangle';
-        
-        toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${escapeHTML(message)}</span>`;
-        
+
+        const iconEl = document.createElement('i');
+        iconEl.setAttribute('data-lucide', icon);
+        iconEl.setAttribute('aria-hidden', 'true');
+
+        const content = document.createElement('span');
+        content.className = 'toast-message';
+        content.textContent = message;
+
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'toast-close';
+        closeButton.setAttribute('aria-label', 'Cerrar notificación');
+        closeButton.title = 'Cerrar';
+        closeButton.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
+
+        closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toast.classList.add('fade-out');
+            setTimeout(() => {
+                if (toast.parentElement) toast.remove();
+            }, 250);
+        });
+
+        toast.appendChild(iconEl);
+        toast.appendChild(content);
+        toast.appendChild(closeButton);
+
         if (onClickCallback) {
             toast.classList.add('toast-clickable');
-            toast.title = "Haz clic para ir a la tarea";
-            toast.addEventListener('click', () => {
+            toast.title = 'Haz clic para ir a la tarea';
+            toast.addEventListener('click', (event) => {
+                if (event.target.closest('.toast-close')) return;
                 onClickCallback();
-                toast.classList.add('fade-out');
-                setTimeout(() => { if(toast.parentElement) toast.remove(); }, 300);
             });
         }
-        
+
         container.appendChild(toast);
         lucide.createIcons();
-        
-        setTimeout(() => {
-            toast.classList.add('fade-out');
-            setTimeout(() => { if(toast.parentElement) toast.remove(); }, 300);
-        }, duration);
+
+        if (!persistent) {
+            setTimeout(() => {
+                if (!toast.parentElement) return;
+                toast.classList.add('fade-out');
+                setTimeout(() => {
+                    if (toast.parentElement) toast.remove();
+                }, 250);
+            }, duration);
+        }
     }
 
     static updateConnectionStatus(isOnline, errMessage = null) {
@@ -187,7 +232,7 @@ const NotificationService = {
             const callback = () => highlightTask(nearest.id);
             
             if (nearest.dateDelivered < todayStr) {
-                 setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error', 8000, callback), 1000);
+                 setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error', 8000, callback, true), 1000);
             } else if (nearest.dateDelivered === todayStr) {
                  setTimeout(() => UI.showToast(`Tu tarea más próxima es para hoy: ${nearest.name}`, 'warning', 8000, callback), 1000);
             } else {
@@ -214,261 +259,171 @@ const NotificationService = {
    ========================================= */
 const DataService = {
     async getUsers() {
-        if (!supabaseClient) {
-            console.error('Supabase no está disponible. No se cargarán perfiles locales.');
-            return [];
-        }
+        const localUsers = getLocalJSON(CONFIG.localStorageKeys.users, []);
+        const baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
+        const allUsersMap = new Map();
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('profiles')
-                .select('id, username, email, name, role, avatar, theme, created_at')
-                .order('username', { ascending: true });
-
-            if (error) {
-                console.error('Supabase: no se pudieron cargar los perfiles.', error);
-                UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
-                return [];
+        baseUsers.forEach(user => {
+            if (user?.username) {
+                allUsersMap.set(normalizeUsername(user.username), { ...user });
             }
+        });
 
-            return (data || []).map(profile => ({
-                id: profile.id,
-                username: normalizeUsername(profile.username),
-                email: normalizeText(profile.email),
-                name: normalizeText(profile.name),
-                role: profile.role === 'admin' ? 'admin' : 'editor',
-                avatar: sanitizeAvatarUrl(profile.avatar),
-                theme: sanitizeThemeColor(profile.theme),
-                created_at: profile.created_at
-            }));
-        } catch (error) {
-            console.error('Supabase: error cargando perfiles.', error);
-            UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
-            return [];
-        }
+        localUsers.forEach(user => {
+            if (!user?.username) return;
+
+            const key = normalizeUsername(user.username);
+            const existing = allUsersMap.get(key);
+
+            if (existing) {
+                allUsersMap.set(key, {
+                    ...existing,
+                    avatar: user.avatar || existing.avatar || "",
+                    theme: user.theme || existing.theme || '#4f46e5'
+                });
+            } else {
+                allUsersMap.set(key, { ...user });
+            }
+        });
+
+        const finalUsers = Array.from(allUsersMap.values());
+        setLocalJSON(CONFIG.localStorageKeys.users, finalUsers);
+        return finalUsers;
     },
 
-    async getProfileByAuthId(authId) {
-        if (!supabaseClient || !authId) return null;
-
-        try {
-            const { data, error } = await supabaseClient
-                .from('profiles')
-                .select('id, username, email, name, role, avatar, theme, created_at')
-                .eq('id', authId)
-                .maybeSingle();
-
-            if (error) {
-                console.error('Supabase: no se pudo cargar el perfil.', error);
-                return null;
-            }
-
-            if (!data) return null;
-
-            return {
-                id: data.id,
-                username: normalizeUsername(data.username),
-                email: normalizeText(data.email),
-                name: normalizeText(data.name),
-                role: data.role === 'admin' ? 'admin' : 'editor',
-                avatar: sanitizeAvatarUrl(data.avatar),
-                theme: sanitizeThemeColor(data.theme),
-                created_at: data.created_at
-            };
-        } catch (error) {
-            console.error('Supabase: error cargando el perfil.', error);
-            return null;
-        }
-    },
-
-    async updateProfile(authId, changes) {
-        if (!supabaseClient || !authId) return false;
-
-        const payload = {
-            avatar: sanitizeAvatarUrl(changes?.avatar),
-            theme: sanitizeThemeColor(changes?.theme)
-        };
-
-        try {
-            const { error } = await supabaseClient
-                .from('profiles')
-                .update(payload)
-                .eq('id', authId);
-
-            if (error) {
-                console.error('Supabase: no se pudo actualizar el perfil.', error);
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Supabase: error actualizando el perfil.', error);
-            return false;
-        }
+    async saveUsers(users) {
+        return setLocalJSON(CONFIG.localStorageKeys.users, users);
     },
 
     async getTasks() {
-        if (!supabaseClient) {
-            UI.updateConnectionStatus(false);
-            return [];
-        }
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .select('*');
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('tasks')
-                .select('*')
-                .order('created_at', { ascending: true });
+                if (!error && data) {
+                    UI.updateConnectionStatus(true);
+                    setLocalJSON(CONFIG.localStorageKeys.tasks, data);
+                    return data;
+                }
 
-            if (error) {
+                if (error) {
+                    UI.updateConnectionStatus(false, error.message);
+                    console.warn('Supabase: no se pudieron cargar las tareas.', error);
+                }
+            } catch (error) {
                 UI.updateConnectionStatus(false, error.message);
-                console.error('Supabase: no se pudieron cargar las tareas.', error);
-                return [];
+                console.warn('Supabase: error cargando tareas.', error);
             }
-
-            UI.updateConnectionStatus(true);
-            return Array.isArray(data) ? data : [];
-        } catch (error) {
-            UI.updateConnectionStatus(false, error.message);
-            console.error('Supabase: error cargando tareas.', error);
-            return [];
+        } else {
+            UI.updateConnectionStatus(false);
         }
+
+        return getLocalJSON(CONFIG.localStorageKeys.tasks, []);
     },
 
-    async saveTasks(tasks, originalTasks = []) {
-        if (!supabaseClient) {
-            UI.updateConnectionStatus(false, 'Supabase no está disponible.');
-            return { cloudSaved: false, error: new Error('Supabase no está disponible.') };
+    async saveTasks(tasks) {
+        const localSaved = setLocalJSON(CONFIG.localStorageKeys.tasks, tasks);
+        let cloudSaved = false;
+
+        if (supabaseClient) {
+            try {
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .upsert(tasks);
+
+                if (error) {
+                    console.error('Supabase: no se pudieron guardar las tareas.', error);
+                    UI.updateConnectionStatus(false, error.message);
+                } else {
+                    cloudSaved = true;
+                    UI.updateConnectionStatus(true);
+                }
+            } catch (error) {
+                console.error('Supabase: error guardando tareas.', error);
+                UI.updateConnectionStatus(false, error.message);
+            }
         }
 
-        const safeTasks = Array.isArray(tasks) ? tasks : [];
-        const safeOriginal = Array.isArray(originalTasks) ? originalTasks : [];
-        const byId = new Map(safeOriginal.map(task => [String(task.id), task]));
-        const currentIds = new Set(safeTasks.map(task => String(task.id)));
-
-        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred'];
-        const buildPayload = (task) => {
-            const payload = { id: task.id };
-            fields.forEach(field => {
-                payload[field] = task[field] ?? (field === 'isStarred' ? false : '');
-            });
-            return payload;
-        };
-
-        try {
-            const inserted = safeTasks.filter(task => !byId.has(String(task.id)));
-            const updated = safeTasks.filter(task => {
-                const oldTask = byId.get(String(task.id));
-                if (!oldTask) return false;
-                return fields.some(field => String(task[field] ?? '') !== String(oldTask[field] ?? ''));
-            });
-            const deleted = safeOriginal.filter(task => !currentIds.has(String(task.id)));
-
-            if (inserted.length) {
-                const { data, error } = await supabaseClient
-                    .from('tasks')
-                    .insert(inserted.map(buildPayload))
-                    .select('id');
-                if (error) throw error;
-                if (!data || data.length !== inserted.length) {
-                    throw new Error('Supabase no confirmó todas las tareas nuevas.');
-                }
-            }
-
-            for (const task of updated) {
-                const { data, error } = await supabaseClient
-                    .from('tasks')
-                    .update(buildPayload(task))
-                    .eq('id', task.id)
-                    .select('id');
-                if (error) throw error;
-                if (!data || data.length !== 1) {
-                    throw new Error(`Supabase no confirmó la actualización de la tarea ${task.id}.`);
-                }
-            }
-
-            for (const task of deleted) {
-                const { data, error } = await supabaseClient
-                    .from('tasks')
-                    .delete()
-                    .eq('id', task.id)
-                    .select('id');
-                if (error) throw error;
-                if (!data || data.length !== 1) {
-                    throw new Error(`Supabase no confirmó la eliminación de la tarea ${task.id}.`);
-                }
-            }
-
-            UI.updateConnectionStatus(true);
-            return { cloudSaved: true, inserted: inserted.length, updated: updated.length, deleted: deleted.length };
-        } catch (error) {
-            console.error('Supabase: no se pudieron guardar las tareas.', error);
-            UI.updateConnectionStatus(false, error.message);
-            return { cloudSaved: false, error };
-        }
+        return { localSaved, cloudSaved };
     },
 
     async getNotes() {
-        if (!supabaseClient) return [];
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('notes')
+                    .select('*')
+                    .order('created_at', { ascending: true });
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('notes')
-                .select('*')
-                .order('created_at', { ascending: true });
+                if (!error && data) {
+                    setLocalJSON(CONFIG.localStorageKeys.notes, data);
+                    return data;
+                }
 
-            if (error) {
-                console.error('Supabase: no se pudieron cargar las notas.', error);
-                return [];
+                if (error) {
+                    console.warn('Supabase: no se pudieron cargar las notas.', error);
+                }
+            } catch (error) {
+                console.warn('Supabase: error cargando notas.', error);
             }
-
-            return Array.isArray(data) ? data : [];
-        } catch (error) {
-            console.error('Supabase: error cargando notas.', error);
-            return [];
         }
+
+        return getLocalJSON(CONFIG.localStorageKeys.notes, []);
     },
 
     async saveNote(note) {
-        if (!supabaseClient) return { cloudSaved: false };
+        const notes = getLocalJSON(CONFIG.localStorageKeys.notes, []);
+        notes.push(note);
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('notes')
-                .insert([note])
-                .select()
-                .single();
+        const localSaved = setLocalJSON(CONFIG.localStorageKeys.notes, notes);
+        let cloudSaved = false;
 
-            if (error) {
-                console.error('Supabase: no se pudo guardar la nota.', error);
-                return { cloudSaved: false, error };
+        if (supabaseClient) {
+            try {
+                const { error } = await supabaseClient
+                    .from('notes')
+                    .insert([note]);
+
+                if (error) {
+                    console.error('Supabase: no se pudo guardar la nota.', error);
+                } else {
+                    cloudSaved = true;
+                }
+            } catch (error) {
+                console.error('Supabase: error guardando nota.', error);
             }
-
-            return { cloudSaved: true, data };
-        } catch (error) {
-            console.error('Supabase: error guardando nota.', error);
-            return { cloudSaved: false, error };
         }
+
+        return { localSaved, cloudSaved };
     },
 
     async getMembers() {
-        if (!supabaseClient) return [];
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('members')
+                    .select('name');
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('members')
-                .select('name')
-                .order('name', { ascending: true });
+                if (!error && data) {
+                    const members = data.map(item => item.name).filter(Boolean);
+                    setLocalJSON(CONFIG.localStorageKeys.members, members);
+                    return members;
+                }
 
-            if (error) {
-                console.error('Supabase: no se pudieron cargar los miembros.', error);
-                return [];
+                if (error) {
+                    console.warn('Supabase: no se pudieron cargar los miembros.', error);
+                }
+            } catch (error) {
+                console.warn('Supabase: error cargando miembros.', error);
             }
-
-            return (data || []).map(item => normalizeText(item.name)).filter(Boolean);
-        } catch (error) {
-            console.error('Supabase: error cargando miembros.', error);
-            return [];
         }
+
+        return getLocalJSON(
+            CONFIG.localStorageKeys.members,
+            ['Camilo', 'David', 'Mafe']
+        );
     },
 
     async addMember(name) {
@@ -512,26 +467,35 @@ const DataService = {
         }
     },
 
+    async saveMembers(members) {
+        return setLocalJSON(CONFIG.localStorageKeys.members, members);
+    },
 
     async getRequesters() {
-        if (!supabaseClient) return [];
+        if (supabaseClient) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('requesters')
+                    .select('name');
 
-        try {
-            const { data, error } = await supabaseClient
-                .from('requesters')
-                .select('name')
-                .order('name', { ascending: true });
+                if (!error && data) {
+                    const requesters = data.map(item => item.name).filter(Boolean);
+                    setLocalJSON(CONFIG.localStorageKeys.requesters, requesters);
+                    return requesters;
+                }
 
-            if (error) {
-                console.error('Supabase: no se pudieron cargar los solicitantes.', error);
-                return [];
+                if (error) {
+                    console.warn('Supabase: no se pudieron cargar los solicitantes.', error);
+                }
+            } catch (error) {
+                console.warn('Supabase: error cargando solicitantes.', error);
             }
-
-            return (data || []).map(item => normalizeText(item.name)).filter(Boolean);
-        } catch (error) {
-            console.error('Supabase: error cargando solicitantes.', error);
-            return [];
         }
+
+        return getLocalJSON(
+            CONFIG.localStorageKeys.requesters,
+            ['Comunicaciones Internas', 'Comercial', 'Mkt Interno']
+        );
     },
 
     async addRequester(name) {
@@ -575,152 +539,69 @@ const DataService = {
         }
     },
 
+    async saveRequesters(requesters) {
+        return setLocalJSON(CONFIG.localStorageKeys.requesters, requesters);
+    }
 };
 
 const AuthService = {
-    usernameToEmail: (username) => {
-        const cleanUsername = normalizeUsername(username);
-        if (!cleanUsername) return '';
-        return `${cleanUsername}@designhub.local`;
-    },
-
     login: async (username, password) => {
-        if (!supabaseClient) {
-            console.error('Supabase Auth no está disponible.');
-            UI.showToast('No fue posible conectar con el servicio de autenticación.', 'error');
-            return false;
-        }
-
+        const users = await DataService.getUsers();
         const userClean = normalizeUsername(username);
-        const passClean = String(password ?? '');
-        if (!userClean || !passClean) return false;
+        const passClean = normalizeText(password);
 
-        try {
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email: AuthService.usernameToEmail(userClean),
-                password: passClean
+        const match = users.find(user =>
+            user &&
+            typeof user.username === 'string' &&
+            normalizeUsername(user.username) === userClean &&
+            user.password === passClean
+        );
+
+        if (match) {
+            setLocalJSON(CONFIG.localStorageKeys.authUser, {
+                username: match.username,
+                name: match.name,
+                role: match.role,
+                avatar: match.avatar,
+                theme: match.theme
             });
-
-            if (error || !data?.user) {
-                if (error) console.warn('Inicio de sesión rechazado:', error.message);
-                return false;
-            }
-
-            const profile = await DataService.getProfileByAuthId(data.user.id);
-
-            if (!profile) {
-                console.error('El usuario autenticado no tiene un perfil válido en Supabase.');
-                await supabaseClient.auth.signOut();
-                UI.showToast('Tu cuenta no tiene un perfil configurado. Contacta al administrador.', 'error');
-                return false;
-            }
-
-            const sessionUser = {
-                id: data.user.id,
-                username: profile.username || userClean,
-                name: profile.name || userClean,
-                role: profile.role,
-                avatar: profile.avatar || '',
-                theme: profile.theme || '#4f46e5'
-            };
-
-            UI.updateConnectionStatus(true);
             return true;
-        } catch (error) {
-            console.error('Error durante la autenticación con Supabase:', error);
-            UI.showToast('No fue posible iniciar sesión. Inténtalo nuevamente.', 'error');
-            return false;
         }
+
+        return false;
     },
 
-    getUser: async () => {
-        if (!supabaseClient) return null;
-
-        try {
-            const { data, error } = await supabaseClient.auth.getUser();
-
-            if (error || !data?.user) {
-                return null;
-            }
-
-            const authUser = data.user;
-            let username = normalizeUsername(authUser.user_metadata?.username || '');
-            if (!username && authUser.email) username = normalizeUsername(authUser.email.split('@')[0]);
-            if (!username) return null;
-
-            const profile = await DataService.getProfileByAuthId(authUser.id);
-            if (!profile) {
-                console.error(`No existe un perfil de Supabase para el usuario "${username}".`);
-                await supabaseClient.auth.signOut();
-                return null;
-            }
-
-            const sessionUser = {
-                id: authUser.id,
-                username: profile.username || username,
-                name: profile.name || username,
-                role: profile.role,
-                avatar: profile.avatar || '',
-                theme: profile.theme || '#4f46e5'
-            };
-
-            return sessionUser;
-        } catch (error) {
-            console.error('No fue posible validar la sesión:', error);
-            return null;
-        }
+    logout: () => {
+        localStorage.removeItem(CONFIG.localStorageKeys.authUser);
+        window.location.reload();
     },
 
-    logout: async () => {
-        try {
-            if (supabaseClient) {
-                const { error } = await supabaseClient.auth.signOut();
-                if (error) console.error('Error cerrando sesión en Supabase:', error);
-            }
-        } catch (error) {
-            console.error('Error inesperado cerrando sesión:', error);
-        } finally {
-            window.location.reload();
+    getUser: () => getLocalJSON(CONFIG.localStorageKeys.authUser, null)
+};
+
+const initDemoData = async () => {
+    if (!CONFIG.demoDataEnabled || localStorage.getItem(CONFIG.localStorageKeys.firstLoad)) return;
+
+    {
+        const tasks = await DataService.getTasks();
+        if (tasks.length === 0) {
+            await DataService.saveTasks([
+                {id: "1", name: "Rediseño Logo Corporativo", requester: "Comercial", assignee: "Camilo", status: "En curso", dateReceived: "2026-08-20", dateDelivered: "2026-08-30", isStarred: false}
+            ]);
         }
+        if (supabaseClient) {
+            const currentMembers = await DataService.getMembers();
+            if(currentMembers.length === 0) await supabaseClient.from('members').upsert([{name: 'Camilo'}, {name: 'David'}, {name: 'Mafe'}]);
+            const currentReqs = await DataService.getRequesters();
+            if(currentReqs.length === 0) await supabaseClient.from('requesters').upsert([{name: 'Comunicaciones Internas'}, {name: 'Comercial'}, {name: 'Mkt Interno'}]);
+        }
+        localStorage.setItem(CONFIG.localStorageKeys.firstLoad, '1');
     }
 };
 
-
 /* =========================================
-   UI COMPONENT: CUSTOM DROPDOWNS + ACCESIBILIDAD
+   UI COMPONENT: CUSTOM DROPDOWNS 
    ========================================= */
-function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
-    if (!instance) return;
-
-    const source = instance.input;
-    const baseId = source?.id || `${prefix}-${createId()}`;
-    const baseName = source?.name || baseId;
-    const altInput = instance.altInput;
-
-    if (altInput) {
-        altInput.id = `${baseId}-display`;
-        altInput.name = `${baseName}-display`;
-
-        // Flatpickr oculta el input original y crea un campo visible alternativo.
-        // No manipulamos <label for> aquí: el campo visible recibe su propia
-        // etiqueta accesible para que la asociación no dependa del timing de Flatpickr.
-        const sourceAriaLabel = source?.getAttribute('aria-label');
-        if (sourceAriaLabel) {
-            altInput.setAttribute('aria-label', sourceAriaLabel);
-        } else if (!altInput.getAttribute('aria-label')) {
-            altInput.setAttribute('aria-label', baseName);
-        }
-    }
-
-    const calendar = instance.calendarContainer;
-    if (!calendar) return;
-
-    calendar.querySelectorAll('input, select, textarea').forEach((field, index) => {
-        if (!field.id) field.id = `${baseId}-calendar-field-${index + 1}`;
-        if (!field.name) field.name = `${baseName}-calendar-field-${index + 1}`;
-    });
-}
-
 function buildCustomSelects(container = document) {
     container.querySelectorAll('.select-wrapper').forEach(w => {
         const select = w.querySelector('select');
@@ -781,7 +662,7 @@ function buildCustomSelects(container = document) {
                     applyColor(newColor);
                 }
 
-                select.dispatchEvent(new Event('change', { bubbles: true }));
+                select.dispatchEvent(new Event('change'));
                 optionsDiv.classList.remove('open');
                 trigger.classList.remove('active');
                 Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
@@ -853,12 +734,11 @@ const App = {
     filterDates: [],
     fpInstances: [],
     hasUnsavedChanges: false,
-    selectedTaskId: null,
     cropperInstance: null,
 
     async init() {
-        clearLegacyLocalData();
-        this.user = await AuthService.getUser();
+        await initDemoData();
+        this.user = AuthService.getUser();
         
         if (!this.user) {
             this.showLogin();
@@ -879,6 +759,7 @@ const App = {
         await this.loadData();
         this.setupPlugins();
         this.setupEventListeners();
+        this.setupDynamicEventDelegation();
         this.setupNotesPanel();
         this.renderAll();
         
@@ -919,40 +800,38 @@ const App = {
     },
 
     setupCrossTabSync() {
-        // La sincronización entre pestañas se realiza mediante Supabase Realtime.
+        window.addEventListener('storage', async (e) => {
+            if (e.key && e.key.startsWith('db_')) {
+                await this.loadData();
+                this.renderAll();
+                if(e.key === 'db_notes') this.renderNotes();
+            }
+        });
     },
 
     setupRealtimeSubscription() {
-        if (!supabaseClient) return;
-
-        supabaseClient
-            .channel('design-hub-tasks')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
-                await this.loadData();
-                this.renderBoard();
-            })
-            .subscribe((status) => {
-                if (status === 'CHANNEL_ERROR') {
-                    console.error('Realtime: no fue posible suscribirse a tareas.');
-                }
-            });
-
-        supabaseClient
-            .channel('design-hub-notes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async () => {
-                const panel = document.getElementById('notesPanel');
-                if (panel && !panel.classList.contains('open')) {
-                    document.getElementById('btnToggleNotes')
-                        .querySelector('.notification-badge')?.classList.add('active');
-                }
-                this.notes = await DataService.getNotes();
-                this.renderNotes();
-            })
-            .subscribe((status) => {
-                if (status === 'CHANNEL_ERROR') {
-                    console.error('Realtime: no fue posible suscribirse a notas.');
-                }
-            });
+        if (supabaseClient) {
+            supabaseClient
+                .channel('public-changes')
+                .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
+                    
+                    if (payload.table === 'notes') {
+                        const panel = document.getElementById('notesPanel');
+                        if(panel && !panel.classList.contains('open')) {
+                            document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
+                        }
+                    } else {
+                        UI.showToast(`Actualización Recibida`, "info", 3000);
+                    }
+                    
+                    await this.loadData();
+                    this.renderAll();
+                    this.renderNotes();
+                })
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') console.log("Conectado a WebSockets");
+                });
+        }
     },
 
     updateAvatarUI() {
@@ -987,18 +866,12 @@ const App = {
     setupPlugins() {
         flatpickr(".date-range-picker", {
             mode: "range", locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
-            onReady: (selectedDates, dateStr, instance) => {
-                ensureFlatpickrFormFieldIds(instance, 'filter-date');
-            },
             onChange: (dates) => { this.filterDates = dates; this.renderBoard(); }
         });
         
         flatpickr(".modal-date", { 
             locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
-            appendTo: document.body,
-            onReady: (selectedDates, dateStr, instance) => {
-                ensureFlatpickrFormFieldIds(instance, 'modal-date');
-            }
+            appendTo: document.body 
         });
     },
 
@@ -1008,21 +881,24 @@ const App = {
     },
 
     async saveChanges() {
-        const result = await DataService.saveTasks(this.tasks, this.originalTasks);
+        const result = await DataService.saveTasks(this.tasks);
 
-        if (!result.cloudSaved) {
-            const detail = result.error?.message ? `: ${result.error.message}` : '';
-            UI.showToast(`No se pudieron guardar los cambios${detail}`, 'error', 7000);
+        if (!result.localSaved) {
+            UI.showToast("No fue posible guardar los cambios localmente.", "error");
             return;
         }
 
-        const freshTasks = await DataService.getTasks();
-        this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
-        this.tasks = JSON.parse(JSON.stringify(freshTasks));
+        this.originalTasks = JSON.parse(JSON.stringify(this.tasks));
         this.hasUnsavedChanges = false;
         document.getElementById('unsavedChangesBar').classList.remove('active');
-        UI.showToast("Cambios guardados con éxito", "success");
-        this.renderAll();
+
+        if (supabaseClient && !result.cloudSaved) {
+            UI.showToast("Guardado localmente. No se pudo sincronizar con la nube.", "warning");
+        } else {
+            UI.showToast("Cambios guardados con éxito", "success");
+        }
+
+        this.renderBoard();
     },
 
     undoChanges() {
@@ -1060,7 +936,6 @@ const App = {
         
         this.setupProfileListeners();
         this.setupAdminListeners();
-        this.setupDynamicEventDelegation();
 
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
@@ -1156,158 +1031,6 @@ const App = {
         });
     },
 
-
-    setupDynamicEventDelegation() {
-        /*
-         * Los elementos de tareas, miembros y solicitantes se generan
-         * dinámicamente. En lugar de insertar JavaScript dentro del HTML
-         * (onclick/onchange/onkeydown), centralizamos sus eventos aquí.
-         */
-        document.addEventListener('click', async (event) => {
-            const target = event.target.closest('[data-action]');
-
-            if (!target) return;
-
-            const action = target.dataset.action;
-            const taskId = target.dataset.taskId;
-
-            switch (action) {
-                case 'remove-member': {
-                    const index = Number(target.dataset.index);
-                    if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
-                    if (!confirm('¿Quitar del equipo?')) return;
-
-                    const removedName = this.members[index];
-                    const removed = await DataService.removeMember(removedName);
-                    if (!removed) {
-                        UI.showToast('No fue posible eliminar el colaborador.', 'error');
-                        return;
-                    }
-
-                    this.members.splice(index, 1);
-                    this.usersList = await DataService.getUsers();
-                    this.renderAll();
-                    UI.showToast('Colaborador eliminado', 'success');
-                    break;
-                }
-
-                case 'remove-requester': {
-                    const index = Number(target.dataset.index);
-                    if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
-                    if (!confirm('¿Eliminar solicitante?')) return;
-
-                    const removedName = this.requesters[index];
-                    const removed = await DataService.removeRequester(removedName);
-                    if (!removed) {
-                        UI.showToast('No fue posible eliminar el solicitante.', 'error');
-                        return;
-                    }
-
-                    this.requesters.splice(index, 1);
-                    this.renderAll();
-                    UI.showToast('Solicitante eliminado', 'success');
-                    break;
-                }
-
-                case 'toggle-star':
-                    if (taskId) {
-                        this.toggleTaskStar(taskId);
-                    }
-                    break;
-
-                case 'toggle-status':
-                    if (taskId) {
-                        this.toggleTaskStatus(taskId);
-                    }
-                    break;
-
-                case 'edit-task':
-                    if (taskId) {
-                        this.openEditModal(taskId);
-                    }
-                    break;
-
-                case 'delete-task':
-                    if (!taskId) return;
-
-                    if (confirm('¿Eliminar?')) {
-                        this.tasks = this.tasks.filter(
-                            task => task.id !== taskId
-                        );
-
-                        this.markAsUnsaved();
-                        this.renderBoard();
-
-                        UI.showToast(
-                            'Tarea eliminada',
-                            'success'
-                        );
-                    }
-                    break;
-
-                default:
-                    break;
-            }
-        });
-
-        document.addEventListener('change', (event) => {
-            const target = event.target.closest('[data-action]');
-
-            if (!target) return;
-
-            const action = target.dataset.action;
-            const taskId = target.dataset.taskId;
-
-            if (!taskId) return;
-
-            switch (action) {
-                case 'toggle-completed':
-                    this.updateTask(
-                        taskId,
-                        'status',
-                        target.checked
-                            ? 'Entregado'
-                            : 'En curso',
-                        true
-                    );
-                    break;
-
-                case 'change-assignee':
-                    this.updateTask(
-                        taskId,
-                        'assignee',
-                        target.value,
-                        false
-                    );
-                    break;
-
-                default:
-                    break;
-            }
-        });
-
-        document.addEventListener('keydown', (event) => {
-            const target = event.target.closest('[data-action]');
-
-            if (!target) return;
-
-            if (
-                target.dataset.action !== 'toggle-status' ||
-                (event.key !== 'Enter' && event.key !== ' ')
-            ) {
-                return;
-            }
-
-            event.preventDefault();
-
-            const taskId = target.dataset.taskId;
-
-            if (taskId) {
-                this.toggleTaskStatus(taskId);
-            }
-        });
-    },
-
     setupNotesPanel() {
         const btnToggle = document.getElementById('btnToggleNotes');
         const panel = document.getElementById('notesPanel');
@@ -1349,9 +1072,7 @@ const App = {
 
         if (picker) {
             picker.addEventListener('emoji-click', event => {
-                const unicode = event?.detail?.unicode;
-                if (!unicode || !input) return;
-                input.value += unicode;
+                input.value += event.detail.unicode;
                 input.focus();
             });
         }
@@ -1378,13 +1099,17 @@ const App = {
 
             const result = await DataService.saveNote(newNote);
 
-            if (!result.cloudSaved) {
-                UI.showToast("No se pudo guardar la nota en la nube.", "error");
+            if (!result.localSaved) {
+                UI.showToast("No fue posible guardar la nota.", "error");
                 return;
             }
 
-            this.notes.push(result.data || newNote);
+            this.notes.push(newNote);
             input.value = '';
+
+            if (supabaseClient && !result.cloudSaved) {
+                UI.showToast("Nota guardada localmente; no se pudo sincronizar.", "warning");
+            }
             if(pickerWrapper) pickerWrapper.style.display = 'none';
             this.renderNotes();
         });
@@ -1400,39 +1125,29 @@ const App = {
             return;
         }
 
-        const fragment = document.createDocumentFragment();
         this.notes.forEach(n => {
             const dateObj = new Date(n.created_at);
             const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
+            
             const isMine = n.author === this.user.name;
+            const alignClass = isMine ? 'mine' : 'other';
+            const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
-            const message = document.createElement('div');
-            message.className = `chat-msg ${isMine ? 'mine' : 'other'}`;
+            const cleanContent = escapeHTML(n.content);
 
-            const meta = document.createElement('div');
-            meta.className = 'chat-meta';
-            const author = document.createElement('span');
-            author.textContent = isMine ? 'Tú' : normalizeText(n.author);
-            author.style.color = isMine ? 'var(--text-muted)' : authorColor;
-            author.style.fontWeight = '700';
-            const time = document.createElement('span');
-            time.textContent = dateStr;
-            meta.append(author, time);
-
-            const bubble = document.createElement('div');
-            bubble.className = `chat-bubble ${isMine ? '' : 'chat-bubble-other'}`;
-            bubble.textContent = normalizeText(n.content);
-            if (isMine) {
-                bubble.style.backgroundColor = 'var(--primary-cold)';
-                bubble.style.color = '#ffffff';
-            } else {
-                bubble.style.borderLeftColor = authorColor;
-            }
-            message.append(meta, bubble);
-            fragment.appendChild(message);
+            container.innerHTML += `
+                <div class="chat-msg ${alignClass}">
+                    <div class="chat-meta">
+                        <span style="color: ${isMine ? 'var(--text-muted)' : authorColor}; font-weight: 700;">${authorText}</span> 
+                        <span>${dateStr}</span>
+                    </div>
+                    <div class="chat-bubble ${isMine ? '' : 'chat-bubble-other'}" style="${isMine ? `background-color: var(--primary-cold); color: #ffffff;` : `border-left-color: ${authorColor};`}">
+                        ${cleanContent}
+                    </div>
+                </div>
+            `;
         });
-        container.replaceChildren(fragment);
         
         container.scrollTop = container.scrollHeight;
     },
@@ -1530,23 +1245,21 @@ const App = {
         };
 
         const saveAndClose = async (avatarData) => {
-            const avatar = sanitizeAvatarUrl(avatarData);
-            const theme = normalizeText(selectedTheme) || '#4f46e5';
-
-            if (!supabaseClient || !this.user.id) {
-                UI.showToast('No se pudo identificar tu perfil en Supabase.', 'error');
-                return;
+            this.user.avatar = sanitizeAvatarUrl(avatarData);
+            this.user.theme = selectedTheme;
+            localStorage.setItem('auth_user', JSON.stringify(this.user));
+            
+            let allUsers = await DataService.getUsers();
+            let dbUser = allUsers.find(u => u.username === this.user.username);
+            if(dbUser) {
+                dbUser.avatar = this.user.avatar;
+                dbUser.theme = selectedTheme;
+                try {
+                    await DataService.saveUsers(allUsers);
+                    UI.showToast("Perfil actualizado", "success");
+                } catch (e) { return; }
             }
 
-            const saved = await DataService.updateProfile(this.user.id, { avatar, theme });
-            if (!saved) {
-                UI.showToast('No fue posible guardar el perfil en la nube.', 'error');
-                return;
-            }
-
-            this.user.avatar = avatar;
-            this.user.theme = theme;
-            UI.showToast('Perfil actualizado', 'success');
             this.usersList = await DataService.getUsers();
             this.updateAvatarUI();
             resetProfileModal();
@@ -1625,12 +1338,24 @@ const App = {
             const input = document.getElementById('newMemberInput');
             const name = normalizeText(input.value);
             if (name && !this.members.some(m => m.toLowerCase() === name.toLowerCase())) {
-                const saved = await DataService.addMember(name);
-                if (!saved) {
-                    UI.showToast("No fue posible guardar el colaborador en la nube.", "error");
+                this.members.push(name); 
+                await DataService.addMember(name);
+                const localSaved = await DataService.saveMembers(this.members);
+                if (!localSaved) {
+                    this.members.pop();
+                    UI.showToast("No fue posible guardar el colaborador.", "error");
                     return;
                 }
-                this.members.push(name);
+                
+                const themeOptions = ['#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488', '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c', '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'];
+                const randomTheme = themeOptions[Math.floor(Math.random() * themeOptions.length)];
+
+                let dbUsers = await DataService.getUsers();
+                if (!dbUsers.some(u => u.username === name.toLowerCase())) {
+                    dbUsers.push({ username: name.toLowerCase(), password: `${name}_DH2026!`, role: "editor", name: name, avatar: "", theme: randomTheme });
+                    await DataService.saveUsers(dbUsers);
+                }
+
                 this.usersList = await DataService.getUsers();
                 input.value = ''; 
                 this.renderAll();
@@ -1638,23 +1363,29 @@ const App = {
             }
         });
 
-        document.getElementById('addRequesterForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const input = document.getElementById('newRequesterInput');
-            const name = normalizeText(input.value);
-            if (name && !this.requesters.some(r => r.toLowerCase() === name.toLowerCase())) {
-                const saved = await DataService.addRequester(name);
-                if (!saved) {
-                    UI.showToast("No fue posible guardar el solicitante en la nube.", "error");
-                    return;
-                }
-                this.requesters.push(name);
-                input.value = ''; 
+        this.removeMember = async (index) => {
+            if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
+            if (confirm('¿Eliminar miembro?')) {
+                const removedName = this.members[index];
+                this.members.splice(index, 1);
+                await DataService.removeMember(removedName);
+                await DataService.saveMembers(this.members);
                 this.renderAll();
-                UI.showToast("Solicitante añadido", "success");
+                UI.showToast("Miembro eliminado", "success");
             }
-        });
-        
+        };
+
+        this.removeRequester = async (index) => {
+            if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
+            if (confirm('¿Eliminar solicitante?')) {
+                const removedName = this.requesters[index];
+                this.requesters.splice(index, 1);
+                await DataService.removeRequester(removedName);
+                await DataService.saveRequesters(this.requesters);
+                this.renderAll();
+                UI.showToast("Solicitante eliminado", "success");
+            }
+        };
     },
 
     renderAll() {
@@ -1664,121 +1395,49 @@ const App = {
     },
 
     renderDropdowns() {
-        const buildOptions = (select, options, placeholder) => {
-            if (!select) return;
-            const fragment = document.createDocumentFragment();
-
-            if (placeholder) {
-                const option = document.createElement('option');
-                option.value = 'Todos';
-                option.textContent = placeholder;
-                fragment.appendChild(option);
-            }
-
-            options.forEach(value => {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = value;
-                fragment.appendChild(option);
+        const sAssignee = ['assignee', 'filterAssignee'];
+        sAssignee.forEach(id => {
+            const el = document.getElementById(id);
+            if(!el) return;
+            el.innerHTML = id === 'filterAssignee' ? '<option value="Todos">Asignación: Todos</option>' : '';
+            el.innerHTML += '<option value="No asignado">No asignado</option>'; 
+            this.members.forEach(m => {
+                const safeM = escapeHTML(m);
+                el.innerHTML += `<option value="${safeM}">${safeM}</option>`;
             });
-
-            select.replaceChildren(fragment);
-        };
-
-        ['assignee', 'filterAssignee'].forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-
-            const options = ['No asignado', ...this.members];
-            buildOptions(
-                el,
-                options,
-                id === 'filterAssignee' ? 'Asignación: Todos' : null
-            );
         });
 
-        ['requesterSelect', 'filterRequester', 'editRequesterSelect'].forEach(id => {
+        const sReq = ['requesterSelect', 'filterRequester', 'editRequesterSelect'];
+        sReq.forEach(id => {
             const el = document.getElementById(id);
-            if (!el) return;
-
-            buildOptions(
-                el,
-                this.requesters,
-                id === 'filterRequester' ? 'Solicitante: Todos' : null
-            );
+            if(!el) return;
+            el.innerHTML = id === 'filterRequester' ? '<option value="Todos">Solicitante: Todos</option>' : '';
+            this.requesters.forEach(r => {
+                const safeR = escapeHTML(r);
+                el.innerHTML += `<option value="${safeR}">${safeR}</option>`;
+            });
         });
-
         buildCustomSelects(document.querySelector('.inline-filters-bar'));
         buildCustomSelects(document.querySelector('#taskForm'));
         buildCustomSelects(document.querySelector('#editTaskForm'));
     },
 
     renderTags() {
-        if (this.user.role !== 'admin') return;
-
+        if(this.user.role !== 'admin') return;
         const mList = document.getElementById('membersList');
+        mList.innerHTML = '';
+        this.members.forEach((m) => {
+            const safeM = escapeHTML(m);
+            const hexColor = this.getColor(m);
+            mList.innerHTML += `<div class="member-chip" style="color: ${hexColor}; background-color: ${hexColor}20; border-color: ${hexColor}40;"><span>${safeM}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeM}" data-action="remove-member" data-index="${this.members.indexOf(m)}"><i data-lucide="x"></i></button></div>`;
+        });
+
         const rList = document.getElementById('requestersList');
-        if (!mList || !rList) return;
-
-        const membersFragment = document.createDocumentFragment();
-
-        this.members.forEach((member, index) => {
-            const safeName = normalizeText(member);
-            const color = this.getColor(member);
-
-            const chip = document.createElement('div');
-            chip.className = 'member-chip';
-            chip.style.color = color;
-            chip.style.backgroundColor = `${color}20`;
-            chip.style.borderColor = `${color}40`;
-
-            const name = document.createElement('span');
-            name.textContent = safeName;
-
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'remove-member';
-            button.setAttribute('aria-label', `Eliminar ${safeName}`);
-            button.dataset.action = 'remove-member';
-            button.dataset.index = String(index);
-
-            const icon = document.createElement('i');
-            icon.setAttribute('data-lucide', 'x');
-
-            button.appendChild(icon);
-            chip.append(name, button);
-            membersFragment.appendChild(chip);
+        rList.innerHTML = '';
+        this.requesters.forEach((r, i) => {
+            const safeR = escapeHTML(r);
+            rList.innerHTML += `<div class="member-chip"><span>${safeR}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeR}" data-action="remove-requester" data-index="${i}"><i data-lucide="x"></i></button></div>`;
         });
-
-        const requestersFragment = document.createDocumentFragment();
-
-        this.requesters.forEach((requester, index) => {
-            const safeName = normalizeText(requester);
-
-            const chip = document.createElement('div');
-            chip.className = 'member-chip';
-
-            const name = document.createElement('span');
-            name.textContent = safeName;
-
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'remove-member';
-            button.setAttribute('aria-label', `Eliminar ${safeName}`);
-            button.dataset.action = 'remove-requester';
-            button.dataset.index = String(index);
-
-            const icon = document.createElement('i');
-            icon.setAttribute('data-lucide', 'x');
-
-            button.appendChild(icon);
-            chip.append(name, button);
-            requestersFragment.appendChild(chip);
-        });
-
-        mList.replaceChildren(membersFragment);
-        rList.replaceChildren(requestersFragment);
-
         lucide.createIcons();
     },
 
@@ -1800,29 +1459,13 @@ const App = {
     },
 
     updateTask(id, field, value, shouldRender = false) {
-        const t = this.tasks.find(x => String(x.id) === String(id));
+        const t = this.tasks.find(x => x.id === id);
         if (t) {
-            t[field] = field === 'isStarred' ? Boolean(value) : normalizeText(value);
-            this.selectedTaskId = String(id);
-            this.markAsUnsaved();
+            t[field] = normalizeText(value);
+            this.markAsUnsaved(); 
             this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
-            if (shouldRender) this.renderBoard();
+            if(shouldRender) this.renderBoard(); 
         }
-    },
-
-    selectTask(taskId, render = false) {
-        const id = taskId == null ? null : String(taskId);
-        if (id && !this.tasks.some(t => String(t.id) === id)) return;
-        this.selectedTaskId = id;
-
-        document.querySelectorAll('.task-table tr[data-task-row]').forEach(row => {
-            row.classList.toggle('task-selected', row.dataset.taskRow === id);
-        });
-        document.querySelectorAll('.request-item[data-task-row]').forEach(item => {
-            item.classList.toggle('task-selected', item.dataset.taskRow === id);
-        });
-
-        if (render) this.renderBoard();
     },
 
     renderBoard() {
@@ -1881,10 +1524,6 @@ const App = {
 
         const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
         const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
-        const activeFragment = document.createDocumentFragment();
-        const completedFragment = document.createDocumentFragment();
-        const sidebarFragment = document.createDocumentFragment();
-        const sidebarCompletedFragment = document.createDocumentFragment();
 
         document.getElementById('countPrioridades').textContent = activas.length;
         document.getElementById('countRealizadas').textContent = completadas.length;
@@ -1896,10 +1535,9 @@ const App = {
         myTasks.forEach(t => {
             const li = document.createElement('li');
             // Añadir clase de estrella para estilar en el CSS
-            li.className = `request-item ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`;
+            li.className = `request-item ${t.isStarred ? 'task-starred' : ''}`;
             li.tabIndex = 0; 
             li.id = `li-${t.id}`;
-            li.dataset.taskRow = String(t.id);
             
             // Prevent Event Bubbling
             const handleExpand = (e) => {
@@ -1909,18 +1547,8 @@ const App = {
                 document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
             };
 
-            li.onclick = (e) => {
-                if (e.target.closest('input, button')) return;
-                this.selectTask(t.id);
-                handleExpand(e);
-            };
-            li.onkeydown = (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    this.selectTask(t.id);
-                    handleExpand(e);
-                }
-            };
+            li.addEventListener('click', handleExpand);
+            li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExpand(e); } });
             
             const colorHex = this.getColor(t.assignee);
             
@@ -1961,24 +1589,16 @@ const App = {
                     <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(t.assignee)}</span></div>
                 </div>
             `;
-            sidebarFragment.appendChild(li);
+            sList.appendChild(li);
         });
-        if(myTasks.length === 0) {
-            const empty = document.createElement('li');
-            empty.className = 'request-item';
-            empty.style.cssText = 'color:var(--text-muted); text-align:center; padding:20px 10px; border:none; box-shadow:none; cursor:default;';
-            empty.textContent = 'No tienes tareas asignadas';
-            sidebarFragment.appendChild(empty);
-        }
-        sList.replaceChildren(sidebarFragment);
+        if(myTasks.length === 0) sList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default;">No tienes tareas asignadas</li>';
 
         let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
         
         activas.forEach(t => {
             const tr = document.createElement('tr');
             tr.id = `tr-${t.id}`;
-            tr.className = `${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
-            tr.dataset.taskRow = String(t.id);
+            tr.className = t.isStarred ? 'task-starred' : ''; // Clase de Estrella Visual en la fila
             
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
@@ -1988,7 +1608,6 @@ const App = {
                 if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
                     return;
                 }
-                this.selectTask(t.id);
                 document.querySelectorAll('.task-table tr').forEach(r => {
                     if(r !== tr) r.classList.remove('expanded-row');
                 });
@@ -2003,7 +1622,7 @@ const App = {
             }
             
             tr.innerHTML = `
-                <td style="text-align:center;" data-label="Completada"><input type="checkbox" id="complete-task-${escapeHTML(t.id)}" name="complete-task-${escapeHTML(t.id)}" class="custom-checkbox" aria-label="Marcar como entregado" data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}"></td>
+                <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" data-action="complete-task" data-task-id="${escapeHTML(t.id)}"></td>
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
@@ -2016,13 +1635,13 @@ const App = {
                     </div>
                 </td>
                 <td data-label="Asignación">
-                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
+                    <select class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}" id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}">
                         ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
                     </select>
                 </td>
                 <td class="date-info" data-label="Fechas (Rec - Ent)">
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                    <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
+                    <input type="text" class="inline-date-picker ${dateClass}" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${t.dateReceived}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td data-label="Estado">
                     <div id="status-switch-${t.id}" 
@@ -2030,7 +1649,8 @@ const App = {
                          role="switch" 
                          aria-checked="${isCurso ? 'true' : 'false'}" 
                          tabindex="0"
-                         data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
+                         data-action="toggle-status"
+                         data-task-id="${escapeHTML(t.id)}">
                         <div class="switch-track"><div class="switch-thumb"></div></div>
                         <span class="switch-label">${escapeHTML(t.status)}</span>
                     </div>
@@ -2042,25 +1662,16 @@ const App = {
                     </div>
                 </td>
             `;
-            activeFragment.appendChild(tr);
+            tBody.appendChild(tr);
         });
-        if(activas.length === 0) {
-            const row = document.createElement('tr');
-            const cell = document.createElement('td');
-            cell.colSpan = 6;
-            cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
-            cell.textContent = 'No hay tareas pendientes.';
-            row.appendChild(cell);
-            activeFragment.appendChild(row);
-        }
-        tBody.replaceChildren(activeFragment);
+        if(activas.length === 0) tBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--text-muted);">No hay tareas pendientes.</td></tr>';
 
         completadas.forEach(t => {
             const li = document.createElement('li');
             li.className = `request-item completed-item ${t.isStarred ? 'task-starred' : ''}`;
             li.innerHTML = `
                 <div style="display:flex; gap:10px;">
-                    <input type="checkbox" id="complete-task-${escapeHTML(t.id)}-completed" name="complete-task-${escapeHTML(t.id)}-completed" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}">
+                    <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="complete-task" data-task-id="${escapeHTML(t.id)}">
                     <div style="width: 100%;">
                         <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">
                             ${t.isStarred ? '<i data-lucide="star" style="width: 12px; height: 12px; color: #f59e0b; fill: #f59e0b; margin-right: 4px;"></i>' : ''}
@@ -2070,16 +1681,9 @@ const App = {
                     </div>
                 </div>
             `;
-            sidebarCompletedFragment.appendChild(li);
+            sCompList.appendChild(li);
         });
-        if(completadas.length === 0) {
-            const empty = document.createElement('li');
-            empty.className = 'request-item';
-            empty.style.cssText = 'color:var(--text-muted); text-align:center; padding:20px 10px; border:none; box-shadow:none; cursor:default; background:transparent;';
-            empty.textContent = 'Sin historial';
-            sidebarCompletedFragment.appendChild(empty);
-        }
-        sCompList.replaceChildren(sidebarCompletedFragment);
+        if(completadas.length === 0) sCompList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default; background:transparent;">Sin historial</li>';
 
         buildCustomSelects(tBody);
         
@@ -2091,9 +1695,6 @@ const App = {
             altInputClass: "inline-date-picker-alt",
             disableMobile: "true",
             appendTo: document.body,
-            onReady: (selectedDates, dateStr, instance) => {
-                ensureFlatpickrFormFieldIds(instance, 'inline-date');
-            },
             onChange: (selectedDates, dateStr, instance) => {
                 if(selectedDates.length === 0) return;
                 const id = instance.element.getAttribute('data-id');
@@ -2117,67 +1718,47 @@ const App = {
     renderWorkloadChart(activasTasks) {
         const wContainer = document.getElementById('workloadContainer');
         if (!wContainer) return;
-
-        const workload = Object.fromEntries(this.members.map(member => [member, 0]));
+        
+        const workload = {};
+        let maxTasks = 0;
+        
+        this.members.forEach(m => workload[m] = 0);
         workload['No asignado'] = 0;
-
-        activasTasks.forEach(task => {
-            const assignee = task.assignee || 'No asignado';
-            workload[assignee] = (workload[assignee] || 0) + 1;
+        
+        activasTasks.forEach(t => {
+            const assignee = t.assignee || 'No asignado';
+            if (workload[assignee] === undefined) workload[assignee] = 0;
+            workload[assignee]++;
+            if (workload[assignee] > maxTasks) maxTasks = workload[assignee];
         });
 
-        const sortedWorkload = Object.entries(workload)
-            .sort((a, b) => b[1] - a[1]);
-
-        const maxTasks = sortedWorkload.reduce(
-            (max, [, count]) => Math.max(max, count),
-            0
-        );
-
-        const fragment = document.createDocumentFragment();
+        wContainer.innerHTML = '';
+        const sortedWorkload = Object.entries(workload).sort((a, b) => b[1] - a[1]);
 
         sortedWorkload.forEach(([name, count]) => {
-            if (count === 0 && name === 'No asignado') return;
-
+            if(count === 0 && name === 'No asignado') return; 
+            
             const percentage = maxTasks === 0 ? 0 : (count / maxTasks) * 100;
             const color = this.getColor(name);
-
-            const item = document.createElement('div');
-            item.className = 'workload-item';
-
-            const header = document.createElement('div');
-            header.className = 'workload-header';
-
-            const nameEl = document.createElement('span');
-            nameEl.textContent = normalizeText(name);
-
-            const countEl = document.createElement('span');
-            countEl.textContent = String(count);
-
-            header.append(nameEl, countEl);
-
-            const barBg = document.createElement('div');
-            barBg.className = 'workload-bar-bg';
-
-            const barFill = document.createElement('div');
-            barFill.className = 'workload-bar-fill';
-            barFill.style.width = `${percentage}%`;
-            barFill.style.backgroundColor = color;
-
-            barBg.appendChild(barFill);
-            item.append(header, barBg);
-            fragment.appendChild(item);
+            const safeName = escapeHTML(name);
+            
+            wContainer.innerHTML += `
+                <div class="workload-item">
+                    <div class="workload-header">
+                        <span>${safeName}</span>
+                        <span>${count}</span>
+                    </div>
+                    <div class="workload-bar-bg">
+                        <div class="workload-bar-fill" style="width: ${percentage}%; background-color: ${color};"></div>
+                    </div>
+                </div>
+            `;
         });
 
-        if (maxTasks === 0) {
-            const empty = document.createElement('p');
-            empty.className = 'workload-empty-state';
-            empty.textContent = 'No hay tareas activas';
-            fragment.appendChild(empty);
+        if(sortedWorkload.length === 0 || maxTasks === 0) {
+            wContainer.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No hay tareas activas</p>';
         }
-
-        wContainer.replaceChildren(fragment);
-    },
+    }
 };
 
 document.addEventListener('DOMContentLoaded', async () => {

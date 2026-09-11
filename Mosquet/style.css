@@ -61,24 +61,131 @@ body {
 /* ==========================================================================
    TOAST NOTIFICATIONS (Alta Visibilidad e Interactividad)
    ========================================================================== */
-.toast-container { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 12px; z-index: 9999999; pointer-events: none; }
-.toast { 
-    background: #ffffff; color: var(--text-dark); padding: 18px 24px; border-radius: 12px; 
-    box-shadow: 0 15px 35px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; 
-    font-weight: 600; font-size: 0.95rem; border-left: 6px solid var(--primary-cold); 
-    animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
-    pointer-events: all; transition: opacity 0.3s ease, transform 0.3s ease; 
+.toast-container {
+    position: fixed;
+    right: 28px;
+    bottom: 28px;
+    width: min(430px, calc(100vw - 40px));
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 9999999;
+    pointer-events: none;
 }
-.toast-clickable { cursor: pointer; }
-.toast-clickable:hover { transform: scale(1.03); box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
-.toast.fade-out { opacity: 0; transform: translateX(100%); }
 
-.toast.success { border-left-color: var(--success); }
-.toast.error { border-left-color: var(--danger); }
-.toast.warning { border-left-color: var(--warning); }
-.toast.info { border-left-color: var(--primary-cold); }
+.toast {
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(9, 18, 34, 0.98);
+    color: var(--text-light);
+    padding: 14px 44px 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-left: 4px solid var(--primary-cold);
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42), 0 0 24px rgba(0, 212, 255, 0.08);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    animation: slideInRight 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    pointer-events: all;
+    transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
 
-@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.toast > svg,
+.toast > i {
+    flex: 0 0 auto;
+    width: 19px;
+    height: 19px;
+    margin-top: 1px;
+}
+
+.toast-message {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.toast-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.72);
+    color: var(--text-light);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.toast-close:hover {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: var(--primary-cold);
+    transform: scale(1.04);
+}
+
+.toast-close:focus-visible {
+    outline: 2px solid var(--primary-cold);
+    outline-offset: 2px;
+}
+
+.toast-close svg {
+    width: 15px;
+    height: 15px;
+}
+
+.toast-clickable {
+    cursor: pointer;
+}
+
+.toast-clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.5), 0 0 28px rgba(0, 212, 255, 0.1);
+}
+
+.toast.fade-out {
+    opacity: 0;
+    transform: translateX(35px);
+}
+
+.toast.success {
+    border-left-color: var(--success);
+}
+
+.toast.error {
+    border-left-color: var(--danger);
+}
+
+.toast.warning {
+    border-left-color: var(--warning);
+}
+
+.toast.info {
+    border-left-color: var(--primary-cold);
+}
+
+.toast-persistent {
+    min-height: 58px;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(110%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
 
 /* Animación de Señalización de Tarea (Highlight Pulse) */
 @keyframes pulseHighlight {
