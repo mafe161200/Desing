@@ -1741,3 +1741,102 @@ textarea:disabled {
         border-left-width: 2px !important;
     }
 }
+
+
+/* =========================================================
+   DISTRIBUCIÓN — ESTADO + NOTAS + EDITAR + ELIMINAR
+   Compacta, alineada y con separación visual consistente.
+   ========================================================= */
+
+/* La celda de estado/acciones funciona como una sola fila */
+.task-table td:last-child,
+.task-table .task-actions,
+.task-table .status-actions {
+    white-space: nowrap;
+}
+
+/* Agrupación horizontal de los controles */
+.task-table .task-actions,
+.task-table .status-actions,
+.task-table td:last-child {
+    vertical-align: middle;
+}
+
+/* Evita que los botones queden pegados al estado */
+.task-table td:last-child > * {
+    vertical-align: middle;
+}
+
+/* Botones de acciones: mismo tamaño y área clicable */
+.task-table td:last-child .btn-icon,
+.task-table .task-actions .btn-icon,
+.task-table .status-actions .btn-icon {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    padding: 0;
+    margin-left: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+}
+
+/* La nota queda visualmente entre estado y edición */
+.task-table td:last-child .task-notes-button {
+    margin-left: 8px;
+}
+
+/* Separación adicional antes de editar */
+.task-table td:last-child .edit {
+    margin-left: 8px;
+}
+
+/* Eliminar como último control */
+.task-table td:last-child .delete {
+    margin-left: 5px;
+}
+
+/* Iconos ligeramente más pequeños para que el grupo respire */
+.task-table td:last-child .btn-icon svg {
+    width: 17px;
+    height: 17px;
+}
+
+/* El estado no debe empujar las acciones */
+.task-table .status-badge,
+.task-table .task-status,
+.task-table .status-pill {
+    margin-right: 2px;
+}
+
+/* Indicador de notas */
+.task-table td:last-child .task-notes-button.has-notes {
+    position: relative;
+    color: #22d3ee !important;
+    border-color: rgba(34, 211, 238, .34) !important;
+}
+
+.task-table td:last-child .task-notes-dot {
+    width: 5px;
+    height: 5px;
+    top: 4px;
+    right: 4px;
+}
+
+/* En pantallas estrechas, reduce espacios sin cambiar el orden */
+@media (max-width: 900px) {
+    .task-table td:last-child .btn-icon,
+    .task-table .task-actions .btn-icon,
+    .task-table .status-actions .btn-icon {
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
+        margin-left: 4px;
+    }
+
+    .task-table td:last-child .task-notes-button,
+    .task-table td:last-child .edit {
+        margin-left: 5px;
+    }
+}
