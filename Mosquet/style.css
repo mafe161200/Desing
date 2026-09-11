@@ -1744,99 +1744,112 @@ textarea:disabled {
 
 
 /* =========================================================
-   DISTRIBUCIÓN — ESTADO + NOTAS + EDITAR + ELIMINAR
-   Compacta, alineada y con separación visual consistente.
+   CORRECCIÓN DEFINITIVA — ESTADO Y ACCIONES
+   El botón de notas NO debe montarse sobre el estado.
    ========================================================= */
 
-/* La celda de estado/acciones funciona como una sola fila */
-.task-table td:last-child,
-.task-table .task-actions,
-.task-table .status-actions {
+/* Reserva real de espacio para las dos últimas columnas */
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) {
+    width: 170px !important;
+    min-width: 170px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
     white-space: nowrap;
 }
 
-/* Agrupación horizontal de los controles */
-.task-table .task-actions,
-.task-table .status-actions,
-.task-table td:last-child {
-    vertical-align: middle;
+.task-table th:nth-child(6),
+.task-table td:nth-child(6) {
+    width: 132px !important;
+    min-width: 132px !important;
+    padding: 12px 10px !important;
+    white-space: nowrap;
 }
 
-/* Evita que los botones queden pegados al estado */
-.task-table td:last-child > * {
-    vertical-align: middle;
+/* Estado separado completamente de las acciones */
+.task-table td:nth-child(5) {
+    text-align: center !important;
 }
 
-/* Botones de acciones: mismo tamaño y área clicable */
-.task-table td:last-child .btn-icon,
-.task-table .task-actions .btn-icon,
-.task-table .status-actions .btn-icon {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    padding: 0;
-    margin-left: 6px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    vertical-align: middle;
+.task-table td:nth-child(5) .status-switch {
+    display: inline-flex !important;
+    position: relative !important;
+    z-index: 1 !important;
+    margin: 0 auto !important;
 }
 
-/* La nota queda visualmente entre estado y edición */
-.task-table td:last-child .task-notes-button {
-    margin-left: 8px;
+/* Las acciones son un grupo independiente */
+.task-table td:nth-child(6) .action-buttons {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+    width: 100% !important;
+    position: relative !important;
+    z-index: 2 !important;
 }
 
-/* Separación adicional antes de editar */
-.task-table td:last-child .edit {
-    margin-left: 8px;
+/* Cada acción tiene su propio espacio */
+.task-table td:nth-child(6) .action-buttons .btn-icon {
+    position: relative !important;
+    flex: 0 0 30px !important;
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    margin: 0 !important;
 }
 
-/* Eliminar como último control */
-.task-table td:last-child .delete {
-    margin-left: 5px;
+/* El indicador de nota se queda dentro de su botón */
+.task-table td:nth-child(6) .task-notes-button {
+    margin: 0 !important;
 }
 
-/* Iconos ligeramente más pequeños para que el grupo respire */
-.task-table td:last-child .btn-icon svg {
-    width: 17px;
-    height: 17px;
+/* Evita que el punto de nota se salga del botón */
+.task-table td:nth-child(6) .task-notes-dot {
+    top: 3px !important;
+    right: 3px !important;
 }
 
-/* El estado no debe empujar las acciones */
-.task-table .status-badge,
-.task-table .task-status,
-.task-table .status-pill {
-    margin-right: 2px;
+/* Nunca permitir que el grupo de acciones se superponga */
+.task-table td:nth-child(6) {
+    overflow: visible !important;
 }
 
-/* Indicador de notas */
-.task-table td:last-child .task-notes-button.has-notes {
-    position: relative;
-    color: #22d3ee !important;
-    border-color: rgba(34, 211, 238, .34) !important;
+.task-table td:nth-child(6) .action-buttons {
+    overflow: visible !important;
 }
 
-.task-table td:last-child .task-notes-dot {
-    width: 5px;
-    height: 5px;
-    top: 4px;
-    right: 4px;
-}
-
-/* En pantallas estrechas, reduce espacios sin cambiar el orden */
-@media (max-width: 900px) {
-    .task-table td:last-child .btn-icon,
-    .task-table .task-actions .btn-icon,
-    .task-table .status-actions .btn-icon {
-        width: 28px;
-        height: 28px;
-        min-width: 28px;
-        margin-left: 4px;
+/* En pantallas medianas */
+@media (max-width: 1100px) {
+    .task-table th:nth-child(5),
+    .task-table td:nth-child(5) {
+        width: 155px !important;
+        min-width: 155px !important;
     }
 
-    .task-table td:last-child .task-notes-button,
-    .task-table td:last-child .edit {
-        margin-left: 5px;
+    .task-table th:nth-child(6),
+    .task-table td:nth-child(6) {
+        width: 122px !important;
+        min-width: 122px !important;
+    }
+
+    .task-table td:nth-child(6) .action-buttons {
+        gap: 6px !important;
+    }
+}
+
+/* En móvil la tabla pasa a su comportamiento responsive original */
+@media (max-width: 700px) {
+    .task-table th:nth-child(5),
+    .task-table td:nth-child(5),
+    .task-table th:nth-child(6),
+    .task-table td:nth-child(6) {
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .task-table td:nth-child(6) .action-buttons {
+        justify-content: flex-end !important;
+        width: auto !important;
     }
 }
