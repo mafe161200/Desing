@@ -275,30 +275,34 @@
                         </div>
                     </div>
                     <div class="history-analytics-grid">
-                        <article class="history-chart-card">
-                            <div class="history-chart-title">Solicitudes por mes</div>
+                        <article class="history-chart-card history-chart-card-monthly">
+                            <h4 class="history-chart-title">Solicitudes por mes</h4>
                             <div id="historyMonthlyChart" class="history-monthly-chart" aria-label="Solicitudes por mes"></div>
+                            <p id="historyMonthlySummary" class="history-chart-summary"></p>
                         </article>
                         <article class="history-chart-card">
-                            <div class="history-chart-title">Por solicitante</div>
-                            <div id="historyRequesterChart" class="history-bars"></div>
+                            <h4 class="history-chart-title">Por solicitante</h4>
+                            <div id="historyRequesterChart" class="history-bars" aria-label="Distribución de solicitudes por solicitante"></div>
                         </article>
                         <article class="history-chart-card">
-                            <div class="history-chart-title">Por responsable</div>
-                            <div id="historyAssigneeChart" class="history-bars"></div>
+                            <h4 class="history-chart-title">Por responsable</h4>
+                            <div id="historyAssigneeChart" class="history-bars" aria-label="Distribución de solicitudes por responsable"></div>
                         </article>
                         <article class="history-chart-card">
-                            <div class="history-chart-title">Por estado</div>
-                            <div id="historyStatusChart" class="history-bars"></div>
+                            <h4 class="history-chart-title">Por estado</h4>
+                            <div id="historyStatusChart" class="history-bars" aria-label="Distribución de solicitudes por estado"></div>
                         </article>
                     </div>
                 </section>
 
                 <div class="history-filters" aria-label="Filtros del historial">
-                    <div class="history-search">
-                        <i data-lucide="search" aria-hidden="true"></i>
-                        <input type="search" id="historySearch" class="custom-input" placeholder="Buscar solicitud..." aria-label="Buscar en solicitudes realizadas">
-                    </div>
+                    <label class="history-search">
+                        <span>Buscar en solicitudes</span>
+                        <div class="history-search-control">
+                            <i data-lucide="search" aria-hidden="true"></i>
+                            <input type="search" id="historySearch" class="custom-input" placeholder="Buscar solicitud..." aria-label="Buscar en solicitudes realizadas">
+                        </div>
+                    </label>
 
                     <label class="history-field">
                         <span>Mes</span>

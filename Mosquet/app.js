@@ -2196,6 +2196,7 @@ const App = {
 
     renderHistoryAnalytics(tasks) {
         const monthly = document.getElementById('historyMonthlyChart');
+        const monthlySummary = document.getElementById('historyMonthlySummary');
         const requester = document.getElementById('historyRequesterChart');
         const assignee = document.getElementById('historyAssigneeChart');
         const status = document.getElementById('historyStatusChart');
@@ -2269,6 +2270,7 @@ const App = {
             .slice(-8);
 
         monthly.replaceChildren();
+        if (monthlySummary) monthlySummary.textContent = '';
 
         if (!monthlyEntries.length) {
             const empty = document.createElement('div');
@@ -2277,6 +2279,12 @@ const App = {
             monthly.appendChild(empty);
         } else {
             const max = Math.max(...monthlyEntries.map(([, value]) => value), 1);
+
+            if (monthlySummary) {
+                monthlySummary.textContent = monthlyEntries
+                    .map(([key, value]) => `${labelMonth(key)}: ${value} solicitud${value === 1 ? '' : 'es'}`)
+                    .join(' · ');
+            }
 
             monthlyEntries.forEach(([key, value]) => {
                 const item = document.createElement('div');
