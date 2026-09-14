@@ -3971,3 +3971,319 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 .history-results-heading + .history-table-wrap {
     border-top: 1px solid #1e314b;
 }
+
+/* =========================================================
+   V5.9 — ESTADO INTUITIVO + HISTORIAL DE CAMBIOS
+   ========================================================= */
+
+.inline-status + .select-trigger,
+.select-trigger.inline-status {
+    min-width: 112px;
+    justify-content: space-between;
+    min-height: 40px;
+    padding: 8px 10px;
+    font-weight: 750;
+    border-radius: 999px;
+    border: 1px solid #2b4260;
+    background: #0d1828;
+    color: #cfe0f3;
+}
+
+.select-trigger.inline-status.active {
+    border-color: #67e8f9;
+    box-shadow: 0 0 0 2px rgba(34,211,238,.16);
+}
+
+.board-history-access {
+    margin-top: 0;
+}
+
+.task-history-button {
+    color: #8ea6c2;
+}
+
+.task-history-button:hover {
+    color: #67e8f9;
+    border-color: rgba(34,211,238,.48);
+}
+
+.task-history-viewer-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10060;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(2, 7, 15, .78);
+    backdrop-filter: blur(5px);
+    animation: historyOverlayIn .18s ease both;
+}
+
+.task-history-viewer-card {
+    width: min(760px, 100%);
+    max-height: min(780px, calc(100vh - 40px));
+    overflow: auto;
+    border: 1px solid #29415f;
+    border-radius: 16px;
+    background: #08111f;
+    box-shadow: 0 28px 80px rgba(0,0,0,.55);
+    animation: historyCardIn .22s ease both;
+}
+
+@keyframes historyOverlayIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes historyCardIn {
+    from { opacity: 0; transform: translateY(8px) scale(.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.task-history-viewer-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    border-bottom: 1px solid #203550;
+    background: #0a1424;
+}
+
+.task-history-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.task-history-title-wrap > svg {
+    width: 19px;
+    height: 19px;
+    color: #22d3ee;
+}
+
+.task-history-viewer-header h2 {
+    margin: 0;
+    color: #f4f7ff;
+    font-size: .98rem;
+    font-weight: 800;
+}
+
+.task-history-task-title {
+    margin: 16px 18px 4px;
+    color: #f4f7ff;
+    font-size: .86rem;
+    font-weight: 750;
+    line-height: 1.45;
+}
+
+.task-history-intro {
+    margin: 0 18px 14px;
+    color: #8fa5bf;
+    font-size: .7rem;
+    line-height: 1.5;
+}
+
+.task-history-list {
+    position: relative;
+    padding: 4px 18px 22px 34px;
+}
+
+.task-history-list::before {
+    content: "";
+    position: absolute;
+    left: 23px;
+    top: 12px;
+    bottom: 26px;
+    width: 1px;
+    background: #29415f;
+}
+
+.task-history-item {
+    position: relative;
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.task-history-marker {
+    position: relative;
+    z-index: 1;
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #31506e;
+    border-radius: 50%;
+    background: #0b1727;
+    color: #67e8f9;
+}
+
+.task-history-marker svg {
+    width: 10px;
+    height: 10px;
+}
+
+.task-history-item-content {
+    min-width: 0;
+    padding: 11px 12px;
+    border: 1px solid #1f3550;
+    border-radius: 10px;
+    background: #0a1524;
+}
+
+.task-history-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.task-history-operation {
+    color: #67e8f9;
+    font-size: .68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.task-history-operation.is-created { color: #6ee7b7; }
+.task-history-operation.is-deleted { color: #fb7185; }
+
+.task-history-date {
+    color: #8fa5bf;
+    font-size: .64rem;
+    white-space: nowrap;
+}
+
+.task-history-by {
+    margin: 3px 0 9px;
+    color: #7f94ae;
+    font-size: .64rem;
+}
+
+.task-history-diff {
+    display: grid;
+    gap: 7px;
+}
+
+.task-history-diff-row {
+    display: grid;
+    grid-template-columns: 100px minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+}
+
+.task-history-field {
+    color: #9db1c9;
+    font-size: .65rem;
+    font-weight: 700;
+}
+
+.task-history-values {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.task-history-values svg {
+    width: 12px;
+    height: 12px;
+    color: #607793;
+}
+
+.task-history-old,
+.task-history-new {
+    max-width: 100%;
+    padding: 3px 6px;
+    border-radius: 5px;
+    font-size: .64rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.task-history-old {
+    color: #a8b6c8;
+    background: #101b2a;
+    text-decoration: line-through;
+}
+
+.task-history-new {
+    color: #dff8ff;
+    background: #0d2631;
+    border: 1px solid #194958;
+}
+
+.task-history-restore {
+    min-height: 38px;
+    margin-top: 10px;
+    font-size: .68rem;
+}
+
+.task-history-empty {
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    text-align: center;
+    color: #8fa5bf;
+}
+
+.task-history-empty svg {
+    width: 28px;
+    height: 28px;
+    color: #4f6986;
+    margin-bottom: 4px;
+}
+
+.task-history-empty strong {
+    color: #dce8f7;
+    font-size: .8rem;
+}
+
+.task-history-empty span {
+    max-width: 390px;
+    font-size: .68rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 620px) {
+    .task-history-viewer-overlay {
+        padding: 8px;
+        align-items: flex-end;
+    }
+
+    .task-history-viewer-card {
+        max-height: calc(100vh - 16px);
+        border-radius: 14px 14px 8px 8px;
+    }
+
+    .task-history-diff-row {
+        grid-template-columns: 1fr;
+        gap: 3px;
+    }
+
+    .task-history-list {
+        padding-left: 28px;
+    }
+
+    .task-history-list::before {
+        left: 17px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .task-history-viewer-overlay,
+    .task-history-viewer-card {
+        animation: none !important;
+    }
+}

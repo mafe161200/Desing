@@ -448,6 +448,64 @@ const DataService = {
         }
     },
 
+    async getTaskHistory(taskId) {
+        if (!supabaseClient || !taskId) return [];
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('task_change_history')
+                .select('id, task_id, operation, before_data, after_data, changed_by, created_at')
+                .eq('task_id', String(taskId))
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Supabase: no se pudo cargar el historial de cambios.', error);
+                UI.showToast('No se pudo cargar el historial de cambios.', 'error');
+                return [];
+            }
+
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error('Supabase: error cargando historial de cambios.', error);
+            UI.showToast('No se pudo cargar el historial de cambios.', 'error');
+            return [];
+        }
+    },
+
+    async restoreTaskVersion(taskId, snapshot) {
+        if (!supabaseClient || !taskId || !snapshot) {
+            return { cloudSaved: false, error: new Error('Datos insuficientes para restaurar la versión.') };
+        }
+
+        try {
+            const payload = {
+                name: snapshot.name ?? '',
+                requester: snapshot.requester ?? '',
+                assignee: snapshot.assignee ?? 'No asignado',
+                status: snapshot.status ?? 'En cola',
+                dateReceived: snapshot.dateReceived ?? '',
+                dateDelivered: snapshot.dateDelivered ?? '',
+                isStarred: Boolean(snapshot.isStarred),
+                notes: snapshot.notes ?? ''
+            };
+
+            const { data, error } = await supabaseClient
+                .from('tasks')
+                .update(payload)
+                .eq('id', taskId)
+                .select('id')
+                .single();
+
+            if (error) throw error;
+            if (!data) throw new Error('Supabase no confirmó la restauración.');
+
+            return { cloudSaved: true };
+        } catch (error) {
+            console.error('Supabase: no se pudo restaurar la versión.', error);
+            return { cloudSaved: false, error };
+        }
+    },
+
     async getNotes() {
         if (!supabaseClient) return [];
 
@@ -1512,14 +1570,12 @@ const App = {
                     }
                     break;
 
-                case 'toggle-status':
-                    if (taskId) {
-                        this.toggleTaskStatus(taskId);
-                    }
-                    break;
-
                 case 'view-task-notes':
                     if (taskId) this.openTaskNotes(taskId);
+                    break;
+
+                case 'view-task-history':
+                    if (taskId) this.openTaskHistory(taskId);
                     break;
 
                 case 'edit-task':
@@ -1592,6 +1648,16 @@ const App = {
                         target.value,
                         false
                     );
+                    break;
+
+                case 'change-status':
+                    this.updateTask(
+                        taskId,
+                        'status',
+                        target.value,
+                        false
+                    );
+                    UI.showToast(`Estado cambiado a ${target.value}`, 'info', 2200);
                     break;
 
                 default:
@@ -1751,28 +1817,6 @@ const App = {
         }
 
         document.getElementById('modalEditTask').classList.add('active');
-    },
-
-    toggleTaskStatus(taskId) {
-        const task = this.tasks.find(t => t.id === taskId);
-        if (!task) return;
-
-        const newStatus = task.status === 'En curso' ? 'En cola' : 'En curso';
-        task.status = newStatus;
-        
-        const element = document.getElementById(`status-switch-${taskId}`);
-        if (element) {
-            const isCurso = newStatus === 'En curso';
-            element.className = `status-switch ${isCurso ? 'curso' : 'cola'}`;
-            element.setAttribute('aria-checked', isCurso ? 'true' : 'false');
-            element.innerHTML = `
-                <div class="switch-track"><div class="switch-thumb"></div></div>
-                <span class="switch-label">${newStatus}</span>
-            `;
-        }
-
-        this.markAsUnsaved();
-        this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
     },
 
     setupProfileListeners() {
@@ -2535,6 +2579,230 @@ const App = {
         }
     },
 
+    async openTaskHistory(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task) return;
+
+        document.getElementById('taskHistoryViewer')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'taskHistoryViewer';
+        overlay.className = 'task-history-viewer-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'taskHistoryViewerTitle');
+
+        const card = document.createElement('div');
+        card.className = 'task-history-viewer-card';
+
+        const header = document.createElement('div');
+        header.className = 'task-history-viewer-header';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'task-history-title-wrap';
+
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'history');
+
+        const title = document.createElement('h2');
+        title.id = 'taskHistoryViewerTitle';
+        title.textContent = 'Historial de cambios';
+
+        titleWrap.append(icon, title);
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-icon task-history-viewer-close';
+        close.setAttribute('aria-label', 'Cerrar historial');
+        close.title = 'Cerrar historial';
+        const closeIcon = document.createElement('i');
+        closeIcon.setAttribute('data-lucide', 'x');
+        close.appendChild(closeIcon);
+        header.append(titleWrap, close);
+
+        const taskTitle = document.createElement('p');
+        taskTitle.className = 'task-history-task-title';
+        taskTitle.textContent = normalizeText(task.name);
+
+        const intro = document.createElement('p');
+        intro.className = 'task-history-intro';
+        intro.textContent = 'Consulta qué cambió, cuándo ocurrió y restaura una versión anterior si es necesario.';
+
+        const list = document.createElement('div');
+        list.className = 'task-history-list';
+        list.setAttribute('aria-live', 'polite');
+
+        card.append(header, taskTitle, intro, list);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        lucide.createIcons();
+
+        const closeViewer = () => {
+            overlay.remove();
+            document.body.classList.remove('modal-open');
+        };
+
+        close.addEventListener('click', closeViewer);
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) closeViewer();
+        });
+
+        document.body.classList.add('modal-open');
+
+        const history = await DataService.getTaskHistory(taskId);
+        const users = this.usersList || [];
+        const userName = id => {
+            const user = users.find(u => String(u.id) === String(id));
+            return user?.name || user?.username || 'Usuario';
+        };
+
+        if (!history.length) {
+            const empty = document.createElement('div');
+            empty.className = 'task-history-empty';
+            empty.innerHTML = '<i data-lucide="clock-3" aria-hidden="true"></i><strong>Aún no hay cambios registrados</strong><span>El historial aparecerá después de guardar modificaciones en esta solicitud.</span>';
+            list.appendChild(empty);
+            lucide.createIcons();
+            close.focus();
+            return;
+        }
+
+        const fieldLabels = {
+            name: 'Nombre',
+            requester: 'Solicitante',
+            assignee: 'Asignación',
+            status: 'Estado',
+            dateReceived: 'Fecha de recepción',
+            dateDelivered: 'Fecha de entrega',
+            isStarred: 'Prioridad',
+            notes: 'Notas'
+        };
+
+        const formatValue = (field, value) => {
+            if (field === 'isStarred') return value ? 'Prioritaria' : 'Sin prioridad';
+            if (!value) return 'Vacío';
+            return String(value);
+        };
+
+        history.forEach((entry, index) => {
+            const item = document.createElement('article');
+            item.className = 'task-history-item';
+
+            const marker = document.createElement('div');
+            marker.className = 'task-history-marker';
+            marker.setAttribute('aria-hidden', 'true');
+            marker.innerHTML = '<i data-lucide="git-commit-horizontal"></i>';
+
+            const content = document.createElement('div');
+            content.className = 'task-history-item-content';
+
+            const top = document.createElement('div');
+            top.className = 'task-history-item-top';
+
+            const op = document.createElement('span');
+            op.className = `task-history-operation ${entry.operation === 'INSERT' ? 'is-created' : entry.operation === 'DELETE' ? 'is-deleted' : ''}`;
+            op.textContent = entry.operation === 'INSERT' ? 'Creación' : entry.operation === 'DELETE' ? 'Eliminación' : 'Cambio';
+
+            const date = document.createElement('time');
+            date.className = 'task-history-date';
+            date.dateTime = entry.created_at;
+            date.textContent = new Date(entry.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+
+            top.append(op, date);
+
+            const by = document.createElement('p');
+            by.className = 'task-history-by';
+            by.textContent = `Por ${userName(entry.changed_by)}`;
+
+            const diff = document.createElement('div');
+            diff.className = 'task-history-diff';
+
+            const before = entry.before_data || {};
+            const after = entry.after_data || {};
+            const changedFields = Object.keys(fieldLabels).filter(field =>
+                String(before[field] ?? '') !== String(after[field] ?? '')
+            );
+
+            if (entry.operation === 'INSERT') {
+                const text = document.createElement('p');
+                text.textContent = 'Se creó la solicitud.';
+                diff.appendChild(text);
+            } else if (entry.operation === 'DELETE') {
+                const text = document.createElement('p');
+                text.textContent = 'Se eliminó la solicitud.';
+                diff.appendChild(text);
+            } else if (!changedFields.length) {
+                const text = document.createElement('p');
+                text.textContent = 'Se registró un cambio sin diferencias visibles.';
+                diff.appendChild(text);
+            } else {
+                changedFields.slice(0, 6).forEach(field => {
+                    const row = document.createElement('div');
+                    row.className = 'task-history-diff-row';
+
+                    const label = document.createElement('span');
+                    label.className = 'task-history-field';
+                    label.textContent = fieldLabels[field];
+
+                    const values = document.createElement('div');
+                    values.className = 'task-history-values';
+
+                    const oldValue = document.createElement('span');
+                    oldValue.className = 'task-history-old';
+                    oldValue.textContent = formatValue(field, before[field]);
+
+                    const arrow = document.createElement('i');
+                    arrow.setAttribute('data-lucide', 'arrow-right');
+                    arrow.setAttribute('aria-hidden', 'true');
+
+                    const newValue = document.createElement('span');
+                    newValue.className = 'task-history-new';
+                    newValue.textContent = formatValue(field, after[field]);
+
+                    values.append(oldValue, arrow, newValue);
+                    row.append(label, values);
+                    diff.appendChild(row);
+                });
+            }
+
+            content.append(top, by, diff);
+
+            if (entry.operation === 'UPDATE' && entry.before_data) {
+                const restore = document.createElement('button');
+                restore.type = 'button';
+                restore.className = 'btn btn-secondary task-history-restore';
+                restore.textContent = index === 0 ? 'Restaurar versión anterior' : 'Restaurar esta versión';
+                restore.setAttribute('aria-label', `Restaurar versión del ${date.textContent}`);
+                restore.addEventListener('click', async () => {
+                    if (!confirm('¿Restaurar esta versión? El estado actual quedará registrado como un nuevo cambio.')) return;
+                    restore.disabled = true;
+
+                    const result = await DataService.restoreTaskVersion(taskId, entry.before_data);
+                    if (!result.cloudSaved) {
+                        restore.disabled = false;
+                        UI.showToast(`No se pudo restaurar la versión${result.error?.message ? `: ${result.error.message}` : ''}`, 'error', 7000);
+                        return;
+                    }
+
+                    const fresh = await DataService.getTasks();
+                    this.tasks = JSON.parse(JSON.stringify(fresh));
+                    this.originalTasks = JSON.parse(JSON.stringify(fresh));
+                    this.hasUnsavedChanges = false;
+
+                    closeViewer();
+                    this.renderAll();
+                    UI.showToast('Versión restaurada correctamente', 'success');
+                });
+                content.appendChild(restore);
+            }
+
+            item.append(marker, content);
+            list.appendChild(item);
+        });
+
+        lucide.createIcons();
+        close.focus();
+    },
+
     openTaskNotes(taskId) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task) return;
@@ -2898,16 +3166,19 @@ const App = {
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td data-label="Estado">
-                    <button type="button" id="status-switch-${t.id}"
-                            class="status-switch ${isCurso ? 'curso' : 'cola'}"
-                            aria-label="Cambiar estado de ${escapeHTML(t.name)}. Estado actual: ${escapeHTML(t.status)}"
-                            data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
-                        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-                        <span class="switch-label">${escapeHTML(t.status)}</span>
-                    </button>
+                    <select id="status-${escapeHTML(t.id)}"
+                            name="status-${escapeHTML(t.id)}"
+                            class="native-select-hidden table-select inline-status"
+                            aria-label="Cambiar estado de ${escapeHTML(t.name)}"
+                            data-action="change-status"
+                            data-task-id="${escapeHTML(t.id)}">
+                        <option value="En cola" ${t.status === 'En cola' ? 'selected' : ''}>En cola</option>
+                        <option value="En curso" ${t.status === 'En curso' ? 'selected' : ''}>En curso</option>
+                    </select>
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
                     <div class="action-buttons">
+                        <button type="button" class="btn-icon task-history-button" aria-label="Ver historial de cambios de la solicitud" title="Historial de cambios" data-action="view-task-history" data-task-id="${escapeHTML(t.id)}"><i data-lucide="history"></i></button>
                         <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
                         <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
                         <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
