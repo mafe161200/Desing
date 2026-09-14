@@ -3416,3 +3416,85 @@ body,
         width: 100%;
     }
 }
+
+/* =========================================================
+   DESIGN HUB V5.2 — ACCESIBILIDAD + REDUCCIÓN DE RUIDO
+   ========================================================= */
+
+/* Acceso por teclado: el primer foco útil debe ser el contenido. */
+.skip-link {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 20000;
+    transform: translateY(-150%);
+    padding: 9px 12px;
+    border: 1px solid #22d3ee;
+    border-radius: 8px;
+    background: #07101d;
+    color: #e9f7ff;
+    font-size: .75rem;
+    font-weight: 750;
+    text-decoration: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid #22d3ee !important;
+    outline-offset: 2px !important;
+}
+
+/* Los iconos decorativos no deben ocupar espacio semántico. */
+button > svg[aria-hidden="true"],
+a > svg[aria-hidden="true"] {
+    pointer-events: none;
+}
+
+/* El formulario ya tiene secciones: reducimos bordes/espaciado
+   para que la jerarquía venga de títulos, no de cajas dentro de cajas. */
+.task-form .form-section {
+    background: transparent;
+    border-color: #1a2b42;
+    box-shadow: none;
+}
+
+.task-form .form-section-heading {
+    margin-bottom: 10px;
+}
+
+.task-form .form-section-heading p {
+    max-width: 620px;
+}
+
+/* Ayudas secundarias: visibles pero nunca compiten con labels. */
+.task-form .field-help {
+    color: #667b96;
+}
+
+/* Un único mensaje de requerido al final; los asteriscos siguen
+   identificando el campo individual para quien escanea el formulario. */
+.form-required-note {
+    color: #6d819d;
+}
+
+/* Evitar que botones pequeños parezcan acciones primarias. */
+.btn-text {
+    min-height: 34px;
+}
+
+/* No usar animaciones que puedan perjudicar a usuarios con sensibilidad
+   al movimiento. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+    }
+}

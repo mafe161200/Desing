@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <a class="skip-link" href="#mainContent">Saltar al contenido principal</a>
 
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
@@ -154,7 +155,7 @@
                 </div>
             </aside>
 
-            <main class="main-board">
+            <main class="main-board" id="mainContent">
                 <section class="card board-section card-accent-primary">
                     <div class="card-header card-header-flex">
                         <div>
@@ -482,14 +483,6 @@
                             <textarea id="taskNotes" name="taskNotes" class="custom-input task-notes-input" rows="4" maxlength="2000" placeholder="Añade contexto, instrucciones, referencias, formatos o enlaces..." autocomplete="off" aria-describedby="taskNotesHelp"></textarea>
                             <div id="taskNotesHelp" class="field-help"><span>Opcional.</span><span id="taskNotesCount">0/2000</span></div>
                         </div>
-                        <div class="field">
-                            <label for="status">Estado inicial <span class="required-mark" aria-hidden="true">*</span></label>
-                            <select id="status" name="status" class="native-select-hidden" required>
-                                <option value="En cola" selected>En cola</option>
-                                <option value="En curso">En curso</option>
-                            </select>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="form-actions">
