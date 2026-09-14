@@ -2,7 +2,7 @@
     /* =====================================================
        DESIGN HUB — DARK TECHNO / ENTERPRISE
        ===================================================== */
-    background-color: #050814 !important;
+    --bg-main: #050814;
     --card-bg: #0b1020;
     --bg-subtle: #0e1628;
     --border-light: #243451;
@@ -1255,5 +1255,538 @@ select:focus-visible,
                 rgba(34,211,238,.11),
                 rgba(11,16,32,.98)
             ) !important;
+    }
+}
+
+/* =========================================================
+   DESIGN HUB V4 — UX/UI CONSOLIDATION
+   ========================================================= */
+
+/* ---------- Shell / layout ---------- */
+.app-container,
+.app-shell,
+main {
+    background: transparent;
+}
+
+.layout-grid {
+    grid-template-columns: minmax(220px, 255px) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.sidebar-col {
+    position: relative;
+    min-width: 0;
+    transition: width .22s ease, opacity .18s ease;
+}
+
+.sidebar-col.is-collapsed {
+    width: 58px;
+    min-width: 58px;
+}
+
+.sidebar-col.is-collapsed .sidebar-card {
+    overflow: hidden;
+}
+
+.sidebar-col.is-collapsed .sidebar-card > .card-header,
+.sidebar-col.is-collapsed .sidebar-content {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sidebar-col.is-collapsed .sidebar-card {
+    min-height: 58px;
+    height: 58px;
+}
+
+.sidebar-collapse-btn {
+    position: absolute;
+    z-index: 10;
+    top: 12px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--v3-border);
+    border-radius: 8px;
+    background: #0a1323;
+    color: #91a6c4;
+    cursor: pointer;
+    transition: .16s ease;
+}
+
+.sidebar-collapse-btn:hover {
+    color: var(--v3-cyan);
+    border-color: rgba(34,211,238,.45);
+    background: rgba(34,211,238,.08);
+}
+
+.sidebar-collapse-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ---------- Board header ---------- */
+.board-section > .card-header {
+    padding-bottom: 15px;
+}
+
+.board-section .subtitle {
+    margin-top: 4px;
+    color: #8195b2;
+    font-size: .78rem;
+}
+
+/* ---------- Summary cards ---------- */
+.summary-card {
+    min-height: 74px;
+    border: 1px solid rgba(65,91,126,.45);
+    background: linear-gradient(145deg, #0c1525, #080f1d);
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+
+.summary-card.is-interactive {
+    cursor: pointer;
+}
+
+.summary-card.is-interactive:hover {
+    transform: translateY(-2px);
+    border-color: rgba(56,189,248,.45);
+    background: linear-gradient(145deg, #0e1a2d, #091321);
+}
+
+.summary-card.is-interactive:focus-visible {
+    outline: 2px solid var(--cyber-cyan);
+    outline-offset: 3px;
+}
+
+.summary-card strong {
+    color: #f5f8ff !important;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+/* ---------- Filters ---------- */
+.inline-filters-bar {
+    background: #070e1b !important;
+    border-top: 1px solid rgba(62,88,124,.36);
+    border-bottom: 1px solid rgba(62,88,124,.36);
+    padding: 11px 12px !important;
+    gap: 8px !important;
+}
+
+.filter-search {
+    flex: 1 1 320px;
+    min-width: 240px;
+}
+
+.filter-search input {
+    width: 100%;
+    min-height: 38px;
+    background: #091321 !important;
+    border-color: #263a57 !important;
+    color: #dbe8fb !important;
+}
+
+.quick-filters {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.quick-filter {
+    height: 34px;
+    padding: 0 9px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #8398b6;
+    font-size: .72rem;
+    font-weight: 650;
+    background: transparent;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: .15s ease;
+}
+
+.quick-filter:hover {
+    color: #cdeaff;
+    background: rgba(56,189,248,.06);
+}
+
+.quick-filter.active {
+    color: #67e8f9;
+    background: rgba(34,211,238,.09);
+    border-color: rgba(34,211,238,.30);
+}
+
+.quick-filter svg {
+    width: 13px;
+    height: 13px;
+    vertical-align: -2px;
+}
+
+.inline-filter-item .native-select-hidden,
+.inline-filter-item select {
+    min-height: 36px;
+    background: #0a1323 !important;
+    color: #b9c9df !important;
+    border-color: #263a57 !important;
+}
+
+/* ---------- Table proportions ---------- */
+.table-wrapper {
+    overflow-x: auto;
+    background: #0a111f;
+}
+
+.task-table {
+    width: 100%;
+    table-layout: fixed;
+    background: #0a111f !important;
+}
+
+.task-table th:nth-child(1),
+.task-table td:nth-child(1) { width: 5%; }
+.task-table th:nth-child(2),
+.task-table td:nth-child(2) { width: 38%; }
+.task-table th:nth-child(3),
+.task-table td:nth-child(3) { width: 21%; }
+.task-table th:nth-child(4),
+.task-table td:nth-child(4) { width: 17%; }
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) { width: 13%; }
+.task-table th:nth-child(6),
+.task-table td:nth-child(6) { width: 6%; }
+
+.task-table thead th {
+    height: 38px;
+    padding: 8px 10px;
+    background: #080f1e !important;
+    color: #7890af !important;
+    border-bottom: 1px solid #263a57;
+    font-size: .69rem;
+    text-transform: none;
+    letter-spacing: .02em;
+}
+
+.task-table tbody td {
+    min-height: 62px;
+    padding: 11px 10px;
+    color: #b8c8df;
+    border-bottom: 1px solid rgba(48,69,98,.55);
+    vertical-align: middle;
+}
+
+.task-table tbody tr:hover {
+    background: rgba(56,189,248,.035) !important;
+}
+
+.task-table tr.task-selected {
+    background: linear-gradient(90deg, rgba(34,211,238,.10), rgba(11,18,32,.96)) !important;
+    box-shadow: inset 2px 0 0 #22d3ee;
+}
+
+.task-table tr.task-selected td {
+    border-bottom-color: rgba(34,211,238,.20);
+}
+
+.task-table tr.task-starred:not(.task-selected) {
+    background: linear-gradient(90deg, rgba(34,211,238,.055), rgba(8,15,30,.98)) !important;
+}
+
+.task-table tr.task-starred:not(.task-selected) td:first-child {
+    box-shadow: inset 2px 0 0 #22d3ee;
+}
+
+.req-title-cell {
+    min-width: 0;
+}
+
+.req-title-cell strong {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
+}
+
+.req-title-text {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #cfe0f7 !important;
+    font-size: .79rem;
+    font-weight: 650;
+}
+
+.req-title-cell > span:not(.req-title-text),
+.req-title-cell > span:last-child {
+    display: block;
+    margin-top: 4px;
+    color: #7890af;
+    font-size: .68rem;
+}
+
+.btn-star {
+    flex: 0 0 auto;
+}
+
+/* ---------- Dates ---------- */
+.task-table td.date-info {
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+}
+
+.task-table td.date-info::before,
+.task-table td.date-info::after {
+    display: none !important;
+    content: none !important;
+}
+
+.date-req {
+    color: #7187a5 !important;
+    font-size: .67rem !important;
+}
+
+.inline-date-picker {
+    width: 100%;
+    min-width: 96px;
+    min-height: 31px;
+    padding: 5px 8px !important;
+    background: #07111f !important;
+    border: 1px solid #294463 !important;
+    color: #e2ecfa !important;
+    font-weight: 750;
+    font-size: .69rem;
+    text-align: center;
+}
+
+/* ---------- Assignment ---------- */
+.table-select {
+    width: 100%;
+    min-height: 34px;
+}
+
+/* ---------- Status ---------- */
+.task-table .status-switch {
+    min-width: 103px;
+    height: 30px;
+    box-shadow: none !important;
+}
+
+.status-switch.cola {
+    background: rgba(236,72,153,.09) !important;
+    border-color: #ec4899 !important;
+    color: #f9a8d4 !important;
+}
+
+.status-switch.curso {
+    background: rgba(34,211,238,.08) !important;
+    border-color: #22d3ee !important;
+    color: #67e8f9 !important;
+}
+
+/* ---------- Actions ---------- */
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px !important;
+}
+
+.task-table .action-buttons .btn-icon {
+    width: 29px;
+    height: 29px;
+    padding: 0;
+    color: #7186a3;
+}
+
+.task-table .action-buttons .task-notes-button:hover,
+.task-table .action-buttons .task-notes-button.has-notes {
+    color: #38bdf8;
+}
+
+.task-table .action-buttons .delete:hover {
+    color: #fb7185;
+    background: rgba(251,113,133,.08);
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar-card {
+    background: #0a111f !important;
+}
+
+.sidebar-card .card-header {
+    min-height: 50px;
+    background: #0b1322 !important;
+}
+
+.request-item {
+    background: #0b1424 !important;
+    border-color: #243753 !important;
+}
+
+.request-item:hover {
+    background: #0e192b !important;
+    border-color: #2f4d70 !important;
+}
+
+.request-item.task-starred {
+    background: linear-gradient(135deg, rgba(34,211,238,.08), #0b1424) !important;
+    border-left: 2px solid #22d3ee !important;
+}
+
+/* ---------- Workload ---------- */
+.workload-item {
+    margin-bottom: 12px !important;
+}
+
+.workload-avatar {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+    min-height: 24px !important;
+    max-width: 24px !important;
+    max-height: 24px !important;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.workload-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 50%;
+}
+
+/* ---------- Completed ---------- */
+.completed-item {
+    opacity: .82;
+}
+
+.completed-item .req-name-text {
+    color: #8194ae !important;
+}
+
+/* ---------- Toast ---------- */
+.toast-container {
+    right: 16px !important;
+    bottom: 16px !important;
+    width: min(390px, calc(100vw - 32px));
+}
+
+.toast {
+    background: #0b1424 !important;
+    color: #e8f0fc !important;
+    border: 1px solid #29415f !important;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+    .layout-grid {
+        grid-template-columns: 220px minmax(0, 1fr);
+    }
+
+    .task-table th:nth-child(2),
+    .task-table td:nth-child(2) { width: 34%; }
+    .task-table th:nth-child(3),
+    .task-table td:nth-child(3) { width: 20%; }
+    .task-table th:nth-child(4),
+    .task-table td:nth-child(4) { width: 18%; }
+    .task-table th:nth-child(5),
+    .task-table td:nth-child(5) { width: 15%; }
+    .task-table th:nth-child(6),
+    .task-table td:nth-child(6) { width: 8%; }
+}
+
+@media (max-width: 768px) {
+    .layout-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar-col,
+    .sidebar-col.is-collapsed {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .sidebar-collapse-btn {
+        display: none;
+    }
+
+    .inline-filters-bar {
+        padding: 9px !important;
+    }
+
+    .filter-search {
+        flex-basis: 100%;
+    }
+
+    .quick-filters {
+        width: 100%;
+    }
+
+    .task-table,
+    .task-table tbody,
+    .task-table tr,
+    .task-table td {
+        width: 100% !important;
+    }
+
+    .task-table thead {
+        display: none;
+    }
+
+    .task-table tr,
+    .task-table tr.task-starred,
+    .task-table tr.task-selected {
+        display: grid;
+        grid-template-columns: 36px 1fr;
+        gap: 0;
+        margin: 8px 8px;
+        border: 1px solid #243753;
+        border-radius: 10px;
+        overflow: hidden;
+        background: #0a111f !important;
+    }
+
+    .task-table td {
+        display: block;
+        width: auto !important;
+        border-bottom: 0 !important;
+        padding: 9px 10px;
+    }
+
+    .task-table td:nth-child(1) { grid-column: 1; grid-row: 1 / span 4; }
+    .task-table td:nth-child(2) { grid-column: 2; grid-row: 1; }
+    .task-table td:nth-child(3) { grid-column: 2; grid-row: 2; }
+    .task-table td:nth-child(4) { grid-column: 2; grid-row: 3; }
+    .task-table td:nth-child(5) { grid-column: 2; grid-row: 4; }
+    .task-table td:nth-child(6) { grid-column: 2; grid-row: 5; }
+
+    .req-title-text {
+        white-space: normal;
+    }
+
+    .task-table .action-buttons {
+        justify-content: flex-start;
+    }
+}
+
+/* Expansión real del contenido cuando se colapsa el sidebar */
+.layout-grid:has(.sidebar-col.is-collapsed) {
+    grid-template-columns: 58px minmax(0, 1fr);
+}
+
+@media (max-width: 768px) {
+    .layout-grid:has(.sidebar-col.is-collapsed) {
+        grid-template-columns: 1fr;
     }
 }

@@ -931,6 +931,8 @@ const App = {
 
         await this.loadData();
         this.setupPlugins();
+        this.setupSidebarCollapse();
+        this.setupKeyboardShortcuts();
         this.setupEventListeners();
         this.setupNotesPanel();
         this.renderAll();
@@ -1150,6 +1152,54 @@ const App = {
             this.markAsUnsaved();
             this.renderBoard();
         }
+    },
+
+    setupSidebarCollapse() {
+        const sidebar = document.getElementById('sidebarCol');
+        const button = document.getElementById('sidebarCollapseBtn');
+        if (!sidebar || !button) return;
+
+        const storageKey = 'designhub.sidebarCollapsed';
+        const apply = (collapsed) => {
+            sidebar.classList.toggle('is-collapsed', collapsed);
+            button.setAttribute('aria-label', collapsed ? 'Expandir panel lateral' : 'Colapsar panel lateral');
+            button.setAttribute('title', collapsed ? 'Expandir panel lateral' : 'Colapsar panel lateral');
+            button.innerHTML = `<i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" aria-hidden="true"></i>`;
+            if (window.lucide) lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
+        };
+
+        let collapsed = false;
+        try { collapsed = localStorage.getItem(storageKey) === 'true'; } catch (_) {}
+        apply(collapsed);
+
+        button.addEventListener('click', () => {
+            collapsed = !sidebar.classList.contains('is-collapsed');
+            apply(collapsed);
+            try { localStorage.setItem(storageKey, String(collapsed)); } catch (_) {}
+        });
+    },
+
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+                const search = document.getElementById('taskSearch');
+                if (!search) return;
+                event.preventDefault();
+                search.focus();
+                search.select();
+            }
+
+            if (event.key === 'Escape' && document.activeElement?.id === 'taskSearch') {
+                document.activeElement.blur();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            const card = event.target.closest?.('[data-summary].is-interactive');
+            if (!card || !['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            card.click();
+        });
     },
 
     setupEventListeners() {
@@ -2175,6 +2225,10 @@ const App = {
             let mQuick = true;
             if (this.quickFilter === 'starred') {
                 mQuick = !!t.isStarred;
+            } else if (this.quickFilter === 'mine') {
+                mQuick = !!this.user && t.assignee === this.user.name;
+            } else if (this.quickFilter === 'unassigned') {
+                mQuick = !t.assignee || t.assignee === 'No asignado';
             } else if (this.quickFilter === 'overdue') {
                 mQuick = t.status !== 'Entregado' && !!t.dateDelivered && dateValue(t.dateDelivered) < Date.now();
             } else if (this.quickFilter === 'today') {
@@ -2213,20 +2267,13 @@ const App = {
             if (a.isStarred && !b.isStarred) return -1;
             if (!a.isStarred && b.isStarred) return 1;
 
-            if (fSort === 'received_desc') {
-                const diff = dateValue(b.dateReceived) - dateValue(a.dateReceived);
-                if (diff !== 0) return diff;
-            } else if (fSort === 'asc' || fSort === 'desc') {
-                const direction = fSort === 'desc' ? -1 : 1;
-                const diff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
-                if (diff !== 0) return diff * direction;
-            } else {
-                const diff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
-                if (diff !== 0) return diff;
-            }
+            // 📅 Dentro de cada grupo: solicitud más antigua → más reciente.
+            const receivedDiff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
+            if (receivedDiff !== 0) return receivedDiff;
 
             const deliveryDiff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
             if (deliveryDiff !== 0) return deliveryDiff;
+
             return String(a.id).localeCompare(String(b.id));
         };
 
@@ -2304,7 +2351,7 @@ const App = {
                         <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
                         </button>
-                        <span class="req-name-text">${escapeHTML(t.name)}</span>
+                        <span class="req-name-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                     </span>
                     <div class="req-dates">
                         <span style="white-space: nowrap;">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
@@ -2368,7 +2415,7 @@ const App = {
                             <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
                                 <i data-lucide="star"></i>
                             </button>
-                            <span class="req-title-text">${escapeHTML(t.name)}</span>
+                            <span class="req-title-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                         </strong>
                         <span>${escapeHTML(t.requester)}</span>
                     </div>

@@ -119,7 +119,10 @@
 
         <div class="layout-grid">
             
-            <aside class="sidebar-col">
+            <aside class="sidebar-col" id="sidebarCol">
+                <button type="button" id="sidebarCollapseBtn" class="sidebar-collapse-btn" aria-label="Colapsar panel lateral" title="Colapsar panel lateral">
+                    <i data-lucide="panel-left-close" aria-hidden="true"></i>
+                </button>
                 <div class="card sidebar-card card-accent-primary">
                     <div class="card-header">
                         <h2><i data-lucide="user-round" class="icon-primary"></i> Mis Tareas <span class="badge-count badge-primary" aria-label="Tareas asignadas">0</span></h2>
@@ -153,10 +156,10 @@
                     <div class="card-header card-header-flex">
                         <div>
                             <h2>
-                                <i data-lucide="clock" class="icon-primary"></i> Prioridad de Entregas 
+                                <i data-lucide="clock" class="icon-primary"></i> Gestión de solicitudes 
                                 <span class="badge-count badge-primary" id="countPrioridades">0</span>
                             </h2>
-                            <p class="subtitle">Trabajo activo · estrellas primero · solicitudes de la más antigua a la más reciente.</p>
+                            <p class="subtitle">Trabajo activo · prioritarias primero · solicitudes más antiguas primero.</p>
                         </div>
                     </div>
 
@@ -167,6 +170,8 @@
                         </div>
                         <div class="quick-filters" role="group" aria-label="Filtros rápidos">
                             <button type="button" class="quick-filter active" data-quick-filter="all">Todas</button>
+                            <button type="button" class="quick-filter" data-quick-filter="mine">Mis tareas</button>
+                            <button type="button" class="quick-filter" data-quick-filter="unassigned">Sin asignar</button>
                             <button type="button" class="quick-filter" data-quick-filter="starred"><i data-lucide="star" aria-hidden="true"></i> Prioridad</button>
                             <button type="button" class="quick-filter" data-quick-filter="overdue"><i data-lucide="triangle-alert" aria-hidden="true"></i> Vencidas</button>
                             <button type="button" class="quick-filter" data-quick-filter="today">Hoy</button>
