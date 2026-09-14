@@ -1253,6 +1253,11 @@ const App = {
             this.showView('board');
         });
 
+        document.getElementById('btnViewHistory')?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.showView('history');
+        });
+
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
                 b.addEventListener('click', e => e.target.closest('.modal-overlay').classList.remove('active'));
@@ -2672,17 +2677,27 @@ const App = {
         // de la más antigua a la más reciente.
         // Las estrellas solo toman prioridad en órdenes alternativos.
         const sortTasks = (a, b) => {
-            // ⭐ Las destacadas siempre van primero.
+            // Regla por defecto: ⭐ prioridad primero y, dentro de cada grupo,
+            // fecha de solicitud (recepción) de más antigua a más reciente.
             if (a.isStarred && !b.isStarred) return -1;
             if (!a.isStarred && b.isStarred) return 1;
 
-            // 📅 Dentro de cada grupo: solicitud más antigua → más reciente.
-            const receivedDiff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
-            if (receivedDiff !== 0) return receivedDiff;
+            const receivedA = dateValue(a.dateReceived);
+            const receivedB = dateValue(b.dateReceived);
+            const deliveryA = dateValue(a.dateDelivered);
+            const deliveryB = dateValue(b.dateDelivered);
 
-            const deliveryDiff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
-            if (deliveryDiff !== 0) return deliveryDiff;
+            if (fSort === 'received_asc' || fSort === 'received_desc') {
+                const diff = receivedA - receivedB;
+                if (diff !== 0) return fSort === 'received_desc' ? -diff : diff;
+            } else {
+                const diff = deliveryA - deliveryB;
+                if (diff !== 0) return fSort === 'desc' ? -diff : diff;
+            }
 
+            // Desempate estable y determinista.
+            const fallback = receivedA - receivedB;
+            if (fallback !== 0) return fallback;
             return String(a.id).localeCompare(String(b.id));
         };
 

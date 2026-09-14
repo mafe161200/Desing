@@ -142,8 +142,11 @@
                 </div>
 
                 <div class="card sidebar-card card-accent-primary" style="margin-top: 20px;">
-                    <div class="card-header">
+                    <div class="card-header card-header-flex sidebar-history-header">
                         <h2><i data-lucide="check-circle-2" class="icon-primary"></i> Realizadas <span class="badge-count badge-primary" id="countRealizadas">0</span></h2>
+                        <button type="button" id="btnViewHistory" class="sidebar-history-link" aria-label="Ver historial completo de solicitudes realizadas" title="Ver historial completo">
+                            Ver todo <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+                        </button>
                     </div>
                     <div class="sidebar-content">
                         <ul id="sidebarCompletedList" class="request-list"></ul>
@@ -600,7 +603,6 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-    <script src="users.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

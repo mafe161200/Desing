@@ -2936,3 +2936,340 @@ main {
         margin-top: 12px !important;
     }
 }
+
+
+/* =========================================================
+   DESIGN HUB V5.0 — CONSOLIDACIÓN UX/UI
+   =========================================================
+   Esta capa final corrige los overrides históricos sin cambiar
+   la arquitectura de datos ni el comportamiento de Supabase.
+   ========================================================= */
+
+/* ---------- Workspace ---------- */
+.main-container {
+    width: min(96vw, 1480px) !important;
+    max-width: 1480px !important;
+    gap: 18px !important;
+    padding-top: 24px !important;
+    padding-bottom: 28px !important;
+}
+
+.app-header {
+    min-height: 70px;
+    padding: 17px 24px !important;
+    border-color: #20334e !important;
+    box-shadow: 0 12px 34px rgba(0,0,0,.18) !important;
+}
+
+.dashboard-summary {
+    gap: 10px !important;
+}
+
+.summary-card {
+    min-height: 68px !important;
+}
+
+/* ---------- Sidebar ---------- */
+.layout-grid {
+    grid-template-columns: minmax(235px, 272px) minmax(0, 1fr) !important;
+    gap: 18px !important;
+}
+
+.sidebar-card {
+    border-color: #20334e !important;
+}
+
+.sidebar-content {
+    max-height: 360px !important;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.sidebar-card:nth-child(3) .sidebar-content {
+    max-height: 270px !important;
+}
+
+.sidebar-history-header {
+    min-width: 0;
+}
+
+.sidebar-history-header h2 {
+    min-width: 0;
+}
+
+.sidebar-history-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex: 0 0 auto;
+    border: 0;
+    padding: 4px 5px;
+    border-radius: 6px;
+    background: transparent;
+    color: #7186a3;
+    font: inherit;
+    font-size: .67rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sidebar-history-link:hover,
+.sidebar-history-link:focus-visible {
+    color: #22d3ee;
+    background: rgba(34,211,238,.07);
+}
+
+.sidebar-history-link svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* ---------- Main table: stable proportions ---------- */
+.task-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+}
+
+.task-table th:nth-child(1),
+.task-table td:nth-child(1) { width: 4% !important; }
+.task-table th:nth-child(2),
+.task-table td:nth-child(2) { width: 39% !important; }
+.task-table th:nth-child(3),
+.task-table td:nth-child(3) { width: 22% !important; }
+.task-table th:nth-child(4),
+.task-table td:nth-child(4) { width: 17% !important; }
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) { width: 11% !important; }
+.task-table th:nth-child(6),
+.task-table td:nth-child(6) { width: 7% !important; }
+
+.task-table th,
+.task-table td {
+    box-sizing: border-box;
+}
+
+.task-table th:nth-child(1),
+.task-table td:nth-child(1) {
+    padding-left: 10px !important;
+    padding-right: 6px !important;
+    text-align: center !important;
+}
+
+.task-table th:nth-child(6),
+.task-table td:nth-child(6) {
+    padding-left: 4px !important;
+    padding-right: 8px !important;
+}
+
+.req-title-cell {
+    min-width: 0 !important;
+    overflow: visible !important;
+}
+
+.req-title-cell strong {
+    display: flex !important;
+    align-items: flex-start !important;
+    min-width: 0 !important;
+    gap: 7px !important;
+}
+
+/* Dos líneas por defecto: densidad profesional + lectura real.
+   Al abrir/seleccionar la fila se muestra completo. */
+.task-table .req-title-cell .req-title-text {
+    display: -webkit-box !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    line-height: 1.34 !important;
+    overflow-wrap: anywhere;
+    color: #dcecff !important;
+}
+
+.task-table tr.expanded-row .req-title-text,
+.task-table tr.task-selected .req-title-text {
+    display: block !important;
+    -webkit-line-clamp: unset !important;
+    overflow: visible !important;
+    white-space: normal !important;
+}
+
+.task-table .req-title-cell > span:last-child {
+    display: block;
+    margin-top: 4px;
+    color: #7186a3 !important;
+    font-size: .68rem !important;
+}
+
+.task-table .btn-star {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+}
+
+/* ---------- Row states ---------- */
+.task-table tbody tr {
+    position: relative;
+}
+
+.task-table tbody tr:hover {
+    background: rgba(34,211,238,.035) !important;
+}
+
+.task-table tbody tr.task-selected {
+    background: rgba(34,211,238,.075) !important;
+    box-shadow: inset 3px 0 0 #22d3ee;
+}
+
+.task-table tbody tr.task-starred:not(.task-selected) {
+    background: rgba(34,211,238,.025);
+}
+
+.task-table tbody tr.task-starred:not(.task-selected):hover {
+    background: rgba(34,211,238,.055) !important;
+}
+
+/* ---------- Dates / state / actions ---------- */
+.date-info {
+    gap: 5px !important;
+    min-width: 0;
+}
+
+.date-req {
+    color: #8195b2 !important;
+    font-size: .68rem !important;
+}
+
+.inline-date-picker-alt {
+    width: min(100%, 120px) !important;
+}
+
+.status-switch {
+    min-width: 0 !important;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.action-buttons {
+    gap: 1px !important;
+}
+
+.task-table .action-buttons .btn-icon {
+    width: 27px !important;
+    height: 27px !important;
+}
+
+/* ---------- Filters ---------- */
+.inline-filters-bar {
+    padding: 10px 12px !important;
+    gap: 7px !important;
+}
+
+.filter-search {
+    min-width: 220px;
+}
+
+.filter-search input {
+    min-height: 36px !important;
+}
+
+.quick-filters {
+    gap: 2px !important;
+}
+
+.quick-filter {
+    min-height: 32px;
+    padding-inline: 8px !important;
+    font-size: .69rem !important;
+}
+
+/* ---------- Focus: visible but not intrusive ---------- */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+.status-switch:focus-visible,
+.request-item:focus-visible,
+.summary-card:focus-visible {
+    outline: 2px solid rgba(34,211,238,.75) !important;
+    outline-offset: 2px;
+}
+
+/* ---------- Prevent accidental horizontal overflow ---------- */
+html,
+body,
+#appContainer,
+.main-container,
+.layout-grid,
+.main-board,
+.board-section {
+    max-width: 100%;
+}
+
+.main-board,
+.board-section,
+.table-wrapper {
+    min-width: 0 !important;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+    .main-container {
+        width: min(96vw, 1100px) !important;
+    }
+
+    .layout-grid {
+        grid-template-columns: 220px minmax(0, 1fr) !important;
+    }
+
+    .task-table th:nth-child(2),
+    .task-table td:nth-child(2) { width: 35% !important; }
+    .task-table th:nth-child(3),
+    .task-table td:nth-child(3) { width: 21% !important; }
+    .task-table th:nth-child(4),
+    .task-table td:nth-child(4) { width: 18% !important; }
+    .task-table th:nth-child(5),
+    .task-table td:nth-child(5) { width: 12% !important; }
+    .task-table th:nth-child(6),
+    .task-table td:nth-child(6) { width: 8% !important; }
+}
+
+@media (max-width: 768px) {
+    .main-container {
+        width: calc(100vw - 20px) !important;
+        padding: 12px 0 20px !important;
+        gap: 12px !important;
+    }
+
+    .app-header {
+        padding: 14px 16px !important;
+        border-radius: 12px;
+    }
+
+    .layout-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .sidebar-col.is-collapsed {
+        display: none !important;
+    }
+
+    .sidebar-history-link {
+        font-size: .64rem;
+    }
+
+    .task-table .req-title-cell .req-title-text {
+        -webkit-line-clamp: 3 !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
