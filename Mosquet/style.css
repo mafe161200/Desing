@@ -1930,3 +1930,80 @@ button.en-curso {
     border-color: #22d3ee !important;
     background: rgba(6, 182, 212, .30) !important;
 }
+
+
+/* =========================================================
+   AJUSTE REAL — CLASES QUE USA APP.JS
+   App.js genera: .status-switch.cola / .status-switch.curso
+   ========================================================= */
+
+/* EN COLA */
+.task-table .status-switch.cola {
+    color: #d8b4fe !important;
+    background: linear-gradient(
+        135deg,
+        rgba(168, 85, 247, .20),
+        rgba(88, 28, 135, .10)
+    ) !important;
+    border: 1px solid #a855f7 !important;
+    box-shadow: 0 0 8px rgba(168, 85, 247, .10) !important;
+}
+
+.task-table .status-switch.cola .switch-track {
+    background: #a855f7 !important;
+}
+
+/* EN CURSO */
+.task-table .status-switch.curso {
+    color: #67e8f9 !important;
+    background: linear-gradient(
+        135deg,
+        rgba(6, 182, 212, .25),
+        rgba(14, 116, 144, .12)
+    ) !important;
+    border: 1px solid #06b6d4 !important;
+    box-shadow:
+        0 0 12px rgba(6, 182, 212, .16),
+        inset 0 0 8px rgba(34, 211, 238, .06) !important;
+}
+
+.task-table .status-switch.curso .switch-track {
+    background: #06b6d4 !important;
+}
+
+/* =========================================================
+   ESTADO MÁS A LA IZQUIERDA
+   Mantiene separada la columna de Acciones.
+   ========================================================= */
+
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) {
+    text-align: left !important;
+    padding-left: 0 !important;
+    padding-right: 8px !important;
+}
+
+.task-table td:nth-child(5) .status-switch {
+    margin-left: 0 !important;
+    transform: translateX(-4px);
+}
+
+/* Evita que el estado se centre automáticamente */
+.task-table td:nth-child(5) .status-switch.cola,
+.task-table td:nth-child(5) .status-switch.curso {
+    display: inline-flex !important;
+    justify-content: flex-start !important;
+}
+
+/* En pantallas estrechas, conserva el ajuste sin sacar el control */
+@media (max-width: 1100px) {
+    .task-table th:nth-child(5),
+    .task-table td:nth-child(5) {
+        padding-left: 0 !important;
+        padding-right: 6px !important;
+    }
+
+    .task-table td:nth-child(5) .status-switch {
+        transform: translateX(-2px);
+    }
+}
