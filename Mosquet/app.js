@@ -2097,7 +2097,7 @@ const App = {
         const fSearch = normalizeText(document.getElementById('taskSearch')?.value || '').toLowerCase();
         const fCompletion = document.getElementById('filterCompletion')?.value || 'Pendientes';
         const fSortEl = document.getElementById('filterSort');
-        const fSort = fSortEl ? fSortEl.value : 'asc';
+        const fSort = fSortEl ? fSortEl.value : 'received_asc';
         const sortModifier = fSort === 'desc' ? -1 : 1;
 
         /*
@@ -2136,18 +2136,36 @@ const App = {
         };
 
         const filtered = this.tasks.filter(matchesCommonFilters);
+        // ORDEN POR DEFECTO: fecha de solicitud (recepción),
+        // de la más antigua a la más reciente.
+        // Las estrellas solo toman prioridad en órdenes alternativos.
+        const dateValue = (value) => {
+            if (!value) return Number.POSITIVE_INFINITY;
+            const time = new Date(`${value}T12:00:00`).getTime();
+            return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+        };
 
-        // REGLA DE ORDENAMIENTO DOBLE (Estrellas Arriba O(N log N))
         const sortTasks = (a, b) => {
-            // Prioridad Primaria: Destacados
-            if (a.isStarred && !b.isStarred) return -1;
-            if (!a.isStarred && b.isStarred) return 1;
-            
-            // Prioridad Secundaria: Fechas de Entrega
-            if (!a.dateDelivered && !b.dateDelivered) return 0;
-            if (!a.dateDelivered) return 1; 
-            if (!b.dateDelivered) return -1; 
-            return (new Date(a.dateDelivered).getTime() - new Date(b.dateDelivered).getTime()) * sortModifier;
+            if (fSort === 'received_asc') {
+                const diff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
+                if (diff !== 0) return diff;
+            } else if (fSort === 'received_desc') {
+                const diff = dateValue(b.dateReceived) - dateValue(a.dateReceived);
+                if (diff !== 0) return diff;
+            } else {
+                if (a.isStarred && !b.isStarred) return -1;
+                if (!a.isStarred && b.isStarred) return 1;
+
+                if (!a.dateDelivered && !b.dateDelivered) return 0;
+                if (!a.dateDelivered) return 1;
+                if (!b.dateDelivered) return -1;
+
+                return (dateValue(a.dateDelivered) - dateValue(b.dateDelivered)) * sortModifier;
+            }
+
+            const deliveryDiff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
+            if (deliveryDiff !== 0) return deliveryDiff;
+            return String(a.id).localeCompare(String(b.id));
         };
 
         const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
