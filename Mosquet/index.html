@@ -95,23 +95,23 @@
         </header>
 
         <section class="dashboard-summary" aria-label="Resumen de trabajo">
-            <article class="summary-card summary-total" data-summary="total">
+            <article class="summary-card summary-total is-interactive" data-summary="total" role="button" tabindex="0" aria-label="Mostrar todas las tareas activas">
                 <div class="summary-icon"><i data-lucide="inbox"></i></div>
                 <div><span class="summary-label">Activas</span><strong id="summaryTotal">0</strong></div>
             </article>
-            <article class="summary-card summary-course" data-summary="course">
+            <article class="summary-card summary-course is-interactive" data-summary="course" role="button" tabindex="0" aria-label="Mostrar tareas en curso">
                 <div class="summary-icon"><i data-lucide="play-circle"></i></div>
                 <div><span class="summary-label">En curso</span><strong id="summaryCourse">0</strong></div>
             </article>
-            <article class="summary-card summary-queue" data-summary="queue">
+            <article class="summary-card summary-queue is-interactive" data-summary="queue" role="button" tabindex="0" aria-label="Mostrar tareas en cola">
                 <div class="summary-icon"><i data-lucide="clock-3"></i></div>
                 <div><span class="summary-label">En cola</span><strong id="summaryQueue">0</strong></div>
             </article>
-            <article class="summary-card summary-overdue" data-summary="overdue">
+            <article class="summary-card summary-overdue is-interactive" data-summary="overdue" role="button" tabindex="0" aria-label="Mostrar tareas vencidas">
                 <div class="summary-icon"><i data-lucide="triangle-alert"></i></div>
                 <div><span class="summary-label">Vencidas</span><strong id="summaryOverdue">0</strong></div>
             </article>
-            <article class="summary-card summary-starred" data-summary="starred">
+            <article class="summary-card summary-starred is-interactive" data-summary="starred" role="button" tabindex="0" aria-label="Mostrar tareas prioritarias">
                 <div class="summary-icon"><i data-lucide="star"></i></div>
                 <div><span class="summary-label">Prioridad</span><strong id="summaryStarred">0</strong></div>
             </article>
@@ -194,6 +194,13 @@
                                 <option value="Todos">Estado: Todos</option>
                                 <option value="En cola">En cola</option>
                                 <option value="En curso">En curso</option>
+                            </select>
+                        </div>
+                        <div class="inline-filter-item">
+                            <select id="filterCompletion" name="filterCompletion" class="native-select-hidden" aria-label="Mostrar tareas">
+                                <option value="Pendientes" selected>Pendientes</option>
+                                <option value="Realizadas">Realizadas</option>
+                                <option value="Todas">Todas</option>
                             </select>
                         </div>
                         <div class="inline-filter-item">
@@ -303,6 +310,10 @@
                         </div>
                     </div>
                     <div class="field full-width">
+                        <label for="taskNotes">Notas de la solicitud</label>
+                        <textarea id="taskNotes" name="taskNotes" class="custom-input task-notes-input" rows="3" placeholder="Añade contexto, instrucciones o referencias..." autocomplete="off"></textarea>
+                    </div>
+                    <div class="field full-width">
                         <label for="status">Estado inicial</label>
                         <select id="status" name="status" class="native-select-hidden" required>
                             <option value="En cola" selected>En cola</option>
@@ -341,6 +352,10 @@
                             <i data-lucide="calendar"></i>
                             <input type="text" id="editDateReceived" name="editDateReceived" class="date-picker modal-date custom-input" required>
                         </div>
+                    </div>
+                    <div class="field full-width">
+                        <label for="editTaskNotes">Notas de la solicitud</label>
+                        <textarea id="editTaskNotes" name="editTaskNotes" class="custom-input task-notes-input" rows="4" placeholder="Añade contexto, instrucciones o referencias..." autocomplete="off"></textarea>
                     </div>
                 </div>
                 <div class="form-actions">

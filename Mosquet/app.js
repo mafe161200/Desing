@@ -1320,22 +1320,32 @@ const App = {
          * (onclick/onchange/onkeydown), centralizamos sus eventos aquí.
          */
         document.addEventListener('click', async (event) => {
-            const target = event.target.closest('[data-action]');
-
-            if (!target) return;
-
-            const action = target.dataset.action;
-            const taskId = target.dataset.taskId;
-
             const quickFilter = event.target.closest('[data-quick-filter]');
             if (quickFilter) {
                 this.quickFilter = quickFilter.dataset.quickFilter || 'all';
                 document.querySelectorAll('.quick-filter').forEach(btn => {
-                    btn.classList.toggle('active', btn === quickFilter);
+                    btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
                 });
                 this.renderBoard();
                 return;
             }
+
+            const summaryCard = event.target.closest('[data-summary]');
+            if (summaryCard && summaryCard.classList.contains('is-interactive')) {
+                const map = { total: 'all', course: 'course', queue: 'queue', overdue: 'overdue', starred: 'starred' };
+                this.quickFilter = map[summaryCard.dataset.summary] || 'all';
+                document.querySelectorAll('.quick-filter').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
+                });
+                this.renderBoard();
+                return;
+            }
+
+            const target = event.target.closest('[data-action]');
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const taskId = target.dataset.taskId;
 
             switch (action) {
                 case 'remove-member': {
@@ -2203,13 +2213,20 @@ const App = {
             if (a.isStarred && !b.isStarred) return -1;
             if (!a.isStarred && b.isStarred) return 1;
 
-            // 📅 Dentro de cada grupo: solicitud más antigua → más reciente.
-            const receivedDiff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
-            if (receivedDiff !== 0) return receivedDiff;
+            if (fSort === 'received_desc') {
+                const diff = dateValue(b.dateReceived) - dateValue(a.dateReceived);
+                if (diff !== 0) return diff;
+            } else if (fSort === 'asc' || fSort === 'desc') {
+                const direction = fSort === 'desc' ? -1 : 1;
+                const diff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
+                if (diff !== 0) return diff * direction;
+            } else {
+                const diff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
+                if (diff !== 0) return diff;
+            }
 
             const deliveryDiff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
             if (deliveryDiff !== 0) return deliveryDiff;
-
             return String(a.id).localeCompare(String(b.id));
         };
 
@@ -2231,6 +2248,8 @@ const App = {
         this.renderWorkloadChart(activas);
 
         const myTasks = this.tasks.filter(t => t.status !== 'Entregado' && t.assignee === this.user.name).sort(sortTasks);
+        const myTasksBadge = document.querySelector('.sidebar-card:first-child .badge-count');
+        if (myTasksBadge) myTasksBadge.textContent = String(myTasks.length);
         
         myTasks.forEach(t => {
             const li = document.createElement('li');

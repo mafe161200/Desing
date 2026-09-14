@@ -891,3 +891,103 @@ select:focus-visible,
     outline: 2px solid #38bdf8 !important;
     outline-offset: 2px;
 }
+
+
+/* =========================================================
+   DESIGN HUB V3 — REVISIÓN CRUZADA FINAL
+   ========================================================= */
+
+.summary-card.is-interactive { cursor:pointer; user-select:none; }
+.summary-card.is-interactive:hover { transform:translateY(-1px); }
+.summary-card.is-interactive:focus-visible { outline:2px solid var(--primary-cold); outline-offset:2px; }
+
+/* La tabla conserva una sola línea de separación por fila.
+   Se eliminan únicamente pseudo-elementos/efectos extra. */
+.task-table td.date-info {
+    border-bottom:1px solid var(--border-light) !important;
+    box-shadow:none !important;
+}
+.task-table td.date-info::before,
+.task-table td.date-info::after {
+    content:none !important;
+    display:none !important;
+}
+
+/* Clase real utilizada por app.js */
+.task-table .inline-date-picker {
+    font-family:'Montserrat',sans-serif;
+    font-size:.75rem;
+    font-weight:700;
+    color:var(--text-dark);
+    background:var(--bg-subtle);
+    border:1px solid var(--border-light);
+    border-radius:7px;
+    padding:6px 9px;
+    width:118px;
+    min-width:118px;
+    height:31px;
+    display:block;
+    cursor:pointer;
+    text-align:center;
+    box-sizing:border-box;
+    outline:none;
+    transition:border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.task-table .inline-date-picker:hover { background:#f8fafc; border-color:#a5b4fc; }
+.task-table .inline-date-picker:focus-visible { border-color:var(--primary-cold); box-shadow:0 0 0 3px rgba(79,70,229,.14); }
+
+/* Columnas que suman 100%, evitando compresión impredecible. */
+.task-table th:nth-child(1), .task-table td:nth-child(1) { width:4%; }
+.task-table th:nth-child(2), .task-table td:nth-child(2) { width:33%; }
+.task-table th:nth-child(3), .task-table td:nth-child(3) { width:21%; }
+.task-table th:nth-child(4), .task-table td:nth-child(4) { width:18%; }
+.task-table th:nth-child(5), .task-table td:nth-child(5) { width:14%; }
+.task-table th:nth-child(6), .task-table td:nth-child(6) { width:10%; }
+
+.task-table .action-buttons { justify-content:center; gap:3px; white-space:nowrap; }
+.task-table .action-buttons .btn-icon { width:29px; height:29px; padding:5px; }
+
+/* Notas por solicitud */
+.task-notes-button { position:relative; color:#38bdf8; }
+.task-notes-button:hover { color:#0284c7; background:rgba(14,165,233,.07); }
+.task-notes-dot { position:absolute; width:6px; height:6px; top:4px; right:4px; border-radius:50%; background:#22d3ee; }
+
+.task-notes-viewer-overlay {
+    position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center;
+    padding:24px; background:rgba(15,23,42,.52); backdrop-filter:blur(3px);
+}
+.task-notes-viewer-card {
+    width:min(620px,100%); max-height:min(720px,calc(100vh - 48px)); overflow:auto;
+    background:var(--card-bg); border:1px solid var(--border-light); border-top:4px solid var(--primary-cold);
+    border-radius:16px; box-shadow:0 24px 60px rgba(15,23,42,.24);
+}
+.task-notes-viewer-header {
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:16px 20px; border-bottom:1px solid var(--border-light); background:var(--bg-subtle);
+    position:sticky; top:0; z-index:2;
+}
+.task-notes-viewer-title-wrap { display:flex; align-items:center; gap:9px; min-width:0; }
+.task-notes-viewer-title-wrap h2 { color:var(--text-dark); font-size:1rem; font-weight:700; }
+.task-notes-viewer-body { padding:20px; }
+.task-notes-viewer-context { margin-bottom:14px; color:var(--text-muted); font-size:.8rem; font-weight:600; }
+.task-notes-viewer-note {
+    padding:14px; background:var(--bg-subtle); border:1px solid var(--border-light); border-radius:10px;
+    color:var(--text-main); line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere;
+}
+.task-notes-viewer-empty { padding:26px 16px; text-align:center; color:var(--text-muted); }
+
+.workload-avatar {
+    width:26px !important; height:26px !important; min-width:26px !important; max-width:26px !important;
+    min-height:26px !important; max-height:26px !important; flex:0 0 26px !important;
+    border-radius:50%; overflow:hidden;
+}
+.workload-avatar img { width:100% !important; height:100% !important; object-fit:cover !important; border-radius:50%; display:block !important; }
+
+.toast-container { right:16px !important; bottom:16px !important; width:min(380px,calc(100vw - 32px)); }
+.toast { max-width:100%; }
+
+@media (max-width:768px) {
+    .task-notes-viewer-overlay { padding:12px; }
+    .task-notes-viewer-card { max-height:calc(100vh - 24px); }
+    .task-notes-viewer-body { padding:16px; }
+}
