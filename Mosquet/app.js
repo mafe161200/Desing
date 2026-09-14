@@ -2121,12 +2121,18 @@ const App = {
         })();
 
         document.getElementById('historyCount').textContent = String(filtered.length);
-        document.getElementById('historyStatTotal').textContent = String(allTasks.length);
-        document.getElementById('historyStatMonth').textContent = String(thisMonth);
+        document.getElementById('historyStatTotal').textContent = String(filtered.length);
+        document.getElementById('historyStatMonth').textContent =
+            String(filtered.filter(task => monthOf(task.dateReceived) === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).length);
         document.getElementById('historyStatCourse').textContent =
-            String(allTasks.filter(task => normalizeText(task.status) === 'En curso').length);
+            String(filtered.filter(task => normalizeText(task.status) === 'En curso').length);
         document.getElementById('historyStatDone').textContent =
-            String(allTasks.filter(task => normalizeText(task.status) === 'Entregado').length);
+            String(filtered.filter(task => normalizeText(task.status) === 'Entregado').length);
+
+        const filterResult = document.getElementById('historyFilterResult');
+        if (filterResult) {
+            filterResult.textContent = `${filtered.length} resultado${filtered.length === 1 ? '' : 's'}`;
+        }
 
         this.renderHistoryAnalytics(filtered);
 

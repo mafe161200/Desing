@@ -9,7 +9,7 @@
         
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,800&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,800&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
     
@@ -284,35 +284,15 @@
                     </article>
                 </div>
 
-                <section class="history-analytics" aria-labelledby="historyAnalyticsTitle">
-                    <div class="history-analytics-heading">
+                <section class="history-filter-panel" aria-labelledby="historyFiltersTitle">
+                    <div class="history-filter-heading">
                         <div>
-                            <h3 id="historyAnalyticsTitle">Resumen operativo</h3>
-                            <p>Volumen de solicitudes y distribución del trabajo según los filtros activos.</p>
+                            <h3 id="historyFiltersTitle">Filtrar historial</h3>
+                            <p>Refina los resultados por fecha, persona, estado o texto.</p>
                         </div>
+                        <span id="historyFilterResult" class="history-filter-result" aria-live="polite">22 resultados</span>
                     </div>
-                    <div class="history-analytics-grid">
-                        <article class="history-chart-card history-chart-card-monthly">
-                            <h4 class="history-chart-title">Solicitudes por mes</h4>
-                            <div id="historyMonthlyChart" class="history-monthly-chart" aria-label="Solicitudes por mes"></div>
-                            <p id="historyMonthlySummary" class="history-chart-summary"></p>
-                        </article>
-                        <article class="history-chart-card">
-                            <h4 class="history-chart-title">Por solicitante</h4>
-                            <div id="historyRequesterChart" class="history-bars" aria-label="Distribución de solicitudes por solicitante"></div>
-                        </article>
-                        <article class="history-chart-card">
-                            <h4 class="history-chart-title">Por responsable</h4>
-                            <div id="historyAssigneeChart" class="history-bars" aria-label="Distribución de solicitudes por responsable"></div>
-                        </article>
-                        <article class="history-chart-card">
-                            <h4 class="history-chart-title">Por estado</h4>
-                            <div id="historyStatusChart" class="history-bars" aria-label="Distribución de solicitudes por estado"></div>
-                        </article>
-                    </div>
-                </section>
-
-                <div class="history-filters" aria-label="Filtros del historial">
+                    <div class="history-filters" aria-label="Filtros del historial">
                     <label class="history-search">
                         <span>Buscar en solicitudes</span>
                         <div class="history-search-control">
@@ -350,11 +330,46 @@
                         </select>
                     </label>
 
-                    <button type="button" id="clearHistoryFilters" class="btn-text history-clear">
-                        <i data-lucide="x-circle"></i> Limpiar
-                    </button>
-                </div>
+                        <button type="button" id="clearHistoryFilters" class="btn-text history-clear">
+                            <i data-lucide="x-circle" aria-hidden="true"></i> Limpiar filtros
+                        </button>
+                    </div>
+                </section>
 
+                <section class="history-analytics" aria-labelledby="historyAnalyticsTitle">
+                    <div class="history-analytics-heading">
+                        <div>
+                            <h3 id="historyAnalyticsTitle">Resumen operativo</h3>
+                            <p>Volumen de solicitudes y distribución del trabajo según los filtros activos.</p>
+                        </div>
+                    </div>
+                    <div class="history-analytics-grid">
+                        <article class="history-chart-card history-chart-card-monthly">
+                            <h4 class="history-chart-title">Solicitudes por mes</h4>
+                            <div id="historyMonthlyChart" class="history-monthly-chart" aria-label="Solicitudes por mes"></div>
+                            <p id="historyMonthlySummary" class="history-chart-summary"></p>
+                        </article>
+                        <article class="history-chart-card">
+                            <h4 class="history-chart-title">Por solicitante</h4>
+                            <div id="historyRequesterChart" class="history-bars" aria-label="Distribución de solicitudes por solicitante"></div>
+                        </article>
+                        <article class="history-chart-card">
+                            <h4 class="history-chart-title">Por responsable</h4>
+                            <div id="historyAssigneeChart" class="history-bars" aria-label="Distribución de solicitudes por responsable"></div>
+                        </article>
+                        <article class="history-chart-card">
+                            <h4 class="history-chart-title">Por estado</h4>
+                            <div id="historyStatusChart" class="history-bars" aria-label="Distribución de solicitudes por estado"></div>
+                        </article>
+                    </div>
+                </section>
+
+                <div class="history-results-heading">
+                    <div>
+                        <h3>Resultados</h3>
+                        <p>Las solicitudes más recientes aparecen primero.</p>
+                    </div>
+                </div>
                 <div class="history-table-wrap">
                     <table class="history-table">
                         <thead>

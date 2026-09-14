@@ -474,14 +474,14 @@ html body .native-select-hidden { display: none; }
 
 /* FLATPICKR OVERRIDES CORREGIDOS */
 html body div.flatpickr-calendar { font-family: 'Montserrat', sans-serif; border-radius: 12px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15); border: 1px solid var(--border-light); z-index: 9999999; padding: 0; width: 280px; min-width: 280px; max-width: 280px; background: var(--card-bg); }
-html body div.flatpickr-calendar .flatpickr-months { background: var(--primary-cold); padding: 8px 10px; align-items: center; position: relative; border-radius: 11px 11px 0 0; }
-html body div.flatpickr-calendar .flatpickr-months .flatpickr-month { font-weight: 600; color: #ffffff; fill: #ffffff; }
-html body div.flatpickr-calendar .flatpickr-current-month { font-size: 0.9rem; font-weight: 600; color: #ffffff; padding: 0; display: flex; align-items: center; justify-content: center; }
-html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months { font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 600; background: rgba(255, 255, 255, 0.2); color: #ffffff; border-radius: 6px; padding: 3px 8px; border: none; outline: none; cursor: pointer; margin-right: 4px; appearance: menulist; -webkit-appearance: menulist; }
+html body div.flatpickr-calendar .flatpickr-months { background: #0b1627; padding: 8px 10px; align-items: center; position: relative; border-radius: 11px 11px 0 0; border-bottom: 1px solid #2c4968; }
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-month { font-weight: 600; color: #f4f7ff; fill: #f4f7ff; }
+html body div.flatpickr-calendar .flatpickr-current-month { font-size: 0.9rem; font-weight: 600; color: #f4f7ff; padding: 0; display: flex; align-items: center; justify-content: center; }
+html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months { font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 600; background: #13243a; color: #f4f7ff; border-radius: 6px; padding: 3px 8px; border: none; outline: none; cursor: pointer; margin-right: 4px; appearance: menulist; -webkit-appearance: menulist; }
 html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months:hover { background: rgba(255, 255, 255, 0.3); }
 html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months option { background-color: var(--card-bg); color: var(--text-dark); font-weight: 500; padding: 6px; }
 html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper { width: 6.5ch; }
-html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper input.cur-year { font-family: 'Montserrat', sans-serif; font-weight: 600; color: #ffffff; padding: 0 2px; }
+html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper input.cur-year { font-family: 'Montserrat', sans-serif; font-weight: 600; color: #f4f7ff; padding: 0 2px; }
 html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowUp, html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowDown { border-color: rgba(255,255,255,0.5); }
 html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowUp:after { border-bottom-color: #ffffff; }
 html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper span.arrowDown:after { border-top-color: #ffffff; }
@@ -3626,4 +3626,348 @@ a > svg[aria-hidden="true"] {
 .board-section > .card-header button,
 .board-section > .card-header a {
     outline-offset: 3px;
+}
+
+/* =========================================================
+   V5.7 — TIPOGRAFÍA Y CONTRASTE WCAG
+   ========================================================= */
+
+html,
+body,
+button,
+input,
+select,
+textarea,
+option,
+table,
+th,
+td {
+    font-family: 'Montserrat', sans-serif;
+}
+
+/* Playfair Display is intentionally reserved for the brand/logo only. */
+.logo-typographic {
+    font-family: 'Playfair Display', serif;
+}
+
+/* Cyan/blue filled controls use dark text.
+   White on #38BDF8 does not provide sufficient contrast. */
+.btn-primary {
+    background: var(--primary-cold);
+    color: #03131d;
+    border-color: #67e8f9;
+    font-weight: 800;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+    color: #06121d;
+    border-color: #93c5fd;
+}
+
+.btn-primary:focus-visible {
+    color: #03131d;
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, .38);
+}
+
+/* Green filled controls: dark text provides much stronger contrast. */
+.btn-success {
+    background: var(--success);
+    color: #032018;
+    border-color: #6ee7b7;
+    font-weight: 800;
+}
+
+.btn-success:hover {
+    background: var(--success-hover);
+    color: #031a14;
+}
+
+/* Flatpickr header: no white text over bright cyan. */
+html body div.flatpickr-calendar .flatpickr-months {
+    background: #0b1627;
+    border-bottom: 1px solid #2c4968;
+}
+
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-month,
+html body div.flatpickr-calendar .flatpickr-current-month {
+    color: #f4f7ff;
+    fill: #f4f7ff;
+}
+
+html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months {
+    background: #13243a;
+    color: #f4f7ff;
+    border: 1px solid #385473;
+}
+
+html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months:hover,
+html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months:focus {
+    background: #1b304a;
+    color: #ffffff;
+}
+
+html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper input.cur-year {
+    color: #f4f7ff;
+}
+
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month {
+    color: #67e8f9;
+    fill: #67e8f9;
+}
+
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:hover,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month:hover,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month:focus-visible,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month:focus-visible {
+    background: #13243a;
+}
+
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month svg,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month svg,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month svg path,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month svg path {
+    fill: #67e8f9 !important;
+    color: #67e8f9 !important;
+}
+
+/* Selected date: cyan with dark text instead of white-on-cyan. */
+html body div.flatpickr-calendar .flatpickr-day.selected,
+html body div.flatpickr-calendar .flatpickr-day.startRange,
+html body div.flatpickr-calendar .flatpickr-day.endRange {
+    background: var(--primary-cold);
+    border-color: #67e8f9;
+    color: #03131d;
+    font-weight: 800;
+}
+
+html body div.flatpickr-calendar .flatpickr-day.selected:hover,
+html body div.flatpickr-calendar .flatpickr-day.startRange:hover,
+html body div.flatpickr-calendar .flatpickr-day.endRange:hover {
+    background: var(--primary-hover);
+    color: #06121d;
+}
+
+/* Filled cyan chat/send controls also use dark text/icons. */
+.btn-send-note,
+.chat-send-btn {
+    color: #03131d;
+}
+
+/* Cyan utility surfaces use dark foreground text/icons. */
+.quick-filter.active,
+.filter-chip.active {
+    color: #03131d;
+}
+
+/* Consistent, high-visibility keyboard focus. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid #67e8f9;
+    outline-offset: 2px;
+}
+
+/* V5.7.1 — final calendar contrast normalization */
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month {
+    color: #67e8f9;
+    fill: #67e8f9;
+}
+
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month svg,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month svg,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-prev-month svg path,
+html body div.flatpickr-calendar .flatpickr-months .flatpickr-next-month svg path {
+    fill: #67e8f9 !important;
+    color: #67e8f9 !important;
+}
+
+html body div.flatpickr-calendar .flatpickr-current-month .numInputWrapper input.cur-year:focus,
+html body div.flatpickr-calendar .flatpickr-current-month .flatpickr-monthDropdown-months:focus,
+html body div.flatpickr-calendar .flatpickr-day:focus-visible {
+    outline: 3px solid #67e8f9;
+    outline-offset: 2px;
+}
+
+/* The brand is the sole exception to Montserrat. */
+.logo-typographic {
+    font-family: 'Playfair Display', serif !important;
+}
+
+/* =========================================================
+   V5.8 — UX/UI HISTORIAL: FLUJO, JERARQUÍA Y MICROANIMACIÓN
+   ========================================================= */
+
+.history-view {
+    animation: historyViewIn .28s ease both;
+}
+
+@keyframes historyViewIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.history-filter-panel {
+    margin: 0 24px 18px;
+    padding: 14px;
+    border: 1px solid #20334e;
+    border-radius: 12px;
+    background: #08111f;
+}
+
+.history-filter-heading,
+.history-results-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.history-filter-heading {
+    margin-bottom: 12px;
+}
+
+.history-filter-heading h3,
+.history-results-heading h3 {
+    margin: 0;
+    color: #e9f2ff;
+    font-size: .86rem;
+    font-weight: 750;
+}
+
+.history-filter-heading p,
+.history-results-heading p {
+    margin: 3px 0 0;
+    color: #8194ae;
+    font-size: .68rem;
+    line-height: 1.45;
+}
+
+.history-filter-result {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border: 1px solid #2b4260;
+    border-radius: 999px;
+    background: #0d1b2e;
+    color: #b8cbe3;
+    font-size: .68rem;
+    font-weight: 700;
+}
+
+.history-filter-panel .history-filters {
+    padding: 0;
+}
+
+.history-results-heading {
+    margin: 0 24px 10px;
+    padding-top: 2px;
+}
+
+.history-results-heading + .history-table-wrap {
+    border-top: 1px solid #1e314b;
+}
+
+/* Microinteractions: informative, fast and disabled for reduced-motion users. */
+.history-stat,
+.history-chart-card,
+.history-filter-panel {
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.history-stat:hover,
+.history-chart-card:hover {
+    border-color: #2d496b;
+    box-shadow: 0 8px 22px rgba(0,0,0,.18);
+    transform: translateY(-1px);
+}
+
+.history-month-bar {
+    transform-origin: bottom center;
+    animation: historyBarGrow .65s cubic-bezier(.22,.61,.36,1) both;
+}
+
+.history-bar-fill {
+    transform-origin: left center;
+    animation: historyProgressGrow .7s cubic-bezier(.22,.61,.36,1) both;
+}
+
+@keyframes historyBarGrow {
+    from { transform: scaleY(0); opacity: .35; }
+    to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes historyProgressGrow {
+    from { transform: scaleX(0); opacity: .45; }
+    to { transform: scaleX(1); opacity: 1; }
+}
+
+.history-table tbody tr {
+    animation: historyRowIn .2s ease both;
+}
+
+.history-table tbody tr:nth-child(2) { animation-delay: 18ms; }
+.history-table tbody tr:nth-child(3) { animation-delay: 36ms; }
+.history-table tbody tr:nth-child(4) { animation-delay: 54ms; }
+.history-table tbody tr:nth-child(5) { animation-delay: 72ms; }
+
+@keyframes historyRowIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 900px) {
+    .history-filter-panel {
+        margin-left: 16px;
+        margin-right: 16px;
+    }
+
+    .history-results-heading {
+        margin-left: 16px;
+        margin-right: 16px;
+    }
+}
+
+@media (max-width: 620px) {
+    .history-filter-panel {
+        margin: 0 10px 14px;
+        padding: 12px;
+    }
+
+    .history-filter-heading,
+    .history-results-heading {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .history-results-heading {
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+
+    .history-filter-result {
+        align-self: flex-start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .history-view,
+    .history-month-bar,
+    .history-bar-fill,
+    .history-table tbody tr {
+        animation: none !important;
+    }
+
+    .history-stat,
+    .history-chart-card {
+        transition: none !important;
+    }
+}
+
+.history-results-heading + .history-table-wrap {
+    border-top: 1px solid #1e314b;
 }
