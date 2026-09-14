@@ -94,12 +94,35 @@
             </div>
         </header>
 
+        <section class="dashboard-summary" aria-label="Resumen de trabajo">
+            <article class="summary-card summary-total" data-summary="total">
+                <div class="summary-icon"><i data-lucide="inbox"></i></div>
+                <div><span class="summary-label">Activas</span><strong id="summaryTotal">0</strong></div>
+            </article>
+            <article class="summary-card summary-course" data-summary="course">
+                <div class="summary-icon"><i data-lucide="play-circle"></i></div>
+                <div><span class="summary-label">En curso</span><strong id="summaryCourse">0</strong></div>
+            </article>
+            <article class="summary-card summary-queue" data-summary="queue">
+                <div class="summary-icon"><i data-lucide="clock-3"></i></div>
+                <div><span class="summary-label">En cola</span><strong id="summaryQueue">0</strong></div>
+            </article>
+            <article class="summary-card summary-overdue" data-summary="overdue">
+                <div class="summary-icon"><i data-lucide="triangle-alert"></i></div>
+                <div><span class="summary-label">Vencidas</span><strong id="summaryOverdue">0</strong></div>
+            </article>
+            <article class="summary-card summary-starred" data-summary="starred">
+                <div class="summary-icon"><i data-lucide="star"></i></div>
+                <div><span class="summary-label">Prioridad</span><strong id="summaryStarred">0</strong></div>
+            </article>
+        </section>
+
         <div class="layout-grid">
             
             <aside class="sidebar-col">
                 <div class="card sidebar-card card-accent-primary">
                     <div class="card-header">
-                        <h2><i data-lucide="user-focus" class="icon-primary"></i> Mis Tareas</h2>
+                        <h2><i data-lucide="user-round" class="icon-primary"></i> Mis Tareas <span class="badge-count badge-primary" aria-label="Tareas asignadas">0</span></h2>
                     </div>
                     <div class="sidebar-content">
                         <ul id="sidebarList" class="request-list"></ul>
@@ -133,11 +156,23 @@
                                 <i data-lucide="clock" class="icon-primary"></i> Prioridad de Entregas 
                                 <span class="badge-count badge-primary" id="countPrioridades">0</span>
                             </h2>
-                            <p class="subtitle">Trabajo activo, ordenado por proximidad de entrega. Las tareas con estrella <i data-lucide="star" style="width: 12px; height: 12px; color: #f59e0b; fill: #f59e0b;"></i> se fijan al inicio.</p>
+                            <p class="subtitle">Trabajo activo · estrellas primero · solicitudes de la más antigua a la más reciente.</p>
                         </div>
                     </div>
 
                     <div class="inline-filters-bar">
+                        <div class="filter-search">
+                            <i data-lucide="search" aria-hidden="true"></i>
+                            <input type="search" id="taskSearch" class="custom-input" placeholder="Buscar solicitud, solicitante o responsable..." aria-label="Buscar solicitudes">
+                        </div>
+                        <div class="quick-filters" role="group" aria-label="Filtros rápidos">
+                            <button type="button" class="quick-filter active" data-quick-filter="all">Todas</button>
+                            <button type="button" class="quick-filter" data-quick-filter="starred"><i data-lucide="star" aria-hidden="true"></i> Prioridad</button>
+                            <button type="button" class="quick-filter" data-quick-filter="overdue"><i data-lucide="triangle-alert" aria-hidden="true"></i> Vencidas</button>
+                            <button type="button" class="quick-filter" data-quick-filter="today">Hoy</button>
+                            <button type="button" class="quick-filter" data-quick-filter="course">En curso</button>
+                            <button type="button" class="quick-filter" data-quick-filter="queue">En cola</button>
+                        </div>
                         <div class="inline-filter-item">
                             <div class="input-with-icon">
                                 <i data-lucide="calendar"></i>
@@ -163,10 +198,10 @@
                         </div>
                         <div class="inline-filter-item">
                             <select id="filterSort" name="filterSort" class="native-select-hidden" aria-label="Ordenar tareas">
-                                <option value="received_asc" selected>Orden: Solicitud más antigua</option>
-                                <option value="received_desc">Orden: Solicitud más reciente</option>
-                                <option value="asc">Orden: Entrega más próxima</option>
-                                <option value="desc">Orden: Entrega más lejana</option>
+                                <option value="received_asc" selected>Solicitud: más antigua</option>
+                                <option value="received_desc">Solicitud: más reciente</option>
+                                <option value="asc">Entrega: más próxima</option>
+                                <option value="desc">Entrega: más lejana</option>
                             </select>
                         </div>
                         <button type="button" id="clearFilters" class="btn-text" title="Limpiar filtros" aria-label="Limpiar filtros">
@@ -268,10 +303,6 @@
                         </div>
                     </div>
                     <div class="field full-width">
-                        <label for="taskNotes">Notas de la solicitud</label>
-                        <textarea id="taskNotes" name="taskNotes" class="custom-input task-notes-input" rows="3" placeholder="Añade notas, contexto o instrucciones..." autocomplete="off"></textarea>
-                    </div>
-                    <div class="field full-width">
                         <label for="status">Estado inicial</label>
                         <select id="status" name="status" class="native-select-hidden" required>
                             <option value="En cola" selected>En cola</option>
@@ -312,10 +343,6 @@
                         </div>
                     </div>
                 </div>
-                    <div class="field full-width">
-                        <label for="editTaskNotes">Notas de la solicitud</label>
-                        <textarea id="editTaskNotes" name="editTaskNotes" class="custom-input task-notes-input" rows="4" placeholder="Añade notas, contexto o instrucciones..." autocomplete="off"></textarea>
-                    </div>
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Guardar Edición</button>
                 </div>

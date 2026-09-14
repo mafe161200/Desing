@@ -61,131 +61,24 @@ body {
 /* ==========================================================================
    TOAST NOTIFICATIONS (Alta Visibilidad e Interactividad)
    ========================================================================== */
-.toast-container {
-    position: fixed;
-    right: 28px;
-    bottom: 28px;
-    width: min(430px, calc(100vw - 40px));
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    z-index: 9999999;
-    pointer-events: none;
+.toast-container { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 12px; z-index: 9999999; pointer-events: none; }
+.toast { 
+    background: #ffffff; color: var(--text-dark); padding: 18px 24px; border-radius: 12px; 
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 12px; 
+    font-weight: 600; font-size: 0.95rem; border-left: 6px solid var(--primary-cold); 
+    animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
+    pointer-events: all; transition: opacity 0.3s ease, transform 0.3s ease; 
 }
+.toast-clickable { cursor: pointer; }
+.toast-clickable:hover { transform: scale(1.03); box-shadow: 0 20px 40px rgba(0,0,0,0.25); }
+.toast.fade-out { opacity: 0; transform: translateX(100%); }
 
-.toast {
-    position: relative;
-    width: 100%;
-    box-sizing: border-box;
-    background: rgba(9, 18, 34, 0.98);
-    color: var(--text-light);
-    padding: 14px 44px 14px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-left: 4px solid var(--primary-cold);
-    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42), 0 0 24px rgba(0, 212, 255, 0.08);
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    font-weight: 600;
-    font-size: 0.88rem;
-    line-height: 1.4;
-    animation: slideInRight 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    pointer-events: all;
-    transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-}
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--danger); }
+.toast.warning { border-left-color: var(--warning); }
+.toast.info { border-left-color: var(--primary-cold); }
 
-.toast > svg,
-.toast > i {
-    flex: 0 0 auto;
-    width: 19px;
-    height: 19px;
-    margin-top: 1px;
-}
-
-.toast-message {
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-.toast-close {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 7px;
-    background: rgba(15, 23, 42, 0.72);
-    color: var(--text-light);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
-}
-
-.toast-close:hover {
-    background: rgba(30, 41, 59, 0.95);
-    border-color: var(--primary-cold);
-    transform: scale(1.04);
-}
-
-.toast-close:focus-visible {
-    outline: 2px solid var(--primary-cold);
-    outline-offset: 2px;
-}
-
-.toast-close svg {
-    width: 15px;
-    height: 15px;
-}
-
-.toast-clickable {
-    cursor: pointer;
-}
-
-.toast-clickable:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.5), 0 0 28px rgba(0, 212, 255, 0.1);
-}
-
-.toast.fade-out {
-    opacity: 0;
-    transform: translateX(35px);
-}
-
-.toast.success {
-    border-left-color: var(--success);
-}
-
-.toast.error {
-    border-left-color: var(--danger);
-}
-
-.toast.warning {
-    border-left-color: var(--warning);
-}
-
-.toast.info {
-    border-left-color: var(--primary-cold);
-}
-
-.toast-persistent {
-    min-height: 58px;
-}
-
-@keyframes slideInRight {
-    from {
-        transform: translateX(110%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* Animación de Señalización de Tarea (Highlight Pulse) */
 @keyframes pulseHighlight {
@@ -526,1619 +419,270 @@ html body div.flatpickr-calendar .flatpickr-day.selected, html body div.flatpick
 html body div.flatpickr-calendar .flatpickr-day.inRange { background: var(--status-curso-bg); color: var(--status-curso); box-shadow: none; }
 html body div.flatpickr-calendar .flatpickr-day.prevMonthDay, html body div.flatpickr-calendar .flatpickr-day.nextMonthDay { color: var(--text-muted); opacity: 0.5;}
 /* =========================================================
-   DESIGN HUB — DARK TECHNO CYBER THEME
-   Capa visual sobre la versión estable.
-   Accesibilidad primero: contraste, foco y jerarquía.
+   DESIGN HUB V3 — REFINAMIENTO UX/UI
+   Una sola capa de overrides para evitar reescribir el tema base.
    ========================================================= */
 
 :root {
-    /* Superficie */
-    --bg-main: #050814;
-    --card-bg: #0b1020;
-    --bg-subtle: #0e1628;
-    --border-light: #243451;
-
-    /* Texto */
-    --text-dark: #f4f7ff;
-    --text-main: #c9d5ea;
-    --text-muted: #8ea0bd;
-
-    /* Identidad */
-    --primary-cold: #38bdf8;
-    --primary-hover: #60a5fa;
-    --primary-deep: #2563eb;
-
-    /* Estados — fondos oscuros con contraste */
-    --status-cola: #c084fc;
-    --status-cola-bg: #24143b;
-    --status-cola-border: #7e22ce;
-
-    --status-curso: #60a5fa;
-    --status-curso-bg: #102542;
-    --status-curso-border: #2563eb;
-
-    --status-entregado: #34d399;
-    --status-entregado-bg: #0b2d29;
-    --status-entregado-border: #059669;
-
-    --danger: #fb7185;
-    --danger-bg: #35121c;
-    --warning: #fbbf24;
-    --warning-bg: #33240a;
-    --success: #34d399;
-    --info: #38bdf8;
-
-    /* Cyber accents */
-    --cyber-cyan: #22d3ee;
-    --cyber-blue: #38bdf8;
-    --cyber-purple: #8b5cf6;
-    --cyber-pink: #ec4899;
-    --cyber-green: #34d399;
-    --glow-blue: rgba(56, 189, 248, 0.22);
-    --glow-purple: rgba(139, 92, 246, 0.20);
-    --glow-cyan: rgba(34, 211, 238, 0.16);
-    --surface-glass: rgba(11, 16, 32, 0.86);
+    --v3-surface: #0b1220;
+    --v3-surface-2: #0e1728;
+    --v3-border: rgba(88, 116, 151, 0.34);
+    --v3-cyan-soft: rgba(34, 211, 238, 0.08);
+    --v3-pink: #ec4899;
+    --v3-pink-bg: rgba(236, 72, 153, 0.10);
 }
 
-/* Fondo tecnológico: rejilla + halos, sin imagen externa */
-html {
-    background: #050814;
-}
-
-body {
-    color: var(--text-main);
-    background-color: var(--bg-main);
-    background-image:
-        radial-gradient(circle at 8% 12%, rgba(56, 189, 248, 0.12), transparent 28%),
-        radial-gradient(circle at 88% 8%, rgba(139, 92, 246, 0.14), transparent 30%),
-        radial-gradient(circle at 78% 82%, rgba(34, 211, 238, 0.08), transparent 28%),
-        linear-gradient(rgba(56, 189, 248, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(56, 189, 248, 0.035) 1px, transparent 1px),
-        linear-gradient(180deg, #050814 0%, #070b17 48%, #050814 100%);
-    background-size:
-        auto,
-        auto,
-        auto,
-        36px 36px,
-        36px 36px,
-        auto;
-    background-attachment: fixed;
-}
-
-/* Halo ambiental muy sutil */
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: -1;
-    background:
-        linear-gradient(115deg, transparent 0 35%, rgba(56, 189, 248, 0.035) 50%, transparent 65%),
-        radial-gradient(ellipse at center top, transparent 35%, rgba(0, 0, 0, 0.28) 100%);
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #070b17;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #263958;
-    border: 2px solid #070b17;
-    border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #3b82a8;
-}
-
-/* Contenedor */
-.main-container {
-    max-width: 1500px;
-    padding: 26px 22px;
-}
-
-/* Header */
-.app-header {
-    background:
-        linear-gradient(135deg, rgba(13, 23, 43, 0.94), rgba(8, 13, 27, 0.92));
-    border-color: rgba(56, 189, 248, 0.28);
-    box-shadow:
-        0 18px 50px rgba(0, 0, 0, 0.32),
-        0 0 32px rgba(56, 189, 248, 0.06);
-    position: relative;
-    overflow: hidden;
-}
-
-.app-header::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 8%;
-    right: 8%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--cyber-cyan), var(--cyber-purple), transparent);
-    opacity: 0.85;
-}
-
-.app-header::after {
-    content: "";
-    position: absolute;
-    width: 220px;
-    height: 220px;
-    right: -110px;
-    top: -150px;
-    border-radius: 50%;
-    background: rgba(139, 92, 246, 0.13);
-    filter: blur(20px);
-    pointer-events: none;
-}
-
-.header-title,
-.card-header h2 {
-    color: var(--text-dark);
-}
-
-.header-subtitle,
-.connection-status,
-.field-hint {
-    color: var(--text-muted);
-}
-
-.connection-status {
-    background: rgba(56, 189, 248, 0.07);
-    border-color: rgba(56, 189, 248, 0.24);
-}
-
-/* Cards */
+/* Jerarquía general: menos brillo, más superficie y aire */
+.app-header,
 .card {
-    background:
-        linear-gradient(145deg, rgba(14, 22, 40, 0.94), rgba(8, 13, 27, 0.96));
-    border-color: rgba(71, 98, 132, 0.42);
-    box-shadow:
-        0 18px 45px rgba(0, 0, 0, 0.28),
-        inset 0 1px 0 rgba(255, 255, 255, 0.025);
-    position: relative;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
 }
 
-.card:hover {
-    border-color: rgba(56, 189, 248, 0.26);
-}
+.card-accent-primary { border-top-width: 3px; }
+.card-header { padding: 17px 20px; }
+.card-header h2 { font-size: 0.98rem; letter-spacing: -0.01em; }
 
-.card-accent-primary {
-    border-top-color: var(--cyber-cyan);
-    box-shadow:
-        0 18px 45px rgba(0, 0, 0, 0.28),
-        0 -1px 18px rgba(34, 211, 238, 0.06);
+/* Resumen ejecutivo */
+.dashboard-summary {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
 }
-
-.card-accent-primary::before {
-    content: "";
-    position: absolute;
-    top: -1px;
-    left: 12%;
-    width: 36%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--cyber-cyan), transparent);
-    box-shadow: 0 0 14px rgba(34, 211, 238, 0.65);
+.summary-card {
+    min-height: 76px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, var(--v3-surface-2), var(--v3-surface));
+    border: 1px solid var(--v3-border);
+    border-radius: 12px;
+    transition: border-color .18s ease, transform .18s ease, background .18s ease;
 }
-
-/* Sidebar */
-.sidebar-content {
-    background: transparent;
+.summary-card:hover { transform: translateY(-1px); border-color: rgba(56,189,248,.34); }
+.summary-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    color: var(--primary-cold);
+    background: rgba(56,189,248,.08);
+    flex: 0 0 auto;
 }
+.summary-icon svg { width: 17px; height: 17px; }
+.summary-label { display:block; color: var(--text-muted); font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; }
+.summary-card strong { display:block; margin-top:2px; color:var(--text-dark); font-size:1.35rem; line-height:1; }
+.summary-overdue .summary-icon { color:var(--danger); background:rgba(251,113,133,.08); }
+.summary-starred .summary-icon { color:var(--cyber-cyan); background:var(--v3-cyan-soft); }
 
-.request-item {
-    background: rgba(12, 19, 35, 0.72);
-    border-color: #263958;
-    color: var(--text-main);
-}
-
-.request-item:hover,
-.request-item:focus-visible,
-.request-item.expanded {
-    border-color: rgba(56, 189, 248, 0.62);
-    background: rgba(18, 31, 52, 0.9);
-    box-shadow:
-        0 8px 24px rgba(0, 0, 0, 0.24),
-        0 0 18px rgba(56, 189, 248, 0.08);
-}
-
-.request-item .req-name-text,
-.request-item strong {
-    color: var(--text-dark);
-}
-
-/* Filtros */
+/* Barra de filtros: búsqueda primero, filtros secundarios después */
 .inline-filters-bar {
-    background:
-        linear-gradient(135deg, rgba(12, 21, 38, 0.94), rgba(8, 13, 27, 0.96));
-    border-bottom-color: rgba(56, 189, 248, 0.18);
+    gap: 9px;
+    padding: 11px 16px;
+    background: rgba(8, 15, 28, .94);
 }
-
-.inline-filter-item label,
-.field > .field-label,
-.field > label,
-.form-group label {
-    color: #dbe7f8;
+.filter-search {
+    position: relative;
+    flex: 1 1 280px;
+    min-width: 220px;
 }
-
-.custom-input,
-.select-trigger,
-.select-options,
-.native-select-hidden {
-    background-color: #091120;
-    border-color: #2a3d5c;
-    color: #e7eefb;
+.filter-search > svg {
+    position:absolute;
+    left:11px;
+    top:50%;
+    transform:translateY(-50%);
+    width:16px;
+    height:16px;
+    color:var(--text-muted);
+    pointer-events:none;
 }
-
-.custom-input::placeholder {
-    color: #7184a2;
+.filter-search input {
+    width:100%;
+    height:36px;
+    box-sizing:border-box;
+    padding:0 12px 0 35px !important;
+    border-color:var(--v3-border) !important;
+    background:#091321 !important;
 }
-
-.custom-input:hover,
-.select-trigger:hover {
-    border-color: rgba(56, 189, 248, 0.48);
+.filter-search input:focus { border-color:var(--cyber-cyan) !important; box-shadow:0 0 0 3px rgba(34,211,238,.08) !important; }
+.quick-filters { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.quick-filter {
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    min-height:32px;
+    padding:0 10px;
+    border:1px solid transparent;
+    border-radius:999px;
+    background:transparent;
+    color:var(--text-muted);
+    font:inherit;
+    font-size:.72rem;
+    font-weight:700;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:all .16s ease;
 }
+.quick-filter svg { width:12px; height:12px; }
+.quick-filter:hover { color:var(--text-dark); background:rgba(255,255,255,.035); }
+.quick-filter.active { color:var(--cyber-cyan); background:var(--v3-cyan-soft); border-color:rgba(34,211,238,.22); }
 
-.custom-input:focus,
-.select-trigger:focus-visible,
-.select-trigger.active {
-    border-color: var(--cyber-cyan);
-    box-shadow:
-        0 0 0 3px rgba(34, 211, 238, 0.12),
-        0 0 18px rgba(34, 211, 238, 0.07);
+/* Tabla: más aire, menos efecto cyber */
+.task-table { font-size:.84rem; }
+.task-table th { padding:10px 14px; background:#0d1829; border-bottom-color:var(--v3-border); }
+.task-table td { padding:11px 14px; border-bottom-color:rgba(88,116,151,.25); }
+.task-table tr:hover { background:rgba(34,211,238,.035); }
+.task-table th:nth-child(2), .task-table td:nth-child(2) { width:34%; }
+.task-table th:nth-child(3), .task-table td:nth-child(3) { width:21%; }
+.task-table th:nth-child(4), .task-table td:nth-child(4) { width:19%; }
+.task-table th:nth-child(5), .task-table td:nth-child(5) { width:145px; }
+.task-table th:nth-child(6), .task-table td:nth-child(6) { width:112px; }
+
+.req-title-cell { gap:5px; }
+.req-title-cell strong { font-size:.92rem; line-height:1.28; }
+.req-title-cell span { font-size:.70rem; color:#8195b2; }
+
+/* Fechas: recepción discreta + entrega como dato accionable */
+.task-table td.date-info {
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+    gap: 6px;
+    align-items:flex-start;
 }
-
-.select-option {
-    color: #dce7f8;
-    background: #0b1425;
+.task-table td.date-info::before,
+.task-table td.date-info::after { content:none !important; display:none !important; }
+.date-req {
+    font-size:.67rem;
+    color:#8296b2;
+    letter-spacing:.01em;
 }
-
-.select-option:hover,
-.select-option:focus-visible {
-    background: #14253e;
-    color: #ffffff;
-}
-
-.select-option.selected {
-    background: #102d46;
-    color: #ffffff;
-}
-
-.select-trigger.table-select {
-    background: rgba(18, 31, 52, 0.86);
-    color: #e6f0ff;
-    border-color: #2c4666;
-}
-
-.select-trigger.table-select:hover,
-.select-trigger.table-select:focus-visible {
-    border-color: rgba(56, 189, 248, 0.6);
-    background: rgba(22, 39, 64, 0.96);
-}
-
-/* Botones */
-.btn-primary {
-    background: linear-gradient(135deg, #0ea5e9, #2563eb 58%, #7c3aed);
-    border-color: rgba(125, 211, 252, 0.42);
-    color: #ffffff;
-    box-shadow:
-        0 8px 22px rgba(37, 99, 235, 0.24),
-        0 0 20px rgba(56, 189, 248, 0.10);
-}
-
-.btn-primary:hover {
-    background: linear-gradient(135deg, #38bdf8, #3b82f6 58%, #8b5cf6);
-    box-shadow:
-        0 10px 28px rgba(37, 99, 235, 0.34),
-        0 0 28px rgba(56, 189, 248, 0.16);
-}
-
-.btn-secondary {
-    background: #0c1628;
-    border-color: #2a3d5c;
-    color: #d9e5f5;
-}
-
-.btn-secondary:hover {
-    background: #12213a;
-    border-color: #3d6087;
-    color: #ffffff;
-}
-
-.btn-text {
-    color: #7dd3fc;
-}
-
-.btn-text:hover {
-    color: #bae6fd;
-}
-
-/* Tabla */
-.task-table {
-    color: var(--text-main);
-}
-
-.task-table th {
-    background:
-        linear-gradient(180deg, #101c31, #0b1425);
-    color: #9fb2ce;
-    border-bottom-color: #29415f;
-}
-
-.task-table td {
-    color: #cdd9ea;
-    border-bottom-color: rgba(54, 77, 105, 0.52);
-}
-
-.task-table tr {
-    background: transparent;
-}
-
-.task-table tr:hover {
-    background: rgba(34, 211, 238, 0.045);
-}
-
-.task-table tr.expanded-row {
-    background: rgba(56, 189, 248, 0.055);
-}
-
-.req-title-cell strong,
-.req-title-text {
-    color: #f1f6ff;
-}
-
-.req-dates,
-.date-info {
-    color: #9db0ca;
-}
-
 .inline-date-picker-alt {
-    background: #0a1425 !important;
-    color: #dcecff !important;
-    border-color: #2b4567 !important;
+    width:118px;
+    min-width:118px;
+    height:31px;
+    padding:5px 9px;
+    border-radius:7px;
+    background:#0a1525 !important;
+    border-color:#2b4567 !important;
+    color:#dcecff !important;
 }
+.inline-date-picker-alt:hover { background:#0d1c31 !important; }
 
-.inline-date-picker-alt:focus {
-    border-color: var(--cyber-cyan) !important;
-    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.10) !important;
+/* Estados: claros pero contenidos */
+.status-switch {
+    min-width:108px;
+    justify-content:flex-start;
+    padding:4px 9px 4px 6px;
+    border-radius:999px;
+    box-shadow:none !important;
 }
-
-/* Estados */
-.status-badge {
-    font-weight: 700;
-    letter-spacing: 0.01em;
+.status-switch.cola {
+    background:var(--v3-pink-bg) !important;
+    color:#f9a8d4 !important;
+    border-color:rgba(236,72,153,.65) !important;
 }
-
-.status-badge.status-cola {
-    color: #e9d5ff;
-    background: var(--status-cola-bg);
-    border-color: var(--status-cola-border);
+.status-switch.curso {
+    background:rgba(34,211,238,.08) !important;
+    color:#67e8f9 !important;
+    border-color:rgba(34,211,238,.58) !important;
 }
+.status-switch.cola .switch-track { background:var(--v3-pink) !important; }
+.status-switch.curso .switch-track { background:var(--cyber-cyan) !important; }
+.status-switch.cola .switch-thumb,
+.status-switch.curso .switch-thumb { background:#f8fafc; box-shadow:none; }
 
-.status-badge.status-curso {
-    color: #bfdbfe;
-    background: var(--status-curso-bg);
-    border-color: var(--status-curso-border);
-}
-
-.status-badge.status-entregado {
-    color: #a7f3d0;
-    background: var(--status-entregado-bg);
-    border-color: var(--status-entregado-border);
-}
-
-/* Estrella / prioridad */
-.btn-star {
-    color: #64748b;
-}
-
-.btn-star:hover,
-.btn-star.active {
-    color: #fbbf24;
-    filter: drop-shadow(0 0 7px rgba(251, 191, 36, 0.42));
-}
-
-/* Iconos */
-[data-lucide] {
-    color: currentColor;
-}
-
-.card-header [data-lucide],
-.field [data-lucide],
-.inline-filters-bar [data-lucide] {
-    color: #7dd3fc;
-}
-
-/* Modal */
-.modal-overlay {
-    background:
-        radial-gradient(circle at 50% 15%, rgba(56, 189, 248, 0.09), transparent 35%),
-        rgba(2, 5, 13, 0.82);
-    backdrop-filter: blur(10px);
-}
-
-.modal-content {
-    background:
-        linear-gradient(145deg, rgba(14, 23, 41, 0.98), rgba(7, 12, 25, 0.99));
-    border: 1px solid rgba(56, 189, 248, 0.30);
-    box-shadow:
-        0 30px 90px rgba(0, 0, 0, 0.58),
-        0 0 45px rgba(56, 189, 248, 0.08);
-}
-
-.modal-header {
-    border-bottom-color: rgba(61, 91, 122, 0.5);
-}
-
-.modal-header h2 {
-    color: #f4f8ff;
-}
-
-.close-modal {
-    color: #9bb0cb;
-    background: transparent;
-}
-
-.close-modal:hover,
-.close-modal:focus-visible {
-    color: #ffffff;
-    background: rgba(56, 189, 248, 0.10);
-}
-
-/* Perfil / autenticación */
-.auth-overlay {
-    background:
-        radial-gradient(circle at 25% 20%, rgba(34, 211, 238, 0.12), transparent 28%),
-        radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.14), transparent 32%),
-        #050814;
-}
-
-.auth-card {
-    background: linear-gradient(145deg, #0e172a, #080d1b);
-    border-color: #263d5b;
-    border-top-color: var(--cyber-cyan);
-    box-shadow:
-        0 30px 80px rgba(0, 0, 0, 0.55),
-        0 0 35px rgba(56, 189, 248, 0.08);
-}
-
-.auth-card h2 {
-    color: #f5f8ff;
-}
-
-.auth-card p {
-    color: #9db0c9;
-}
-
-/* Notas / chat */
-.notes-panel {
-    background:
-        linear-gradient(160deg, #0c1426, #070c19);
-    border-left: 1px solid rgba(56, 189, 248, 0.24);
-    box-shadow: -20px 0 55px rgba(0, 0, 0, 0.42);
-}
-
-.notes-header {
-    background: rgba(10, 18, 33, 0.94);
-    border-bottom-color: #253a56;
-}
-
-.notes-header h3 {
-    color: #f2f7ff;
-}
-
-.notes-body {
-    background:
-        radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.06), transparent 35%);
-}
-
-.chat-bubble {
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-}
-
-.chat-msg.mine .chat-bubble {
-    background: linear-gradient(135deg, #2563eb, #4f46e5);
-}
-
-.chat-msg.other .chat-bubble {
-    background: #101b2f;
-    border-color: #29415f;
-    color: #dce8f8;
-}
-
-.chat-meta {
-    color: #8296b2;
-}
-
-/* Carga de trabajo */
-.workload-item {
-    background: rgba(13, 22, 39, 0.58);
-    border-color: rgba(52, 76, 104, 0.55);
-}
-
-/* Barra de cambios */
-.unsaved-bar-content {
-    background:
-        linear-gradient(135deg, #111c31, #0a1222);
-    color: #f3f7ff;
-    border: 1px solid rgba(56, 189, 248, 0.30);
-    box-shadow:
-        0 18px 45px rgba(0, 0, 0, 0.50),
-        0 0 25px rgba(56, 189, 248, 0.07);
-}
-
-/* Toasts */
-.toast {
-    background: rgba(13, 22, 39, 0.97);
-    color: #edf4ff;
-    border-color: #29415f;
-    box-shadow:
-        0 18px 45px rgba(0, 0, 0, 0.42),
-        0 0 22px rgba(56, 189, 248, 0.05);
-}
-
-.toast.success {
-    border-left-color: var(--success);
-}
-
-.toast.error {
-    border-left-color: var(--danger);
-}
-
-.toast.warning {
-    border-left-color: var(--warning);
-}
-
-.toast.info {
-    border-left-color: var(--cyber-cyan);
-}
-
-/* Foco global de alto contraste */
-:where(button, a, input, select, textarea, [tabindex]):focus-visible {
-    outline: 3px solid rgba(34, 211, 238, 0.72);
-    outline-offset: 2px;
-}
-
-/* No dependemos solo del color para enlaces */
-a {
-    color: #7dd3fc;
-}
-
-a:hover {
-    color: #bae6fd;
-}
-
-/* Campos deshabilitados */
-button:disabled,
-input:disabled,
-select:disabled,
-textarea:disabled {
-    opacity: 0.58;
-    cursor: not-allowed;
-}
-
-/* Respeta reducción de movimiento */
-@media (prefers-reduced-motion: reduce) {
-    body::before {
-        display: none;
-    }
-}
-
-/* Móvil: conservar estética sin perder legibilidad */
-@media (max-width: 768px) {
-    body {
-        background-attachment: scroll;
-        background-size:
-            auto,
-            auto,
-            auto,
-            28px 28px,
-            28px 28px,
-            auto;
-    }
-
-    .app-header,
-    .card,
-    .modal-content {
-        box-shadow:
-            0 12px 30px rgba(0, 0, 0, 0.32),
-            inset 0 1px 0 rgba(255, 255, 255, 0.02);
-    }
-
-    .inline-filters-bar {
-        background: rgba(8, 15, 28, 0.98);
-    }
-}
-/* =========================================================
-   DARK TECH — DESTACADAS / PRIORIDAD
-   Ajuste incremental sobre la ÚLTIMA versión Dark Tech validada.
-   No reemplaza ni reinterpreta el resto del tema.
-   ========================================================= */
-
+/* Prioridad: una señal visual fuerte, no cuatro */
 .task-table tr.task-starred,
 .task-starred {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(245, 158, 11, 0.12) 0%,
-            rgba(245, 158, 11, 0.045) 38%,
-            rgba(8, 15, 30, 0.94) 100%
-        ) !important;
-    background-color: transparent !important;
-    border-left: 3px solid rgba(245, 158, 11, 0.95) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(245, 158, 11, 0.08),
-        inset 0 -1px 0 rgba(245, 158, 11, 0.05);
+    background:linear-gradient(90deg, rgba(34,211,238,.075), rgba(11,18,32,.18)) !important;
+    border-left:3px solid rgba(34,211,238,.72) !important;
+    box-shadow:none !important;
 }
-
 .task-table tr.task-starred:hover,
-.task-starred:hover {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(245, 158, 11, 0.17) 0%,
-            rgba(245, 158, 11, 0.065) 40%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-    background-color: transparent !important;
-}
-
+.task-starred:hover { background:linear-gradient(90deg, rgba(34,211,238,.105), rgba(11,18,32,.24)) !important; }
 .task-table tr.task-starred td,
-.task-starred td {
-    border-bottom-color: rgba(245, 158, 11, 0.10);
-}
-
+.task-starred td { border-bottom-color:rgba(34,211,238,.13); }
 .task-table tr.task-starred .btn-star.active,
-.task-starred .btn-star.active {
-    color: #fbbf24 !important;
-    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.32));
-}
-
+.task-starred .btn-star.active { color:var(--cyber-cyan) !important; filter:none !important; }
 .task-table tr.task-starred .btn-star.active svg,
-.task-starred .btn-star.active svg {
-    fill: #fbbf24;
-    stroke: #fbbf24;
-}
+.task-starred .btn-star.active svg { fill:var(--cyber-cyan) !important; stroke:var(--cyber-cyan) !important; }
 
-.task-table tr.task-starred.completed-item,
-.task-starred.completed-item {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(148, 163, 184, 0.055) 0%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-    background-color: transparent !important;
-    border-left-color: rgba(148, 163, 184, 0.35) !important;
-    box-shadow: none;
-}
+.btn-star { color:#61738d; }
+.btn-star:hover { color:var(--cyber-cyan); background:rgba(34,211,238,.07); transform:none; }
 
-@media (max-width: 768px) {
-    .task-table tr.task-starred,
-    .task-starred {
-        border-left-width: 3px !important;
-    }
-}
+/* Acciones: área táctil limpia */
+.action-buttons { gap:4px; justify-content:flex-end; }
+.btn-icon { width:32px; height:32px; }
+.action-buttons .btn-icon:hover { transform:translateY(-1px); }
 
-
-/* =========================================================
-   SELECCIÓN DE TAREA — sincronizada entre Mis Tareas y tabla
-   ========================================================= */
-.task-table tr.task-selected,
-.request-item.task-selected {
-    outline: 1px solid rgba(34, 211, 238, 0.78);
-    outline-offset: -1px;
-    background: linear-gradient(90deg, rgba(34, 211, 238, 0.10), rgba(8, 15, 30, 0.96)) !important;
-    box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.16), 0 0 14px rgba(34, 211, 238, 0.08);
-}
-
-.task-table tr.task-selected.task-starred,
-.request-item.task-selected.task-starred {
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.14), rgba(34, 211, 238, 0.07), rgba(8, 15, 30, 0.96)) !important;
-    border-left-color: rgba(245, 158, 11, 0.98) !important;
-}
-
-.request-item.task-selected {
-    transform: translateX(1px);
-}
-
-
-/* =========================================================
-   AJUSTE FINAL — ANIMACIÓN DE SELECCIÓN SOBRE DESTACADAS
-   La señal de selección debe quedar visualmente por encima
-   del fondo ámbar de las tareas con estrella.
-   ========================================================= */
-
-/* La animación de selección gana prioridad visual */
-.task-table tr.task-highlight-pulse,
-.request-item.task-highlight-pulse {
-    position: relative;
-    z-index: 5;
-    isolation: isolate;
-    border-left-color: var(--primary-cold) !important;
-    animation-name: pulseHighlightAbovePriority;
-}
-
-/* Mantiene visible el ámbar de una tarea destacada durante la animación,
-   pero coloca encima una señal cian sutil. */
-.task-table tr.task-highlight-pulse.task-starred,
-.request-item.task-highlight-pulse.task-starred {
-    border-left-color: var(--primary-cold) !important;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.16) 0%,
-            rgba(245, 158, 11, 0.09) 30%,
-            rgba(34, 211, 238, 0.045) 58%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(34, 211, 238, 0.34),
-        inset 0 -1px 0 rgba(34, 211, 238, 0.18),
-        0 0 16px rgba(34, 211, 238, 0.10);
-}
-
-/* Animación propia: el resplandor queda sobre el amarillo sin
-   convertir la fila en un destello demasiado fuerte. */
-@keyframes pulseHighlightAbovePriority {
-    0% {
-        box-shadow:
-            inset 0 1px 0 rgba(34, 211, 238, 0.45),
-            inset 0 -1px 0 rgba(34, 211, 238, 0.20),
-            0 0 0 0 rgba(34, 211, 238, 0.42);
-    }
-    45% {
-        box-shadow:
-            inset 0 1px 0 rgba(34, 211, 238, 0.55),
-            inset 0 -1px 0 rgba(34, 211, 238, 0.25),
-            0 0 0 7px rgba(34, 211, 238, 0);
-    }
-    100% {
-        box-shadow:
-            inset 0 1px 0 rgba(34, 211, 238, 0.12),
-            inset 0 -1px 0 rgba(34, 211, 238, 0.06),
-            0 0 0 0 rgba(34, 211, 238, 0);
-    }
-}
-
-/* La selección persistente también queda por encima de la prioridad */
-.task-table tr.task-selected.task-starred,
-.request-item.task-selected.task-starred {
-    position: relative;
-    z-index: 4;
-}
-
-
-/* =========================================================
-   UX — SOLICITUDES: TEXTO COMPLETO Y SOLICITANTE DIFERENCIADO
-   ========================================================= */
-
-/* La solicitud puede ocupar varias líneas para evitar cortar información. */
-.req-title-cell {
-    overflow: visible;
-    min-width: 0;
-}
-
-.req-title-cell strong {
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
-    color: var(--text-dark);
-    font-size: 0.86rem;
-    font-weight: 700;
-    line-height: 1.38;
-    white-space: normal;
-    overflow: visible;
-}
-
-.req-title-cell strong .req-title-text {
-    display: block;
-    flex: 1;
-    min-width: 0;
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-    word-break: normal;
-    overflow-wrap: anywhere;
-    -webkit-line-clamp: unset;
-}
-
-/* El solicitante deja de parecer parte del título: menor, más discreto y separado. */
-.req-title-cell > span:not(.req-title-text) {
-    display: block;
-    margin-top: 2px;
-    padding-left: 28px;
-    color: var(--text-muted);
-    font-size: 0.68rem;
-    font-weight: 500;
-    line-height: 1.25;
-    letter-spacing: 0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.req-title-cell > span:not(.req-title-text)::before {
-    content: 'Solicitante · ';
-    color: var(--primary-cold);
-    font-weight: 600;
-}
-
-/* En pantallas pequeñas mantenemos el título completo y el solicitante claramente separado. */
-@media (max-width: 900px) {
-    .req-title-cell strong {
-        font-size: 0.88rem;
-    }
-
-    .req-title-cell > span:not(.req-title-text) {
-        padding-left: 0;
-        white-space: normal;
-    }
-}
-
-/* Tarjetas de Mis Tareas: hasta 3 líneas antes de expandir para conservar densidad. */
-.req-name-text {
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-}
-
-.request-item.expanded .req-name-text {
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
-}
-
-
-/* =========================================================
-   AJUSTE TIPOGRÁFICO — TÍTULO DE SOLICITUD
-   Mayor jerarquía visual sin alterar la estructura.
-   ========================================================= */
-
-.task-title,
-.request-title,
-.task-table .task-title,
-.request-item .request-title {
-    font-size: 1.16rem !important;
-    line-height: 1.38 !important;
-    font-weight: 650 !important;
-    letter-spacing: 0.005em;
-}
-
-.task-table .task-title {
-    max-width: 100%;
-}
-
-.request-item .request-title {
-    font-size: 1.18rem !important;
-    line-height: 1.34 !important;
-    font-weight: 650 !important;
-}
-
-/* En pantallas pequeñas conserva la jerarquía sin desbordar */
-@media (max-width: 700px) {
-    .task-title,
-    .task-table .task-title,
-    .request-item .request-title {
-        font-size: 1.06rem !important;
-        line-height: 1.32 !important;
-    }
-}
-
-
-/* =========================================================
-   CARGA DE TRABAJO — AVATARES DE USUARIO
-   Usa la foto configurada en el perfil y muestra iniciales
-   como respaldo cuando no existe una imagen.
-   ========================================================= */
-
-.workload-header {
-    align-items: center;
-    gap: 10px;
-}
-
-.workload-identity {
-    display: inline-flex;
-    align-items: center;
-    min-width: 0;
-    gap: 9px;
-}
-
-.workload-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.workload-count {
-    flex: 0 0 auto;
-    font-variant-numeric: tabular-nums;
-}
-
+/* Carga de trabajo: lectura tipo lista operativa */
+.workload-item { margin-bottom:12px; }
+.workload-header { margin-bottom:5px; font-size:.76rem; }
+.workload-person { display:flex; align-items:center; gap:7px; min-width:0; }
 .workload-avatar {
-    width: 27px;
-    height: 27px;
-    flex: 0 0 27px;
-    border-radius: 50%;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    border: 2px solid color-mix(in srgb, var(--avatar-color) 75%, white 25%);
-    background:
-        radial-gradient(circle at 30% 25%, rgba(255,255,255,.18), transparent 45%),
-        color-mix(in srgb, var(--avatar-color) 20%, var(--card-bg));
-    color: #fff;
-    font-size: 0.62rem;
-    font-weight: 800;
-    line-height: 1;
-    box-shadow: 0 0 0 2px rgba(255,255,255,.035), 0 3px 8px rgba(0,0,0,.18);
+    width:23px;
+    height:23px;
+    border-radius:50%;
+    display:inline-grid;
+    place-items:center;
+    flex:0 0 auto;
+    background:color-mix(in srgb, var(--person-color) 16%, #0b1220);
+    border:1px solid color-mix(in srgb, var(--person-color) 48%, transparent);
+    color:#eaf6ff;
+    font-size:.58rem;
+    font-weight:800;
+}
+.workload-bar-bg { height:6px; border:0; background:#111d2e; }
+.workload-bar-fill { opacity:.82; }
+
+/* Sidebar: información más compacta */
+.sidebar-card .card-header { padding:14px 17px; }
+.sidebar-card .sidebar-content { padding:10px; }
+.request-list { gap:7px; }
+.request-item { padding:10px 12px; border-radius:10px; }
+.request-item:hover, .request-item:focus-visible { transform:none; box-shadow:0 4px 14px rgba(0,0,0,.14); }
+.req-dates { background:#08111f; padding:7px 9px; }
+
+/* Accesibilidad: foco visible uniforme */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.status-switch:focus-visible,
+.request-item:focus-visible {
+    outline:2px solid var(--cyber-cyan);
+    outline-offset:2px;
 }
 
-.workload-avatar img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: cover;
-}
-
-.workload-avatar svg {
-    width: 14px;
-    height: 14px;
-    stroke-width: 2;
-    opacity: .9;
-}
-
-.workload-avatar-fallback {
-    letter-spacing: .02em;
-}
-
-@supports not (color: color-mix(in srgb, white 50%, black)) {
-    .workload-avatar {
-        border-color: var(--avatar-color);
-        background: var(--card-bg);
-    }
-}
-
-@media (max-width: 700px) {
-    .workload-avatar {
-        width: 25px;
-        height: 25px;
-        flex-basis: 25px;
-    }
-}
-
-
-/* =========================================================
-   AJUSTE VISUAL — TÍTULOS + TAREAS DESTACADAS
-   - Título más discreto.
-   - Las tareas con ⭐ se resaltan en azul/cian.
-   - La estrella conserva su color amarillo.
-   ========================================================= */
-
-/* Título de solicitud: legible, pero sin dominar la fila */
-.task-table .req-title-cell .req-title-text,
-.task-table .task-title,
-.request-item .req-name-text,
-.request-item .task-title,
-.request-item .request-title {
-    font-size: 0.96rem !important;
-    line-height: 1.32 !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.002em;
-}
-
-/* En Mis Tareas mantenemos un poco más de jerarquía */
-.request-item .req-name-text {
-    font-size: 0.98rem !important;
-    line-height: 1.3 !important;
-}
-
-/* =========================================================
-   ⭐ DESTACADAS — AZUL / CIAN
-   El amarillo queda únicamente en la estrella.
-   ========================================================= */
-
-.task-table tr.task-starred {
-    border-left: 2px solid #22d3ee !important;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.14) 0%,
-            rgba(34, 211, 238, 0.055) 42%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(34, 211, 238, 0.22),
-        inset 0 -1px 0 rgba(34, 211, 238, 0.10);
-}
-
-/* Hover de una destacada: sigue siendo cian */
-.task-table tr.task-starred:hover {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.20) 0%,
-            rgba(34, 211, 238, 0.08) 48%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-}
-
-/* ⭐ siempre amarilla para distinguir "prioridad" */
-.task-table tr.task-starred .star,
-.task-table tr.task-starred [data-action="toggle-star"],
-.task-table tr.task-starred .lucide-star {
-    color: #f59e0b !important;
-    stroke: #f59e0b !important;
-}
-
-/* Cuando una destacada está seleccionada, la selección cian
-   se mantiene y no vuelve a aparecer el fondo amarillo. */
-.task-table tr.task-starred.task-selected {
-    border-left-color: #22d3ee !important;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.19) 0%,
-            rgba(34, 211, 238, 0.075) 52%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(34, 211, 238, 0.40),
-        inset 0 -1px 0 rgba(34, 211, 238, 0.16),
-        0 0 14px rgba(34, 211, 238, 0.09) !important;
-}
-
-@media (max-width: 700px) {
-    .task-table .req-title-cell .req-title-text,
-    .task-table .task-title,
-    .request-item .req-name-text,
-    .request-item .task-title,
-    .request-item .request-title {
-        font-size: 0.94rem !important;
-        line-height: 1.28 !important;
-    }
-}
-
-
-/* =========================================================
-   NOTAS POR SOLICITUD — BOTÓN + VISOR
-   ========================================================= */
-.task-notes-button { position: relative; }
-.task-notes-button.has-notes {
-    color: #22d3ee !important;
-    border-color: rgba(34,211,238,.30) !important;
-}
-.task-notes-dot {
-    position:absolute; top:5px; right:5px; width:5px; height:5px;
-    border-radius:50%; background:#22d3ee;
-    box-shadow:0 0 7px rgba(34,211,238,.75);
-}
-.task-notes-viewer-overlay {
-    position:fixed; inset:0; z-index:10050; display:flex;
-    align-items:center; justify-content:center; padding:24px;
-    background:rgba(2,8,18,.76); backdrop-filter:blur(5px);
-    opacity:0; pointer-events:none; transition:opacity .18s ease;
-}
-.task-notes-viewer-overlay.active { opacity:1; pointer-events:auto; }
-.task-notes-viewer-card {
-    width:min(560px,100%); max-height:min(620px,calc(100vh - 48px));
-    overflow:hidden; border:1px solid rgba(34,211,238,.34);
-    border-top:2px solid #22d3ee; border-radius:16px;
-    background:linear-gradient(145deg,rgba(13,24,43,.99),rgba(6,14,28,.99));
-    box-shadow:0 24px 70px rgba(0,0,0,.48),0 0 28px rgba(34,211,238,.08);
-    transform:translateY(8px) scale(.985); transition:transform .18s ease;
-}
-.task-notes-viewer-overlay.active .task-notes-viewer-card { transform:translateY(0) scale(1); }
-.task-notes-viewer-header {
-    display:flex; align-items:center; justify-content:space-between; gap:16px;
-    padding:18px 20px; border-bottom:1px solid rgba(148,163,184,.16);
-}
-.task-notes-viewer-title-wrap { display:flex; align-items:center; gap:10px; color:#22d3ee; }
-.task-notes-viewer-title-wrap h2 { margin:0; color:#f1f5f9; font-size:1.05rem; line-height:1.25; }
-.task-notes-viewer-task-name {
-    padding:18px 20px 5px; color:#e2e8f0; font-size:1rem; font-weight:650; line-height:1.4;
-}
-.task-notes-viewer-meta { padding:0 20px 14px; color:#67e8f9; font-size:.78rem; font-weight:550; }
-.task-notes-viewer-body {
-    max-height:360px; overflow:auto; margin:0 20px 20px; padding:16px;
-    border:1px solid rgba(34,211,238,.14); border-radius:10px;
-    background:rgba(3,10,22,.62);
-}
-.task-notes-viewer-text {
-    margin:0; color:#cbd5e1; font-size:.92rem; line-height:1.65;
-    white-space:pre-wrap; overflow-wrap:anywhere;
-}
-.task-notes-viewer-body.is-empty .task-notes-viewer-text { color:#64748b; font-style:italic; }
-
-@media (max-width:700px) {
-    .task-notes-viewer-overlay { padding:14px; }
-    .task-notes-viewer-card { border-radius:13px; }
-    .task-notes-viewer-body { max-height:50vh; }
-}
-
-/* Título de solicitud — tamaño discreto definitivo */
-.task-table .req-title-cell .req-title-text { font-size: .96rem !important; line-height: 1.32 !important; }
-.request-item .req-name-text { font-size: .98rem !important; line-height: 1.30 !important; }
-
-
-/* =========================================================
-   RESALTADO CYAN UNIFICADO — MIS TAREAS + PRIORIDAD
-   Las tareas destacadas usan el mismo lenguaje visual:
-   cyan para el resalto y amarillo únicamente para ⭐.
-   ========================================================= */
-
-/* Mis Tareas — tarea destacada */
-.request-item.task-starred,
-.my-task-card.task-starred {
-    border-left: 2px solid #22d3ee !important;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.14) 0%,
-            rgba(34, 211, 238, 0.055) 45%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(34, 211, 238, 0.22),
-        inset 0 -1px 0 rgba(34, 211, 238, 0.10);
-}
-
-/* Hover: mantiene el mismo lenguaje cyan */
-.request-item.task-starred:hover,
-.my-task-card.task-starred:hover {
-    background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.19) 0%,
-            rgba(34, 211, 238, 0.075) 48%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-}
-
-/* Si está seleccionada, el cyan sigue siendo dominante */
-.request-item.task-starred.task-selected,
-.my-task-card.task-starred.task-selected {
-    border-left-color: #22d3ee !important;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(34, 211, 238, 0.21) 0%,
-            rgba(34, 211, 238, 0.08) 52%,
-            rgba(8, 15, 30, 0.96) 100%
-        ) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(34, 211, 238, 0.40),
-        inset 0 -1px 0 rgba(34, 211, 238, 0.16),
-        0 0 14px rgba(34, 211, 238, 0.09) !important;
-}
-
-/* La estrella continúa siendo amarilla: solo indica prioridad */
-.request-item.task-starred .star,
-.request-item.task-starred [data-action="toggle-star"],
-.request-item.task-starred .lucide-star,
-.my-task-card.task-starred .star,
-.my-task-card.task-starred [data-action="toggle-star"],
-.my-task-card.task-starred .lucide-star {
-    color: #f59e0b !important;
-    stroke: #f59e0b !important;
-}
-
-/* Refuerzo para cualquier card que use el nombre de la tarea como clase */
-.request-item.task-starred .req-name-text {
-    color: #e2e8f0 !important;
-}
-
-@media (max-width: 700px) {
-    .request-item.task-starred,
-    .my-task-card.task-starred {
-        border-left-width: 2px !important;
-    }
-}
-
-
-/* =========================================================
-   ESTADOS — DIFERENCIACIÓN VISUAL CLARA
-   "En cola" = pendiente de iniciar
-   "En curso" = trabajo actualmente activo
-   ========================================================= */
-
-/* Base común: mismo tamaño y legibilidad */
-.status-badge,
-.status-pill,
-.task-status,
-.task-status-badge {
-    font-weight: 650 !important;
-    letter-spacing: .01em;
-}
-
-/* EN COLA — violeta: pendiente / esperando inicio */
-.status-badge.status-pending,
-.status-badge.status-queue,
-.status-badge.en-cola,
-.status-pill.status-pending,
-.status-pill.status-queue,
-.status-pill.en-cola,
-.task-status.status-pending,
-.task-status.status-queue,
-.task-status.en-cola,
-[data-status="En cola"],
-[data-status="En Cola"] {
-    color: #d8b4fe !important;
-    border-color: #a855f7 !important;
-    background: linear-gradient(
-        135deg,
-        rgba(168, 85, 247, .22),
-        rgba(126, 34, 206, .10)
-    ) !important;
-    box-shadow: 0 0 10px rgba(168, 85, 247, .10);
-}
-
-/* EN CURSO — azul/cian: actividad actual */
-.status-badge.status-progress,
-.status-badge.status-in-progress,
-.status-badge.en-curso,
-.status-pill.status-progress,
-.status-pill.status-in-progress,
-.status-pill.en-curso,
-.task-status.status-progress,
-.task-status.status-in-progress,
-.task-status.en-curso,
-[data-status="En curso"],
-[data-status="En Curso"] {
-    color: #67e8f9 !important;
-    border-color: #06b6d4 !important;
-    background: linear-gradient(
-        135deg,
-        rgba(6, 182, 212, .24),
-        rgba(14, 116, 144, .11)
-    ) !important;
-    box-shadow: 0 0 11px rgba(6, 182, 212, .12);
-}
-
-/* Diferencia también el interruptor que aparece dentro del estado */
-.task-table .status-switch[data-status="En cola"],
-.task-table .status-switch[data-status="En Cola"] {
-    border-color: #a855f7 !important;
-    background: rgba(168, 85, 247, .12) !important;
-}
-
-.task-table .status-switch[data-status="En curso"],
-.task-table .status-switch[data-status="En Curso"] {
-    border-color: #06b6d4 !important;
-    background: rgba(6, 182, 212, .12) !important;
-}
-
-/* Si el proyecto usa clases de estado directamente en el botón */
-button.status-pending,
-button.status-queue,
-button.en-cola {
-    color: #d8b4fe !important;
-    border-color: #a855f7 !important;
-    background: rgba(168, 85, 247, .14) !important;
-}
-
-button.status-progress,
-button.status-in-progress,
-button.en-curso {
-    color: #67e8f9 !important;
-    border-color: #06b6d4 !important;
-    background: rgba(6, 182, 212, .15) !important;
-}
-
-/* Micro-indicador visual: espera vs actividad */
-.status-badge.status-pending::before,
-.status-badge.status-queue::before,
-.status-badge.en-cola::before,
-.status-pill.status-pending::before,
-.status-pill.status-queue::before,
-.status-pill.en-cola::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    margin-right: 6px;
-    border-radius: 50%;
-    display: inline-block;
-    background: #c084fc;
-    box-shadow: 0 0 7px rgba(192, 132, 252, .55);
-}
-
-.status-badge.status-progress::before,
-.status-badge.status-in-progress::before,
-.status-badge.en-curso::before,
-.status-pill.status-progress::before,
-.status-pill.status-in-progress::before,
-.status-pill.en-curso::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    margin-right: 6px;
-    border-radius: 50%;
-    display: inline-block;
-    background: #22d3ee;
-    box-shadow: 0 0 8px rgba(34, 211, 238, .65);
-}
-
-/* No aplicar los puntos si el estado ya usa un switch con indicador propio */
-.task-table .status-switch::before {
-    content: none !important;
-}
-
-
-/* =========================================================
-   CORRECCIÓN — CLASES REALES DEL PROYECTO
-   .status-cola = En cola
-   .status-curso = En curso
-   ========================================================= */
-
-/* EN COLA — violeta más apagado y claramente "espera" */
-.status-badge.status-cola,
-.status-switch.status-cola {
-    color: #d8b4fe !important;
-    border-color: #a855f7 !important;
-    background:
-        linear-gradient(135deg,
-            rgba(168, 85, 247, .20),
-            rgba(88, 28, 135, .10)
-        ) !important;
-    box-shadow: 0 0 8px rgba(168, 85, 247, .10) !important;
-}
-
-/* EN CURSO — cian/azul más activo y luminoso */
-.status-badge.status-curso,
-.status-switch.status-curso {
-    color: #67e8f9 !important;
-    border-color: #06b6d4 !important;
-    background:
-        linear-gradient(135deg,
-            rgba(6, 182, 212, .25),
-            rgba(14, 116, 144, .12)
-        ) !important;
-    box-shadow:
-        0 0 12px rgba(6, 182, 212, .16),
-        inset 0 0 8px rgba(34, 211, 238, .06) !important;
-}
-
-/* El punto/indicador interno también distingue los estados */
-.status-cola .status-dot,
-.status-cola .req-status-dot {
-    background: #c084fc !important;
-    box-shadow: 0 0 7px rgba(192, 132, 252, .65) !important;
-}
-
-.status-curso .status-dot,
-.status-curso .req-status-dot {
-    background: #22d3ee !important;
-    box-shadow: 0 0 8px rgba(34, 211, 238, .75) !important;
-}
-
-/* Hover de cada estado conserva su identidad */
-.status-badge.status-cola:hover,
-.status-switch.status-cola:hover {
-    border-color: #c084fc !important;
-    background: rgba(168, 85, 247, .24) !important;
-}
-
-.status-badge.status-curso:hover,
-.status-switch.status-curso:hover {
-    border-color: #22d3ee !important;
-    background: rgba(6, 182, 212, .30) !important;
-}
-
-
-/* =========================================================
-   AJUSTE REAL — CLASES QUE USA APP.JS
-   App.js genera: .status-switch.cola / .status-switch.curso
-   ========================================================= */
-
-/* EN COLA */
-.task-table .status-switch.cola {
-    color: #d8b4fe !important;
-    background: linear-gradient(
-        135deg,
-        rgba(168, 85, 247, .20),
-        rgba(88, 28, 135, .10)
-    ) !important;
-    border: 1px solid #a855f7 !important;
-    box-shadow: 0 0 8px rgba(168, 85, 247, .10) !important;
-}
-
-.task-table .status-switch.cola .switch-track {
-    background: #a855f7 !important;
-}
-
-/* EN CURSO */
-.task-table .status-switch.curso {
-    color: #67e8f9 !important;
-    background: linear-gradient(
-        135deg,
-        rgba(6, 182, 212, .25),
-        rgba(14, 116, 144, .12)
-    ) !important;
-    border: 1px solid #06b6d4 !important;
-    box-shadow:
-        0 0 12px rgba(6, 182, 212, .16),
-        inset 0 0 8px rgba(34, 211, 238, .06) !important;
-}
-
-.task-table .status-switch.curso .switch-track {
-    background: #06b6d4 !important;
-}
-
-/* =========================================================
-   ESTADO MÁS A LA IZQUIERDA
-   Mantiene separada la columna de Acciones.
-   ========================================================= */
-
-.task-table th:nth-child(5),
-.task-table td:nth-child(5) {
-    text-align: left !important;
-    padding-left: 0 !important;
-    padding-right: 8px !important;
-}
-
-.task-table td:nth-child(5) .status-switch {
-    margin-left: 0 !important;
-    transform: translateX(-4px);
-}
-
-/* Evita que el estado se centre automáticamente */
-.task-table td:nth-child(5) .status-switch.cola,
-.task-table td:nth-child(5) .status-switch.curso {
-    display: inline-flex !important;
-    justify-content: flex-start !important;
-}
-
-/* En pantallas estrechas, conserva el ajuste sin sacar el control */
+/* Responsive */
 @media (max-width: 1100px) {
-    .task-table th:nth-child(5),
-    .task-table td:nth-child(5) {
-        padding-left: 0 !important;
-        padding-right: 6px !important;
-    }
-
-    .task-table td:nth-child(5) .status-switch {
-        transform: translateX(-2px);
-    }
+    .dashboard-summary { grid-template-columns:repeat(3, minmax(0,1fr)); }
+    .quick-filters { order:3; width:100%; overflow-x:auto; flex-wrap:nowrap; padding-bottom:1px; }
+}
+@media (max-width: 768px) {
+    .dashboard-summary { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; }
+    .summary-card { min-height:68px; padding:11px 12px; }
+    .summary-card strong { font-size:1.18rem; }
+    .filter-search { flex-basis:100%; min-width:100%; }
+    .quick-filters { margin-top:2px; }
+    .quick-filter { min-height:30px; padding:0 9px; }
+}
+@media (max-width: 480px) {
+    .dashboard-summary { grid-template-columns:1fr 1fr; }
+    .summary-card:nth-child(5) { grid-column:1 / -1; }
 }
 
-
-/* =========================================================
-   ESTADOS — ALTO CONTRASTE
-   En cola = ÁMBAR/NARANJA (espera)
-   En curso = CYAN/AZUL (actividad)
-   ========================================================= */
-
-/* EN COLA — naranja/ámbar */
-.task-table .status-switch.cola {
-    color: #fbbf24 !important;
-    background: linear-gradient(
-        135deg,
-        rgba(245, 158, 11, .24),
-        rgba(180, 83, 9, .11)
-    ) !important;
-    border-color: #f59e0b !important;
-    box-shadow:
-        0 0 10px rgba(245, 158, 11, .14),
-        inset 0 0 7px rgba(251, 191, 36, .05) !important;
-}
-
-.task-table .status-switch.cola .switch-track {
-    background: #f59e0b !important;
-}
-
-/* EN CURSO — cyan/azul */
-.task-table .status-switch.curso {
-    color: #67e8f9 !important;
-    background: linear-gradient(
-        135deg,
-        rgba(6, 182, 212, .27),
-        rgba(37, 99, 235, .12)
-    ) !important;
-    border-color: #06b6d4 !important;
-    box-shadow:
-        0 0 12px rgba(6, 182, 212, .18),
-        inset 0 0 8px rgba(34, 211, 238, .07) !important;
-}
-
-.task-table .status-switch.curso .switch-track {
-    background: #06b6d4 !important;
-}
-
-/* Hover claramente diferenciado */
-.task-table .status-switch.cola:hover {
-    color: #fde68a !important;
-    border-color: #fbbf24 !important;
-    background: rgba(245, 158, 11, .31) !important;
-}
-
-.task-table .status-switch.curso:hover {
-    color: #a5f3fc !important;
-    border-color: #22d3ee !important;
-    background: rgba(6, 182, 212, .34) !important;
-}
-
-/* Mantener el Estado en su posición izquierda ya corregida */
-.task-table th:nth-child(5),
-.task-table td:nth-child(5) {
-    text-align: left !important;
-    padding-left: 0 !important;
-    padding-right: 8px !important;
-}
-
-.task-table td:nth-child(5) .status-switch {
-    margin-left: 0 !important;
-    transform: translateX(-4px);
-}
-
-/* =========================================================
-   ESTADOS — ROSADO + CYAN
-   En cola = rosado | En curso = cyan
-   ========================================================= */
-
-/* EN COLA — rosado */
-.task-table .status-switch.cola {
-    color: #f9a8d4 !important;
-    background: linear-gradient(
-        135deg,
-        rgba(236, 72, 153, .24),
-        rgba(157, 23, 77, .12)
-    ) !important;
-    border-color: #ec4899 !important;
-    box-shadow:
-        0 0 10px rgba(236, 72, 153, .16),
-        inset 0 0 7px rgba(249, 168, 212, .05) !important;
-}
-
-.task-table .status-switch.cola .switch-track {
-    background: #ec4899 !important;
-}
-
-.task-table .status-switch.cola:hover {
-    color: #fbcfe8 !important;
-    border-color: #f472b6 !important;
-    background: rgba(236, 72, 153, .31) !important;
-}
-
-/* EN CURSO — cyan */
-.task-table .status-switch.curso {
-    color: #67e8f9 !important;
-    background: linear-gradient(
-        135deg,
-        rgba(6, 182, 212, .27),
-        rgba(37, 99, 235, .12)
-    ) !important;
-    border-color: #06b6d4 !important;
-    box-shadow:
-        0 0 12px rgba(6, 182, 212, .18),
-        inset 0 0 8px rgba(34, 211, 238, .07) !important;
-}
-
-.task-table .status-switch.curso .switch-track {
-    background: #06b6d4 !important;
-}
-
-.task-table .status-switch.curso:hover {
-    color: #a5f3fc !important;
-    border-color: #22d3ee !important;
-    background: rgba(6, 182, 212, .34) !important;
-}
-/* CORRECCIÓN: quitar línea extra debajo de las fechas */
-@media (min-width: 769px) {
-    .task-table td.date-info {
-        border-bottom: 0 !important;
-        box-shadow: none !important;
-    }
-
-    .task-table td.date-info::before,
-    .task-table td.date-info::after {
-        content: none !important;
-        display: none !important;
-    }
+/* Notas por solicitud */
+.task-notes-button { color:#7dd3fc; }
+.task-notes-button:hover { color:#67e8f9; background:rgba(34,211,238,.07); border-color:rgba(34,211,238,.28); }
+.task-notes-modal { max-width:620px; }
+.task-notes-content { padding:20px 24px 24px; }
+.task-notes-context { margin:0 0 16px; color:var(--text-dark); font-weight:700; line-height:1.4; }
+.task-notes-content label { display:block; margin-bottom:7px; color:var(--text-muted); font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.task-notes-input { width:100%; min-height:150px; resize:vertical; box-sizing:border-box; line-height:1.5; }
+.task-notes-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border-light); }
+@media (max-width:768px) {
+    .task-notes-content { padding:18px; }
+    .task-notes-actions { flex-direction:column-reverse; }
+    .task-notes-actions .btn { width:100%; justify-content:center; }
 }
