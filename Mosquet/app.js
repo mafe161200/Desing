@@ -448,6 +448,56 @@ const DataService = {
         }
     },
 
+    async insertTask(task) {
+        if (!supabaseClient || !task) return { cloudSaved: false, error: new Error('Supabase no está disponible.') };
+        const payload = {
+            id: task.id, name: normalizeText(task.name), requester: normalizeText(task.requester),
+            assignee: normalizeText(task.assignee) || 'No asignado', status: normalizeText(task.status) || 'En cola',
+            dateReceived: normalizeText(task.dateReceived), dateDelivered: normalizeText(task.dateDelivered),
+            isStarred: Boolean(task.isStarred), notes: normalizeText(task.notes)
+        };
+        try {
+            const { data, error } = await supabaseClient.from('tasks').insert(payload).select('*').single();
+            if (error) throw error;
+            return { cloudSaved: Boolean(data), data };
+        } catch (error) {
+            console.error('Supabase: no se pudo crear la solicitud.', error);
+            return { cloudSaved: false, error };
+        }
+    },
+
+    async updateTask(taskId, changes) {
+        if (!supabaseClient || !taskId || !changes) return { cloudSaved: false, error: new Error('Datos insuficientes.') };
+        const allowed = ['name','requester','assignee','status','dateReceived','dateDelivered','isStarred','notes'];
+        const payload = {};
+        allowed.forEach(field => {
+            if (Object.prototype.hasOwnProperty.call(changes, field)) {
+                payload[field] = field === 'isStarred' ? Boolean(changes[field]) : normalizeText(changes[field]);
+            }
+        });
+        if (!Object.keys(payload).length) return { cloudSaved: true };
+        try {
+            const { data, error } = await supabaseClient.from('tasks').update(payload).eq('id', taskId).select('*').single();
+            if (error) throw error;
+            return { cloudSaved: Boolean(data), data };
+        } catch (error) {
+            console.error('Supabase: no se pudo actualizar la solicitud.', error);
+            return { cloudSaved: false, error };
+        }
+    },
+
+    async deleteTask(taskId) {
+        if (!supabaseClient || !taskId) return { cloudSaved: false, error: new Error('Datos insuficientes.') };
+        try {
+            const { data, error } = await supabaseClient.from('tasks').delete().eq('id', taskId).select('id').single();
+            if (error) throw error;
+            return { cloudSaved: Boolean(data) };
+        } catch (error) {
+            console.error('Supabase: no se pudo eliminar la solicitud.', error);
+            return { cloudSaved: false, error };
+        }
+    },
+
     async getTaskHistory(taskId) {
         if (!supabaseClient || !taskId) return [];
 
@@ -473,37 +523,9 @@ const DataService = {
     },
 
     async restoreTaskVersion(taskId, snapshot) {
-        if (!supabaseClient || !taskId || !snapshot) {
-            return { cloudSaved: false, error: new Error('Datos insuficientes para restaurar la versión.') };
-        }
-
-        try {
-            const payload = {
-                name: snapshot.name ?? '',
-                requester: snapshot.requester ?? '',
-                assignee: snapshot.assignee ?? 'No asignado',
-                status: snapshot.status ?? 'En cola',
-                dateReceived: snapshot.dateReceived ?? '',
-                dateDelivered: snapshot.dateDelivered ?? '',
-                isStarred: Boolean(snapshot.isStarred),
-                notes: snapshot.notes ?? ''
-            };
-
-            const { data, error } = await supabaseClient
-                .from('tasks')
-                .update(payload)
-                .eq('id', taskId)
-                .select('id')
-                .single();
-
-            if (error) throw error;
-            if (!data) throw new Error('Supabase no confirmó la restauración.');
-
-            return { cloudSaved: true };
-        } catch (error) {
-            console.error('Supabase: no se pudo restaurar la versión.', error);
-            return { cloudSaved: false, error };
-        }
+        if(!supabaseClient||!taskId||!snapshot)return {cloudSaved:false,error:new Error('Datos insuficientes para restaurar la versión.')};
+        try{const {data,error}=await supabaseClient.rpc('restore_task_version',{p_task_id:String(taskId),p_snapshot:snapshot});if(error)throw error;return {cloudSaved:Boolean(data),data};}
+        catch(error){console.error('Supabase: no se pudo restaurar la versión.',error);return {cloudSaved:false,error};}
     },
 
     async getNotes() {
@@ -965,6 +987,9 @@ const App = {
     fpInstances: [],
     hasUnsavedChanges: false,
     selectedTaskId: null,
+    editingTaskId: null,
+    taskWriteQueues: new Map(),
+    realtimeRefreshQueued: false,
     currentView: 'board',
     historyFilters: {
         month: '',
@@ -1076,8 +1101,14 @@ const App = {
         supabaseClient
             .channel('design-hub-tasks')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
+                // No reemplazar el formulario que el usuario está editando.
+                // Se actualiza cuando el formulario se cierra.
+                if (this.editingTaskId) {
+                    this.realtimeRefreshQueued = true;
+                    return;
+                }
                 await this.loadData();
-                this.renderBoard();
+                this.renderAll();
             })
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR') {
@@ -1181,58 +1212,22 @@ const App = {
         });
     },
 
-    markAsUnsaved() {
-        this.hasUnsavedChanges = true;
-        const bar = document.getElementById('unsavedChangesBar');
-        if (!bar) return;
-        bar.classList.add('active');
-        bar.setAttribute('aria-hidden', 'false');
-        bar.removeAttribute('inert');
-    },
 
-    async saveChanges() {
-        const result = await DataService.saveTasks(this.tasks, this.originalTasks);
-
+    async toggleTaskStar(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task) return;
+        const previous = Boolean(task.isStarred);
+        task.isStarred = !previous;
+        this.selectedTaskId = String(taskId);
+        this.renderBoard();
+        const result = await DataService.updateTask(taskId, { isStarred: task.isStarred });
         if (!result.cloudSaved) {
-            const detail = result.error?.message ? `: ${result.error.message}` : '';
-            UI.showToast(`No se pudieron guardar los cambios${detail}`, 'error', 7000);
+            task.isStarred = previous;
+            this.renderBoard();
+            UI.showToast('No se pudo actualizar la prioridad. Se restauró el valor anterior.', 'error', 6500);
             return;
         }
-
-        const freshTasks = await DataService.getTasks();
-        this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
-        this.tasks = JSON.parse(JSON.stringify(freshTasks));
-        this.hasUnsavedChanges = false;
-        const bar = document.getElementById('unsavedChangesBar');
-        if (bar) {
-            bar.classList.remove('active');
-            bar.setAttribute('aria-hidden', 'true');
-            bar.setAttribute('inert', '');
-        }
-        UI.showToast("Cambios guardados con éxito", "success");
-        this.renderAll();
-    },
-
-    undoChanges() {
-        this.tasks = JSON.parse(JSON.stringify(this.originalTasks));
-        this.hasUnsavedChanges = false;
-        const bar = document.getElementById('unsavedChangesBar');
-        if (bar) {
-            bar.classList.remove('active');
-            bar.setAttribute('aria-hidden', 'true');
-            bar.setAttribute('inert', '');
-        }
-        UI.showToast("Cambios revertidos", "info");
-        this.renderBoard();
-    },
-
-    toggleTaskStar(taskId) {
-        const task = this.tasks.find(t => t.id === taskId);
-        if (task) {
-            task.isStarred = !task.isStarred;
-            this.markAsUnsaved();
-            this.renderBoard();
-        }
+        UI.showToast(task.isStarred ? 'Solicitud marcada como prioritaria' : 'Prioridad retirada', 'success', 2200);
     },
 
     setupKeyboardShortcuts() {
@@ -1259,9 +1254,6 @@ const App = {
     },
 
     setupEventListeners() {
-        document.getElementById('btnSave').addEventListener('click', () => this.saveChanges());
-        document.getElementById('btnUndo').addEventListener('click', () => this.undoChanges());
-
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
             const form = document.getElementById('taskForm');
@@ -1305,7 +1297,17 @@ const App = {
 
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
-                b.addEventListener('click', e => e.target.closest('.modal-overlay').classList.remove('active'));
+                b.addEventListener('click', e => {
+                    const modal = e.target.closest('.modal-overlay');
+                    modal?.classList.remove('active');
+                    if (modal?.id === 'modalEditTask') {
+                        this.editingTaskId = null;
+                        if (this.realtimeRefreshQueued) {
+                            this.realtimeRefreshQueued = false;
+                            this.loadData().then(() => this.renderAll());
+                        }
+                    }
+                });
             }
         });
         
@@ -1407,87 +1409,45 @@ const App = {
             }
         }, true);
 
-        document.getElementById('taskForm').addEventListener('submit', (e) => {
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const taskNameRaw = document.getElementById('taskName').value.trim();
-            const requesterRaw = document.getElementById('requesterSelect').value;
-            
-            const isDuplicate = this.tasks.some(t => 
-                t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
-                t.requester === requesterRaw
-            );
-
-            if (isDuplicate) {
-                UI.showToast("Ya existe una tarea idéntica para este solicitante.", "error");
-                return;
-            }
-            
-            let dateReceivedValue = normalizeText(document.getElementById('dateReceived').value);
-            if (!dateReceivedValue) {
-                const d = new Date();
-                dateReceivedValue = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            }
-            
+            const form = e.currentTarget;
+            if (!form.checkValidity()) { form.reportValidity(); return; }
+            const taskNameRaw = normalizeText(document.getElementById('taskName').value);
+            const requesterRaw = normalizeText(document.getElementById('requesterSelect').value);
+            const existingSimilar = this.tasks.find(t => normalizeText(t.name).toLowerCase() === taskNameRaw.toLowerCase() && normalizeText(t.requester).toLowerCase() === requesterRaw.toLowerCase());
+            if (existingSimilar && !confirm('Ya existe una solicitud con el mismo título y solicitante. ¿Quieres crearla de todos modos?')) return;
+            const dateReceivedValue = normalizeText(document.getElementById('dateReceived').value) || (() => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
             const dateDelivered = normalizeText(document.getElementById('dateDelivered').value);
-            
-            if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedValue)) {
-                UI.showToast("La entrega no puede ser anterior a la solicitud.", "error"); 
-                return;
-            }
-
-            this.tasks.push({
-                id: createId(),
-                name: taskNameRaw,
-                requester: requesterRaw,
-                assignee: normalizeText(document.getElementById('assignee').value),
-                status: normalizeText(document.getElementById('status').value),
-                dateReceived: dateReceivedValue, 
-                dateDelivered: dateDelivered,
-                isStarred: false,
-                notes: normalizeText(document.getElementById('taskNotes')?.value)
-
-            });
-            
-            this.markAsUnsaved(); 
-            e.target.reset();
-            const newRequesterSelect = document.getElementById('requesterSelect');
-            const newAssigneeSelect = document.getElementById('assignee');
-            const newStatusSelect = document.getElementById('status');
-            if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
-            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, 'No asignado');
-            if (newStatusSelect) updateCustomSelectUI(newStatusSelect, 'En cola');
-            document.getElementById('taskNotes')?.setAttribute('value', '');
-            const newDateDelivered = document.getElementById('dateDelivered');
-            if (newDateDelivered?._flatpickr) newDateDelivered._flatpickr.clear();
-            document.getElementById('modalTask').classList.remove('active');
-            UI.showToast("Solicitud añadida", "success");
-            this.renderBoard();
+            if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedValue)) { UI.showToast('La entrega no puede ser anterior a la solicitud.', 'error'); return; }
+            const task = { id:createId(), name:taskNameRaw, requester:requesterRaw, assignee:normalizeText(document.getElementById('assignee').value)||'No asignado', status:'En cola', dateReceived:dateReceivedValue, dateDelivered, isStarred:false, notes:normalizeText(document.getElementById('taskNotes')?.value) };
+            const submit=form.querySelector('[type="submit"]');
+            if(submit){submit.disabled=true;submit.setAttribute('aria-busy','true');}
+            const result=await DataService.insertTask(task);
+            if(submit){submit.disabled=false;submit.removeAttribute('aria-busy');}
+            if(!result.cloudSaved){UI.showToast(`No se pudo crear la solicitud${result.error?.message?`: ${result.error.message}`:''}`,'error',7000);return;}
+            this.tasks.push(task); this.originalTasks=JSON.parse(JSON.stringify(this.tasks)); form.reset();
+            const rq=document.getElementById('requesterSelect'), as=document.getElementById('assignee'), st=document.getElementById('status');
+            if(rq)updateCustomSelectUI(rq,''); if(as)updateCustomSelectUI(as,'No asignado'); if(st)updateCustomSelectUI(st,'En cola');
+            const dd=document.getElementById('dateDelivered'); if(dd?._flatpickr)dd._flatpickr.clear();
+            document.getElementById('modalTask').classList.remove('active'); UI.showToast('Solicitud creada y guardada','success',3000); this.renderAll();
         });
 
-        document.getElementById('editTaskForm').addEventListener('submit', (e) => {
+        document.getElementById('editTaskForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const id = document.getElementById('editTaskId').value;
-            const task = this.tasks.find(t => t.id === id);
-            
-            if (task) {
-                const newRecDate = normalizeText(document.getElementById('editDateReceived').value);
-                
-                if (task.dateDelivered && new Date(task.dateDelivered) < new Date(newRecDate)) {
-                    UI.showToast("La solicitud no puede superar la entrega.", "error"); 
-                    return;
-                }
-
-                task.name = normalizeText(document.getElementById('editTaskName').value);
-                task.requester = normalizeText(document.getElementById('editRequesterSelect').value);
-                task.dateReceived = newRecDate;
-                task.notes = normalizeText(document.getElementById('editTaskNotes')?.value);
-                
-                this.markAsUnsaved();
-                document.getElementById('modalEditTask').classList.remove('active');
-                UI.showToast("Solicitud editada", "success");
-                this.renderBoard();
-            }
+            const form=e.currentTarget; const id=document.getElementById('editTaskId').value; const task=this.tasks.find(t=>String(t.id)===String(id));
+            if(!task)return;
+            const newName=normalizeText(document.getElementById('editTaskName').value); const newRequester=normalizeText(document.getElementById('editRequesterSelect').value);
+            const newRecDate=normalizeText(document.getElementById('editDateReceived').value); const newNotes=normalizeText(document.getElementById('editTaskNotes')?.value);
+            if(newRecDate&&task.dateDelivered&&new Date(task.dateDelivered)<new Date(newRecDate)){UI.showToast('La fecha de solicitud no puede ser posterior a la entrega.','error');return;}
+            if(newName.length<3){document.getElementById('editTaskName').setCustomValidity('Escribe un título de al menos 3 caracteres.');form.reportValidity();return;}
+            document.getElementById('editTaskName').setCustomValidity('');
+            const changes={name:newName,requester:newRequester,dateReceived:newRecDate,notes:newNotes}; const submit=form.querySelector('[type="submit"]');
+            if(submit){submit.disabled=true;submit.setAttribute('aria-busy','true');}
+            const result=await DataService.updateTask(id,changes);
+            if(submit){submit.disabled=false;submit.removeAttribute('aria-busy');}
+            if(!result.cloudSaved){UI.showToast(`No se pudo guardar la solicitud${result.error?.message?`: ${result.error.message}`:''}`,'error',7000);return;}
+            Object.assign(task,changes); this.originalTasks=JSON.parse(JSON.stringify(this.tasks)); document.getElementById('modalEditTask').classList.remove('active'); this.editingTaskId = null; this.realtimeRefreshQueued = false; UI.showToast('Solicitud actualizada','success',3000); this.renderAll();
         });
     },
 
@@ -1584,23 +1544,20 @@ const App = {
                     }
                     break;
 
-                case 'delete-task':
+                case 'delete-task': {
                     if (!taskId) return;
-
-                    if (confirm('¿Eliminar?')) {
-                        this.tasks = this.tasks.filter(
-                            task => task.id !== taskId
-                        );
-
-                        this.markAsUnsaved();
-                        this.renderBoard();
-
-                        UI.showToast(
-                            'Tarea eliminada',
-                            'success'
-                        );
-                    }
+                    const task = this.tasks.find(t => String(t.id) === String(taskId));
+                    if (!task) return;
+                    if (!confirm(`¿Eliminar la solicitud “${normalizeText(task.name)}”? Esta acción quedará registrada en el historial.`)) return;
+                    const result = await DataService.deleteTask(taskId);
+                    if (!result.cloudSaved) { UI.showToast(`No se pudo eliminar la solicitud${result.error?.message ? `: ${result.error.message}` : ''}`, 'error', 7000); return; }
+                    this.tasks = this.tasks.filter(t => String(t.id) !== String(taskId));
+                    this.originalTasks = JSON.parse(JSON.stringify(this.tasks));
+                    if (this.selectedTaskId === String(taskId)) this.selectedTaskId = null;
+                    this.renderAll();
+                    UI.showToast('Solicitud eliminada', 'success', 3000);
                     break;
+                }
 
                 default:
                     break;
@@ -1618,46 +1575,12 @@ const App = {
             if (!taskId) return;
 
             switch (action) {
-                case 'toggle-completed': {
-                    const completed = Boolean(target.checked);
-
-                    this.updateTask(
-                        taskId,
-                        'status',
-                        completed ? 'Entregado' : 'En curso',
-                        true
-                    );
-
-                    /*
-                     * Al marcarla, la tarea deja de estar en Pendientes y
-                     * aparece inmediatamente en Realizadas. Al desmarcarla,
-                     * vuelve a Pendientes.
-                     */
-                    if (completed) {
-                        UI.showToast('Tarea enviada a Realizadas', 'success');
-                    } else {
-                        UI.showToast('Tarea devuelta a Pendientes', 'info');
-                    }
-                    break;
-                }
-
                 case 'change-assignee':
-                    this.updateTask(
-                        taskId,
-                        'assignee',
-                        target.value,
-                        false
-                    );
+                    this.updateTask(taskId, 'assignee', target.value, true);
                     break;
 
                 case 'change-status':
-                    this.updateTask(
-                        taskId,
-                        'status',
-                        target.value,
-                        false
-                    );
-                    UI.showToast(`Estado cambiado a ${target.value}`, 'info', 2200);
+                    this.updateTask(taskId, 'status', target.value, true);
                     break;
 
                 default:
@@ -1801,6 +1724,7 @@ const App = {
         const task = this.tasks.find(t => t.id === taskId);
         if (!task) return;
 
+        this.editingTaskId = String(task.id);
         document.getElementById('editTaskId').value = task.id;
         document.getElementById('editTaskName').value = task.name;
         const editNotes = document.getElementById('editTaskNotes');
@@ -2183,7 +2107,7 @@ const App = {
         if (!filtered.length) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
-            cell.colSpan = 6;
+            cell.colSpan = 5;
             cell.className = 'history-empty';
             cell.textContent = 'No hay solicitudes que coincidan con los filtros.';
             row.appendChild(cell);
@@ -2568,15 +2492,30 @@ const App = {
         return allColors[Math.abs(hash) % allColors.length];
     },
 
-    updateTask(id, field, value, shouldRender = false) {
-        const t = this.tasks.find(x => String(x.id) === String(id));
-        if (t) {
-            t[field] = field === 'isStarred' ? Boolean(value) : normalizeText(value);
-            this.selectedTaskId = String(id);
-            this.markAsUnsaved();
-            this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
-            if (shouldRender) this.renderBoard();
+    async updateTask(id, field, value, shouldRender = true) {
+        const task=this.tasks.find(x=>String(x.id)===String(id)); if(!task)return false;
+        const normalizedValue=field==='isStarred'?Boolean(value):normalizeText(value); const previous=task[field];
+        if(String(previous??'')===String(normalizedValue??''))return true;
+        task[field]=normalizedValue; this.selectedTaskId=String(id); if(shouldRender)this.renderBoard();
+
+        const queueKey=`${id}:${field}`;
+        const previousQueue=this.taskWriteQueues.get(queueKey)||Promise.resolve();
+        const write=previousQueue.catch(()=>{}).then(()=>DataService.updateTask(id,{[field]:normalizedValue}));
+        this.taskWriteQueues.set(queueKey,write);
+        const result=await write;
+        if(this.taskWriteQueues.get(queueKey)===write)this.taskWriteQueues.delete(queueKey);
+        if(!result.cloudSaved){
+            // Solo revierte si el valor local sigue siendo el que intentamos guardar.
+            if(String(task[field]??'')===String(normalizedValue??'')) task[field]=previous;
+            if(shouldRender)this.renderBoard();
+            UI.showToast(`No se pudo guardar el cambio${result.error?.message?`: ${result.error.message}`:''}`,'error',7000);
+            return false;
         }
+        this.originalTasks=JSON.parse(JSON.stringify(this.tasks));
+        if(field==='status')UI.showToast(normalizedValue==='Entregado'?'Solicitud entregada':`Estado: ${normalizedValue}`,'success',2200);
+        else if(field==='assignee')UI.showToast(normalizedValue==='No asignado'?'Solicitud sin responsable':`Asignada a ${normalizedValue}`,'success',2200);
+        else if(field==='dateDelivered')UI.showToast('Fecha de entrega actualizada','success',2200);
+        return true;
     },
 
     async openTaskHistory(taskId) {
@@ -2776,7 +2715,7 @@ const App = {
                     if (!confirm('¿Restaurar esta versión? El estado actual quedará registrado como un nuevo cambio.')) return;
                     restore.disabled = true;
 
-                    const result = await DataService.restoreTaskVersion(taskId, entry.before_data);
+                    const result = await DataService.restoreTaskVersion(taskId, entry.after_data || entry.before_data);
                     if (!result.cloudSaved) {
                         restore.disabled = false;
                         UI.showToast(`No se pudo restaurar la versión${result.error?.message ? `: ${result.error.message}` : ''}`, 'error', 7000);
@@ -3144,7 +3083,6 @@ const App = {
             }
             
             tr.innerHTML = `
-                <td style="text-align:center;" data-label="Completada"><input type="checkbox" id="complete-task-${escapeHTML(t.id)}" name="complete-task-${escapeHTML(t.id)}" class="custom-checkbox" aria-label="Marcar como entregado" data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}"></td>
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
@@ -3174,6 +3112,7 @@ const App = {
                             data-task-id="${escapeHTML(t.id)}">
                         <option value="En cola" ${t.status === 'En cola' ? 'selected' : ''}>En cola</option>
                         <option value="En curso" ${t.status === 'En curso' ? 'selected' : ''}>En curso</option>
+                        <option value="Entregado" ${t.status === 'Entregado' ? 'selected' : ''}>Entregada</option>
                     </select>
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
@@ -3224,7 +3163,7 @@ const App = {
                     return;
                 }
                 
-                this.updateTask(id, 'dateDelivered', dateStr, false);
+                this.updateTask(id, 'dateDelivered', dateStr, true);
             }
         });
 

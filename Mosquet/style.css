@@ -4287,3 +4287,36 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
         animation: none !important;
     }
 }
+
+/* =========================================================
+   V6 — REFACTOR FUNCIONAL Y UX/UI
+   ========================================================= */
+.inline-status + .select-trigger,
+.select-trigger.inline-status{min-height:40px;min-width:120px;border-radius:999px;background:#0b1727;border:1px solid #31506e;color:#dce8f7;font-weight:750}
+.select-trigger.inline-status:hover{border-color:#4b6989;background:#0e1b2d}
+.select-trigger.inline-status[data-value="En cola"]{border-color:#ec4899;color:#f9a8d4}
+.select-trigger.inline-status[data-value="En curso"]{border-color:#22d3ee;color:#67e8f9}
+.select-trigger.inline-status[data-value="Entregado"]{border-color:#34d399;color:#6ee7b7}
+.action-buttons{gap:4px}.action-buttons .delete{opacity:.42}.action-buttons .delete:hover,.action-buttons .delete:focus-visible{opacity:1;color:#fb7185;border-color:rgba(251,113,133,.45)}
+.btn[aria-busy="true"]{cursor:progress;opacity:.72}.btn[aria-busy="true"]::after{content:"";width:13px;height:13px;margin-left:8px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:dhSpin .65s linear infinite}@keyframes dhSpin{to{transform:rotate(360deg)}}
+.board-history-button{min-height:50px}.board-history-button-action{color:#b3c7df}
+.task-history-viewer-card{max-width:820px}.task-history-item-content:hover{border-color:#2c4968;box-shadow:0 6px 18px rgba(0,0,0,.16)}
+.task-history-restore{transition:transform .16s ease,border-color .16s ease,background-color .16s ease}.task-history-restore:hover{transform:translateY(-1px)}
+@media (prefers-reduced-motion:reduce){.btn[aria-busy="true"]::after,.task-history-restore,.task-history-item-content{animation:none!important;transition:none!important}}
+/* V6 — acciones primarias y navegación más evidentes */
+.inline-filters-bar{align-items:end}.filter-search{min-width:280px;flex:1 1 360px}.inline-filter-item{min-width:150px}
+.board-history-access{margin-top:0;padding:12px 14px 14px;border-top:1px solid #203550;background:#08111e}.board-history-button{background:#0b1727;border-color:#31506e}.board-history-button:hover{background:#0e1b2d;border-color:#456684;transform:translateY(-1px)}
+.history-view{animation:dhViewIn .24s ease both}@keyframes dhViewIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (max-width:900px){.filter-search{flex-basis:100%}.inline-filter-item{flex:1 1 180px}}
+@media (max-width:620px){.inline-filter-item{width:100%}.board-history-button{align-items:flex-start;flex-direction:column}.board-history-button-action{margin-left:25px}}
+@media (prefers-reduced-motion:reduce){.history-view,.board-history-button{animation:none!important;transition:none!important}}
+
+/* =========================================================
+   V6.1 — MODELO DE ESTADO ÚNICO Y GUARDADO AUTOMÁTICO
+   ========================================================= */
+.task-table th:first-child,.task-table td:first-child{padding-left:18px}
+.inline-status + .select-trigger,.select-trigger.inline-status{min-width:124px;min-height:40px}
+.board-history-button{cursor:pointer}
+.task-table tbody tr{transition:background-color .16s ease,transform .16s ease,border-color .16s ease}
+.task-table tbody tr:hover{transform:translateY(-1px)}
+@media (prefers-reduced-motion:reduce){.task-table tbody tr{transition:none!important}.task-table tbody tr:hover{transform:none}}

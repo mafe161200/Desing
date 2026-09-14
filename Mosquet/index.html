@@ -192,9 +192,9 @@
                             </select>
                         </div>
                         <div class="inline-filter-item">
-                            <select id="filterCompletion" name="filterCompletion" class="native-select-hidden" aria-label="Mostrar tareas">
-                                <option value="Pendientes" selected>Pendientes</option>
-                                <option value="Realizadas">Realizadas</option>
+                            <select id="filterCompletion" name="filterCompletion" class="native-select-hidden" aria-label="Vista de solicitudes">
+                                <option value="Pendientes" selected>Activas</option>
+                                <option value="Realizadas">Entregadas</option>
                                 <option value="Todas">Todas</option>
                             </select>
                         </div>
@@ -215,7 +215,6 @@
                         <table class="task-table" role="table">
                             <thead>
                                 <tr role="row">
-                                    <th style="width: 40px; text-align: center;" role="columnheader"><i data-lucide="check-square" style="width:16px; color:var(--text-muted)"></i></th>
                                     <th role="columnheader">Solicitud</th>
                                     <th role="columnheader">Asignación</th>
                                     <th role="columnheader">Fechas (Rec - Ent)</th>
@@ -231,14 +230,14 @@
                                 id="btnOpenHistoryBottom"
                                 class="board-history-button"
                                 aria-controls="historyView"
-                                aria-label="Abrir solicitudes realizadas">
+                                aria-label="Abrir historial de solicitudes">
                             <span class="board-history-button-main">
                                 <i data-lucide="archive" aria-hidden="true"></i>
-                                <span>Solicitudes realizadas</span>
+                                <span>Solicitudes entregadas</span>
                                 <span id="boardHistoryCount" class="badge-count badge-primary" aria-label="Cantidad de solicitudes realizadas">0</span>
                             </span>
                             <span class="board-history-button-action">
-                                Ver historial
+                                Ver historial completo
                                 <i data-lucide="arrow-right" aria-hidden="true"></i>
                             </span>
                         </button>
@@ -255,10 +254,10 @@
                     <div>
                         <div class="history-title-row">
                             <i data-lucide="archive" class="icon-primary" aria-hidden="true"></i>
-                            <h2 id="historyViewTitle">Solicitudes realizadas</h2>
+                            <h2 id="historyViewTitle">Historial de solicitudes</h2>
                             <span id="historyCount" class="badge-count badge-primary">0</span>
                         </div>
-                        <p class="subtitle">Historial de solicitudes registradas, filtrable por mes, solicitante, responsable y estado.</p>
+                        <p class="subtitle">Consulta solicitudes registradas por mes, solicitante, responsable y estado.</p>
                     </div>
                     <button type="button" id="btnBackToBoard" class="btn btn-secondary">
                         <i data-lucide="arrow-left"></i> Volver a gestión
@@ -415,21 +414,7 @@
         </div>
     </div>
 
-    <!-- Barra de cambios pendientes -->
-    <div id="unsavedChangesBar" class="unsaved-bar" role="region" aria-label="Cambios pendientes" aria-live="polite" aria-hidden="true" inert>
-        <div class="unsaved-bar-content">
-            <span class="unsaved-text">
-                <i data-lucide="alert-circle" aria-hidden="true"></i>
-                <span>Cambios sin guardar</span>
-            </span>
-            <div class="unsaved-actions">
-                <button type="button" id="btnUndo" class="btn btn-secondary">Deshacer</button>
-                <button type="button" id="btnSave" class="btn btn-success">Guardar cambios</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Nueva Tarea -->
+    <!-- Modal Nueva Tarea --><!-- Modal Nueva Tarea -->
     <div id="modalTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTaskTitle">
         <div class="modal-content">
             <div class="modal-header">
