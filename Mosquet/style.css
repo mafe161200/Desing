@@ -2,7 +2,7 @@
     /* =====================================================
        DESIGN HUB — DARK TECHNO / ENTERPRISE
        ===================================================== */
-    --bg-main: #050814;
+    background-color: #050814 !important;
     --card-bg: #0b1020;
     --bg-subtle: #0e1628;
     --border-light: #243451;
