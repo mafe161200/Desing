@@ -1557,7 +1557,9 @@ const App = {
         const btnClose = document.getElementById('btnCloseNotes');
         const form = document.getElementById('noteForm');
 
-        btnToggle.innerHTML += `<div class="notification-badge"></div>`;
+        if (!btnToggle.querySelector('.notification-badge')) {
+            btnToggle.insertAdjacentHTML('beforeend', '<div class="notification-badge"></div>');
+        }
 
         const openPanel = () => {
             panel.classList.add('open');
@@ -1738,23 +1740,31 @@ const App = {
 
         let selectedTheme = this.user.theme || '#4f46e5';
 
+        swatches.forEach(swatch => {
+            swatch.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (swatch.classList.contains('disabled')) {
+                    UI.showToast("Este color ya está en uso", "error");
+                    return;
+                }
+
+                swatches.forEach(s => s.classList.remove('active'));
+                swatch.classList.add('active');
+                selectedTheme = swatch.getAttribute('data-color') || selectedTheme;
+            });
+        });
+
         const checkTakenColors = () => {
-            const takenColors = this.usersList.filter(u => u.username !== this.user.username).map(u => u.theme);
+            const takenColors = this.usersList
+                .filter(u => u.username !== this.user.username)
+                .map(u => u.theme);
+
             swatches.forEach(swatch => {
                 const c = swatch.getAttribute('data-color');
-                if (takenColors.includes(c)) {
-                    swatch.classList.add('disabled');
-                    swatch.title = 'Color en uso por otro compañero';
-                    swatch.onclick = (e) => { e.stopPropagation(); UI.showToast("Este color ya está en uso", "error"); };
-                } else {
-                    swatch.classList.remove('disabled');
-                    swatch.title = '';
-                    swatch.onclick = (e) => {
-                        swatches.forEach(s => s.classList.remove('active'));
-                        swatch.classList.add('active');
-                        selectedTheme = swatch.getAttribute('data-color') || selectedTheme;
-                    };
-                }
+                const taken = takenColors.includes(c);
+
+                swatch.classList.toggle('disabled', taken);
+                swatch.title = taken ? 'Color en uso por otro compañero' : '';
             });
         };
 
@@ -2314,18 +2324,19 @@ const App = {
                 document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
             };
 
-            li.onclick = (e) => {
+            li.addEventListener('click', (e) => {
                 if (e.target.closest('input, button')) return;
                 this.selectTask(t.id);
                 handleExpand(e);
-            };
-            li.onkeydown = (e) => {
+            });
+
+            li.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     this.selectTask(t.id);
                     handleExpand(e);
                 }
-            };
+            });
             
             const colorHex = this.getColor(t.assignee);
             
