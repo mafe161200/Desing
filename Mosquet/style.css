@@ -3499,3 +3499,131 @@ a > svg[aria-hidden="true"] {
         font-size: .62rem;
     }
 }
+
+/* =========================================================
+   V5.6 — JERARQUÍA, HISTORIAL Y FOCO VISUAL
+   ========================================================= */
+
+/* El encabezado de Gestión es informativo, no interactivo:
+   nunca debe parecer un control seleccionado. */
+.board-section > .card-header,
+.board-section > .card-header:hover,
+.board-section > .card-header:focus,
+.board-section > .card-header:focus-within {
+    background: #0b1322 !important;
+    color: var(--text-main);
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.board-section > .card-header .subtitle {
+    text-decoration: none !important;
+}
+
+/* Acceso contextual al historial: está al final de la gestión,
+   no en el panel lateral. */
+.board-history-access {
+    border-top: 1px solid var(--border-light);
+    padding: 10px 14px 12px;
+    background: #08111e;
+}
+
+.board-history-button {
+    width: 100%;
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 9px 12px;
+    border: 1px solid #243753;
+    border-radius: 9px;
+    background: #0b1424;
+    color: #dce8f8;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    transition: border-color .16s ease, background-color .16s ease;
+}
+
+.board-history-button:hover {
+    background: #0e192b;
+    border-color: #315171;
+}
+
+.board-history-button:focus-visible {
+    outline: 3px solid #22d3ee;
+    outline-offset: 2px;
+}
+
+.board-history-button-main,
+.board-history-button-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.board-history-button-main {
+    font-size: .82rem;
+    font-weight: 700;
+}
+
+.board-history-button-main > svg {
+    width: 17px;
+    height: 17px;
+    color: #22d3ee;
+    flex: 0 0 auto;
+}
+
+.board-history-button-action {
+    color: #9ab0cb;
+    font-size: .72rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.board-history-button-action > svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+}
+
+.board-history-button .badge-count {
+    min-width: 24px;
+    height: 22px;
+    padding: 0 7px;
+    font-size: .67rem;
+}
+
+@media (max-width: 620px) {
+    .board-history-access {
+        padding: 9px 10px 11px;
+    }
+
+    .board-history-button {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .board-history-button-action {
+        margin-left: 25px;
+    }
+}
+
+/* V5.6 — un contenedor informativo nunca usa el estado de foco como decoración. */
+.board-section > .card-header {
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.board-section > .card-header * {
+    text-decoration-thickness: auto;
+}
+
+/* El foco pertenece al control interactivo, no a su contenedor. */
+.board-section > .card-header button,
+.board-section > .card-header a {
+    outline-offset: 3px;
+}

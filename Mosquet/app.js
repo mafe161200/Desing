@@ -1241,6 +1241,10 @@ const App = {
             this.showView('board');
         });
 
+        document.getElementById('btnOpenHistoryBottom')?.addEventListener('click', () => {
+            this.showView('history');
+        });
+
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
                 b.addEventListener('click', e => e.target.closest('.modal-overlay').classList.remove('active'));
@@ -2746,6 +2750,8 @@ const App = {
         const sidebarFragment = document.createDocumentFragment();
 
         document.getElementById('countPrioridades').textContent = boardTasks.length;
+        const boardHistoryCount = document.getElementById('boardHistoryCount');
+        if (boardHistoryCount) boardHistoryCount.textContent = completadas.length;
 
         this.renderWorkloadChart(activas);
 

@@ -226,6 +226,23 @@
                             <tbody id="tablePrioridades" role="rowgroup"></tbody>
                         </table>
                     </div>
+                    <div class="board-history-access">
+                        <button type="button"
+                                id="btnOpenHistoryBottom"
+                                class="board-history-button"
+                                aria-controls="historyView"
+                                aria-label="Abrir solicitudes realizadas">
+                            <span class="board-history-button-main">
+                                <i data-lucide="archive" aria-hidden="true"></i>
+                                <span>Solicitudes realizadas</span>
+                                <span id="boardHistoryCount" class="badge-count badge-primary" aria-label="Cantidad de solicitudes realizadas">0</span>
+                            </span>
+                            <span class="board-history-button-action">
+                                Ver historial
+                                <i data-lucide="arrow-right" aria-hidden="true"></i>
+                            </span>
+                        </button>
+                    </div>
                 </section>
             </main>
 
@@ -362,7 +379,7 @@
     <div id="notesPanel" class="notes-panel">
         <div class="notes-header">
             <h2><i data-lucide="message-square" class="icon-primary"></i> Anotaciones del Equipo</h2>
-            <button type="button" id="btnCloseNotes" class="btn-icon"><i data-lucide="x"></i></button>
+            <button type="button" id="btnCloseNotes" class="btn-icon" aria-label="Cerrar notas" title="Cerrar notas"><i data-lucide="x"></i></button>
         </div>
         <div class="notes-body" id="notesList">
             <!-- Notas renderizadas dinámicamente aquí -->
