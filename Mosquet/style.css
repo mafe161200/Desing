@@ -2007,3 +2007,72 @@ button.en-curso {
         transform: translateX(-2px);
     }
 }
+
+
+/* =========================================================
+   ESTADOS — ALTO CONTRASTE
+   En cola = ÁMBAR/NARANJA (espera)
+   En curso = CYAN/AZUL (actividad)
+   ========================================================= */
+
+/* EN COLA — naranja/ámbar */
+.task-table .status-switch.cola {
+    color: #fbbf24 !important;
+    background: linear-gradient(
+        135deg,
+        rgba(245, 158, 11, .24),
+        rgba(180, 83, 9, .11)
+    ) !important;
+    border-color: #f59e0b !important;
+    box-shadow:
+        0 0 10px rgba(245, 158, 11, .14),
+        inset 0 0 7px rgba(251, 191, 36, .05) !important;
+}
+
+.task-table .status-switch.cola .switch-track {
+    background: #f59e0b !important;
+}
+
+/* EN CURSO — cyan/azul */
+.task-table .status-switch.curso {
+    color: #67e8f9 !important;
+    background: linear-gradient(
+        135deg,
+        rgba(6, 182, 212, .27),
+        rgba(37, 99, 235, .12)
+    ) !important;
+    border-color: #06b6d4 !important;
+    box-shadow:
+        0 0 12px rgba(6, 182, 212, .18),
+        inset 0 0 8px rgba(34, 211, 238, .07) !important;
+}
+
+.task-table .status-switch.curso .switch-track {
+    background: #06b6d4 !important;
+}
+
+/* Hover claramente diferenciado */
+.task-table .status-switch.cola:hover {
+    color: #fde68a !important;
+    border-color: #fbbf24 !important;
+    background: rgba(245, 158, 11, .31) !important;
+}
+
+.task-table .status-switch.curso:hover {
+    color: #a5f3fc !important;
+    border-color: #22d3ee !important;
+    background: rgba(6, 182, 212, .34) !important;
+}
+
+/* Mantener el Estado en su posición izquierda ya corregida */
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) {
+    text-align: left !important;
+    padding-left: 0 !important;
+    padding-right: 8px !important;
+}
+
+.task-table td:nth-child(5) .status-switch {
+    margin-left: 0 !important;
+    transform: translateX(-4px);
+}
