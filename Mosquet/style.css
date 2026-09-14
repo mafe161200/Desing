@@ -1790,3 +1790,262 @@ main {
         grid-template-columns: 1fr;
     }
 }
+
+
+/* =========================================================
+   DESIGN HUB V4.1 — REFINAMIENTO DE COMPOSICIÓN
+   Objetivo: aprovechar mejor pantallas grandes, reducir
+   sensación de interfaz comprimida y reforzar jerarquía.
+   No modifica la lógica ni los datos.
+   ========================================================= */
+
+/* 1. El workspace debe aprovechar el ancho disponible.
+      El problema visible en la captura era demasiado espacio
+      vacío a la derecha. */
+.main-container {
+    width: min(94vw, 1480px) !important;
+    max-width: 1480px !important;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* 2. Header: misma línea visual que el workspace */
+.app-header {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 3. Grid principal: sidebar estable + tablero flexible */
+.layout-grid {
+    grid-template-columns: minmax(240px, 272px) minmax(0, 1fr) !important;
+    gap: 20px !important;
+    align-items: start;
+}
+
+/* Cuando el sidebar se colapsa, el tablero ocupa todo el espacio. */
+.layout-grid:has(.sidebar-col.is-collapsed) {
+    grid-template-columns: 58px minmax(0, 1fr) !important;
+}
+
+/* 4. El board no debe imponer un ancho artificial. */
+.main-board,
+.board-section,
+.table-wrapper {
+    min-width: 0;
+    width: 100%;
+}
+
+/* 5. Tabla: más espacio para la solicitud y distribución estable.
+      5 columnas útiles + selección/estrella dentro de solicitud. */
+.task-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.task-table th:nth-child(1),
+.task-table td:nth-child(1) {
+    width: 4.5% !important;
+}
+
+.task-table th:nth-child(2),
+.task-table td:nth-child(2) {
+    width: 38% !important;
+}
+
+.task-table th:nth-child(3),
+.task-table td:nth-child(3) {
+    width: 22% !important;
+}
+
+.task-table th:nth-child(4),
+.task-table td:nth-child(4) {
+    width: 17% !important;
+}
+
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) {
+    width: 12% !important;
+}
+
+.task-table th:nth-child(6),
+.task-table td:nth-child(6) {
+    width: 6.5% !important;
+}
+
+/* 6. La solicitud gana legibilidad sin aumentar altura de fila. */
+.req-title-cell {
+    min-width: 0;
+}
+
+.req-title-cell strong {
+    min-width: 0;
+}
+
+.req-title-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 7. Meta del solicitante: claramente secundaria. */
+.req-title-cell > span,
+.req-title-cell strong + span {
+    color: var(--text-muted) !important;
+    font-size: .72rem;
+}
+
+/* 8. Asignación y estado no deben desbordar. */
+.inline-assignee,
+.status-switch {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.status-switch {
+    min-width: 108px;
+}
+
+/* 9. Fechas: recepción discreta y entrega protagonista. */
+.date-info {
+    min-width: 0;
+}
+
+.date-req {
+    white-space: nowrap;
+}
+
+.inline-date-picker-alt {
+    width: 100%;
+    max-width: 120px;
+    box-sizing: border-box;
+}
+
+/* 10. Acciones compactas y alineadas. */
+.action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px !important;
+    white-space: nowrap;
+}
+
+.task-table .action-buttons .btn-icon {
+    width: 28px;
+    height: 28px;
+}
+
+/* 11. Filtros: primera fila dedicada a búsqueda + filtros rápidos. */
+.inline-filters-bar {
+    gap: 8px;
+}
+
+.filter-search {
+    min-width: 260px;
+    flex: 1 1 360px;
+}
+
+/* 12. Evitar que los filtros inferiores se compriman
+       innecesariamente en monitores amplios. */
+.filter-controls {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(130px, 1fr));
+    gap: 8px;
+}
+
+/* 13. Métricas superiores: ocupan todo el workspace. */
+.summary-grid,
+.summary-cards {
+    width: 100%;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* 14. Sidebar: tarjetas compactas, sin competir con la tabla. */
+.sidebar-card {
+    width: 100%;
+}
+
+.sidebar-card + .sidebar-card {
+    margin-top: 16px !important;
+}
+
+/* 15. Estados de interacción más sobrios. */
+.task-table tr:hover {
+    background: rgba(56, 189, 248, .045) !important;
+}
+
+.task-table tr.task-starred:hover {
+    background:
+        linear-gradient(
+            90deg,
+            rgba(34,211,238,.15),
+            rgba(34,211,238,.055) 45%,
+            rgba(8,15,30,.98)
+        ) !important;
+}
+
+/* 16. Selección: indicar sin convertir la fila en una tarjeta clara. */
+.task-table tr.selected,
+.task-table tr.is-selected {
+    background: rgba(34, 211, 238, .075) !important;
+    box-shadow: inset 3px 0 0 var(--cyber-cyan);
+}
+
+/* 17. Tooltip nativo para títulos largos sin aumentar filas. */
+.req-title-text[title] {
+    cursor: help;
+}
+
+/* 18. Monitores muy anchos */
+@media (min-width: 1600px) {
+    .main-container {
+        width: min(94vw, 1560px) !important;
+        max-width: 1560px !important;
+    }
+}
+
+/* 19. Tablet */
+@media (max-width: 1100px) {
+    .main-container {
+        width: min(96vw, 1100px) !important;
+    }
+
+    .layout-grid {
+        grid-template-columns: 230px minmax(0, 1fr) !important;
+    }
+
+    .filter-controls {
+        grid-template-columns: repeat(3, minmax(130px, 1fr));
+    }
+
+    .task-table th:nth-child(2),
+    .task-table td:nth-child(2) {
+        width: 34% !important;
+    }
+}
+
+/* 20. Móvil: anular las reglas de escritorio de distribución. */
+@media (max-width: 768px) {
+    .main-container {
+        width: calc(100vw - 24px) !important;
+        max-width: none !important;
+    }
+
+    .layout-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    .filter-controls {
+        grid-template-columns: 1fr !important;
+    }
+
+    .summary-grid,
+    .summary-cards {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .req-title-text {
+        white-space: normal;
+    }
+}
