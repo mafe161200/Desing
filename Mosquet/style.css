@@ -206,8 +206,8 @@ input[type="file"]::file-selector-button:hover { background: var(--primary-hover
 .color-swatch.disabled { opacity: 0.3; pointer-events: none; cursor: not-allowed; }
 
 /* COMPONENTE: TOGGLE SWITCH BINARIO PARA ESTADO */
-.status-switch { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; cursor: pointer; user-select: none; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent; outline: none; }
-.status-switch:focus-visible { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3); }
+.status-switch { appearance: none; -webkit-appearance: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 10px 4px 6px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; cursor: pointer; user-select: none; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid transparent; outline: none; }
+.status-switch:focus-visible { outline: 3px solid var(--cyber-cyan); outline-offset: 3px; box-shadow: 0 0 0 1px rgba(34,211,238,.18); }
 .status-switch.cola { background-color: var(--status-cola-bg); color: var(--status-cola); border-color: var(--status-cola-border); }
 .status-switch.curso { background-color: var(--status-curso-bg); color: var(--status-curso); border-color: var(--status-curso-border); }
 .switch-track { width: 28px; height: 16px; background: rgba(0, 0, 0, 0.12); border-radius: 10px; position: relative; transition: background-color 0.25s ease; flex-shrink: 0; }
@@ -1332,53 +1332,6 @@ main {
     transition: width .22s ease, opacity .18s ease;
 }
 
-.sidebar-col.is-collapsed {
-    width: 58px;
-    min-width: 58px;
-}
-
-.sidebar-col.is-collapsed .sidebar-card {
-    overflow: hidden;
-}
-
-.sidebar-col.is-collapsed .sidebar-card > .card-header,
-.sidebar-col.is-collapsed .sidebar-content {
-    opacity: 0;
-    pointer-events: none;
-}
-
-.sidebar-col.is-collapsed .sidebar-card {
-    min-height: 58px;
-    height: 58px;
-}
-
-.sidebar-collapse-btn {
-    position: absolute;
-    z-index: 10;
-    top: 12px;
-    right: 10px;
-    width: 30px;
-    height: 30px;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--v3-border);
-    border-radius: 8px;
-    background: #0a1323;
-    color: #91a6c4;
-    cursor: pointer;
-    transition: .16s ease;
-}
-
-.sidebar-collapse-btn:hover {
-    color: var(--v3-cyan);
-    border-color: rgba(34,211,238,.45);
-    background: rgba(34,211,238,.08);
-}
-
-.sidebar-collapse-btn svg {
-    width: 16px;
-    height: 16px;
-}
 
 /* ---------- Board header ---------- */
 .board-section > .card-header {
@@ -1767,12 +1720,7 @@ main {
         width: 100%;
         min-width: 0;
     }
-
-    .sidebar-collapse-btn {
-        display: none;
-    }
-
-    .inline-filters-bar {
+.inline-filters-bar {
         padding: 9px !important;
     }
 
@@ -2415,32 +2363,6 @@ main {
 
 
 /* =========================================================
-   DESIGN HUB V4.3 — SIDEBAR RAIL + HISTORIAL
-   ========================================================= */
-
-/* Sidebar colapsado: NO mostrar cards vacías.
-   Se conserva únicamente el botón/rail de navegación. */
-.sidebar-col.is-collapsed {
-    width: 58px !important;
-    min-width: 58px !important;
-    height: 100%;
-}
-
-.sidebar-col.is-collapsed .sidebar-card {
-    display: none !important;
-}
-
-.sidebar-col.is-collapsed .sidebar-collapse-btn {
-    position: sticky;
-    top: 12px;
-    right: auto;
-    margin: 0 auto;
-    width: 58px;
-    height: 58px;
-    border-radius: 14px;
-}
-
-/* =========================================================
    VISTA SOLICITUDES REALIZADAS
    ========================================================= */
 .history-view {
@@ -2757,31 +2679,6 @@ main {
     }
 }
 
-
-/* =========================================================
-   DESIGN HUB V4.4 — ANALÍTICA OPERATIVA + SIDEBAR RAIL
-   ========================================================= */
-
-/* El rail colapsado debe ser literalmente un rail, no cards vacías. */
-.sidebar-col.is-collapsed {
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    width: 58px !important;
-    min-width: 58px !important;
-}
-
-.sidebar-col.is-collapsed > .sidebar-card {
-    display: none !important;
-}
-
-.sidebar-col.is-collapsed .sidebar-collapse-btn {
-    display: flex !important;
-    flex: 0 0 58px;
-    width: 58px !important;
-    height: 58px !important;
-    margin: 0 !important;
-}
 
 /* =========================================================
    ANALÍTICA DEL HISTORIAL
@@ -3512,3 +3409,9 @@ a > svg[aria-hidden="true"] {
         transition-duration: .01ms !important;
     }
 }
+
+
+/* V5.4 — la barra lateral ya no es colapsable: elimina rail vacío y botón sin función. */
+.sidebar-col { width: 100%; min-width: 0; }
+.sidebar-col.is-collapsed { width: 100% !important; min-width: 0 !important; }
+.sidebar-col.is-collapsed .sidebar-card { display: block !important; }

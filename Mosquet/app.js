@@ -939,7 +939,6 @@ const App = {
 
         await this.loadData();
         this.setupPlugins();
-        this.setupSidebarCollapse();
         this.setupKeyboardShortcuts();
         this.setupEventListeners();
         this.setupHistoryView();
@@ -1176,31 +1175,6 @@ const App = {
             this.markAsUnsaved();
             this.renderBoard();
         }
-    },
-
-    setupSidebarCollapse() {
-        const sidebar = document.getElementById('sidebarCol');
-        const button = document.getElementById('sidebarCollapseBtn');
-        if (!sidebar || !button) return;
-
-        const storageKey = 'designhub.sidebarCollapsed';
-        const apply = (collapsed) => {
-            sidebar.classList.toggle('is-collapsed', collapsed);
-            button.setAttribute('aria-label', collapsed ? 'Expandir panel lateral' : 'Colapsar panel lateral');
-            button.setAttribute('title', collapsed ? 'Expandir panel lateral' : 'Colapsar panel lateral');
-            button.innerHTML = `<i data-lucide="${collapsed ? 'panel-left-open' : 'panel-left-close'}" aria-hidden="true"></i>`;
-            if (window.lucide) lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
-        };
-
-        let collapsed = false;
-        try { collapsed = localStorage.getItem(storageKey) === 'true'; } catch (_) {}
-        apply(collapsed);
-
-        button.addEventListener('click', () => {
-            collapsed = !sidebar.classList.contains('is-collapsed');
-            apply(collapsed);
-            try { localStorage.setItem(storageKey, String(collapsed)); } catch (_) {}
-        });
     },
 
     setupKeyboardShortcuts() {
@@ -1618,27 +1592,6 @@ const App = {
 
                 default:
                     break;
-            }
-        });
-
-        document.addEventListener('keydown', (event) => {
-            const target = event.target.closest('[data-action]');
-
-            if (!target) return;
-
-            if (
-                target.dataset.action !== 'toggle-status' ||
-                (event.key !== 'Enter' && event.key !== ' ')
-            ) {
-                return;
-            }
-
-            event.preventDefault();
-
-            const taskId = target.dataset.taskId;
-
-            if (taskId) {
-                this.toggleTaskStatus(taskId);
             }
         });
     },
@@ -2925,15 +2878,13 @@ const App = {
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td data-label="Estado">
-                    <div id="status-switch-${t.id}" 
-                         class="status-switch ${isCurso ? 'curso' : 'cola'}" 
-                         role="switch" 
-                         aria-checked="${isCurso ? 'true' : 'false'}" 
-                         tabindex="0"
-                         data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
-                        <div class="switch-track"><div class="switch-thumb"></div></div>
+                    <button type="button" id="status-switch-${t.id}"
+                            class="status-switch ${isCurso ? 'curso' : 'cola'}"
+                            aria-label="Cambiar estado de ${escapeHTML(t.name)}. Estado actual: ${escapeHTML(t.status)}"
+                            data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
+                        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
                         <span class="switch-label">${escapeHTML(t.status)}</span>
-                    </div>
+                    </button>
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
                     <div class="action-buttons">
