@@ -20,20 +20,37 @@ const escapeHTML = (str) => {
 
 const CONFIG = Object.freeze({
     supabaseUrl: "https://gbltrfqxohrmkopanghx.supabase.co",
-    supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU",
-    demoDataEnabled: true,
-    localStorageKeys: Object.freeze({
-        users: 'db_users',
-        tasks: 'db_tasks',
-        notes: 'db_notes',
-        members: 'db_members',
-        requesters: 'db_reqs',
-        authUser: 'auth_user',
-        firstLoad: 'dh_first_load'
-    })
+    supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU"
 });
 
+const LEGACY_LOCAL_STORAGE_KEYS = Object.freeze([
+    'db_tasks',
+    'db_notes',
+    'db_members',
+    'db_reqs',
+    'dh_first_load'
+]);
+
+const clearLegacyLocalData = () => {
+    try {
+        LEGACY_LOCAL_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+    } catch (error) {
+        console.warn('No fue posible limpiar datos locales heredados.', error);
+    }
+};
+
 const normalizeText = (value) => String(value ?? '').trim();
+
+const getInitials = (value) => {
+    const parts = normalizeText(value)
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+};
 
 const normalizeUsername = (value) => normalizeText(value).toLowerCase();
 
@@ -43,30 +60,9 @@ const createId = () => (
         : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 );
 
-const getLocalJSON = (key, fallback) => {
-    try {
-        const raw = localStorage.getItem(key);
-        if (raw === null) return fallback;
-        const parsed = JSON.parse(raw);
-        return parsed ?? fallback;
-    } catch (error) {
-        console.warn(`No se pudo leer "${key}" desde LocalStorage.`, error);
-        return fallback;
-    }
-};
-
-const setLocalJSON = (key, value) => {
-    try {
-        localStorage.setItem(key, JSON.stringify(value));
-        return true;
-    } catch (error) {
-        if (error?.name === 'QuotaExceededError') {
-            UI.showToast("Error: la memoria local está llena.", "error");
-        } else {
-            console.error(`No se pudo guardar "${key}" en LocalStorage.`, error);
-        }
-        return false;
-    }
+const sanitizeThemeColor = (value, fallback = '#4f46e5') => {
+    const color = normalizeText(value);
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
 };
 
 const sanitizeAvatarUrl = (value) => {
@@ -104,37 +100,67 @@ if (CONFIG.supabaseUrl && typeof supabase !== 'undefined') {
 }
 
 class UI {
-    static showToast(message, type = 'info', duration = 8000, onClickCallback = null) {
+    static showToast(message, type = 'info', duration = 8000, onClickCallback = null, persistent = false) {
         const container = document.getElementById('toastContainer');
         if (!container) return;
-        
+
         const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        
+        toast.className = `toast ${type}${persistent ? ' toast-persistent' : ''}`;
+
         let icon = 'info';
         if (type === 'success') icon = 'check-circle';
         if (type === 'error') icon = 'alert-circle';
         if (type === 'warning') icon = 'alert-triangle';
-        
-        toast.innerHTML = `<i data-lucide="${icon}"></i> <span>${escapeHTML(message)}</span>`;
-        
+
+        const iconEl = document.createElement('i');
+        iconEl.setAttribute('data-lucide', icon);
+        iconEl.setAttribute('aria-hidden', 'true');
+
+        const content = document.createElement('span');
+        content.className = 'toast-message';
+        content.textContent = message;
+
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'toast-close';
+        closeButton.setAttribute('aria-label', 'Cerrar notificación');
+        closeButton.title = 'Cerrar';
+        closeButton.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
+
+        closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toast.classList.add('fade-out');
+            setTimeout(() => {
+                if (toast.parentElement) toast.remove();
+            }, 250);
+        });
+
+        toast.appendChild(iconEl);
+        toast.appendChild(content);
+        toast.appendChild(closeButton);
+
         if (onClickCallback) {
             toast.classList.add('toast-clickable');
-            toast.title = "Haz clic para ir a la tarea";
-            toast.addEventListener('click', () => {
+            toast.title = 'Haz clic para ir a la tarea';
+            toast.addEventListener('click', (event) => {
+                if (event.target.closest('.toast-close')) return;
                 onClickCallback();
-                toast.classList.add('fade-out');
-                setTimeout(() => { if(toast.parentElement) toast.remove(); }, 300);
             });
         }
-        
+
         container.appendChild(toast);
         lucide.createIcons();
-        
-        setTimeout(() => {
-            toast.classList.add('fade-out');
-            setTimeout(() => { if(toast.parentElement) toast.remove(); }, 300);
-        }, duration);
+
+        if (!persistent) {
+            setTimeout(() => {
+                if (!toast.parentElement) return;
+                toast.classList.add('fade-out');
+                setTimeout(() => {
+                    if (toast.parentElement) toast.remove();
+                }, 250);
+            }, duration);
+        }
     }
 
     static updateConnectionStatus(isOnline, errMessage = null) {
@@ -202,7 +228,7 @@ const NotificationService = {
             const callback = () => highlightTask(nearest.id);
             
             if (nearest.dateDelivered < todayStr) {
-                 setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error', 8000, callback), 1000);
+                 setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error', 8000, callback, true), 1000);
             } else if (nearest.dateDelivered === todayStr) {
                  setTimeout(() => UI.showToast(`Tu tarea más próxima es para hoy: ${nearest.name}`, 'warning', 8000, callback), 1000);
             } else {
@@ -229,171 +255,261 @@ const NotificationService = {
    ========================================= */
 const DataService = {
     async getUsers() {
-        const localUsers = getLocalJSON(CONFIG.localStorageKeys.users, []);
-        const baseUsers = typeof INITIAL_USERS !== 'undefined' ? INITIAL_USERS : [];
-        const allUsersMap = new Map();
+        if (!supabaseClient) {
+            console.error('Supabase no está disponible. No se cargarán perfiles locales.');
+            return [];
+        }
 
-        baseUsers.forEach(user => {
-            if (user?.username) {
-                allUsersMap.set(normalizeUsername(user.username), { ...user });
+        try {
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('id, username, email, name, role, avatar, theme, created_at')
+                .order('username', { ascending: true });
+
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los perfiles.', error);
+                UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
+                return [];
             }
-        });
 
-        localUsers.forEach(user => {
-            if (!user?.username) return;
-
-            const key = normalizeUsername(user.username);
-            const existing = allUsersMap.get(key);
-
-            if (existing) {
-                allUsersMap.set(key, {
-                    ...existing,
-                    avatar: user.avatar || existing.avatar || "",
-                    theme: user.theme || existing.theme || '#4f46e5'
-                });
-            } else {
-                allUsersMap.set(key, { ...user });
-            }
-        });
-
-        const finalUsers = Array.from(allUsersMap.values());
-        setLocalJSON(CONFIG.localStorageKeys.users, finalUsers);
-        return finalUsers;
+            return (data || []).map(profile => ({
+                id: profile.id,
+                username: normalizeUsername(profile.username),
+                email: normalizeText(profile.email),
+                name: normalizeText(profile.name),
+                role: profile.role === 'admin' ? 'admin' : 'editor',
+                avatar: sanitizeAvatarUrl(profile.avatar),
+                theme: sanitizeThemeColor(profile.theme),
+                created_at: profile.created_at
+            }));
+        } catch (error) {
+            console.error('Supabase: error cargando perfiles.', error);
+            UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
+            return [];
+        }
     },
 
-    async saveUsers(users) {
-        return setLocalJSON(CONFIG.localStorageKeys.users, users);
+    async getProfileByAuthId(authId) {
+        if (!supabaseClient || !authId) return null;
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('id, username, email, name, role, avatar, theme, created_at')
+                .eq('id', authId)
+                .maybeSingle();
+
+            if (error) {
+                console.error('Supabase: no se pudo cargar el perfil.', error);
+                return null;
+            }
+
+            if (!data) return null;
+
+            return {
+                id: data.id,
+                username: normalizeUsername(data.username),
+                email: normalizeText(data.email),
+                name: normalizeText(data.name),
+                role: data.role === 'admin' ? 'admin' : 'editor',
+                avatar: sanitizeAvatarUrl(data.avatar),
+                theme: sanitizeThemeColor(data.theme),
+                created_at: data.created_at
+            };
+        } catch (error) {
+            console.error('Supabase: error cargando el perfil.', error);
+            return null;
+        }
+    },
+
+    async updateProfile(authId, changes) {
+        if (!supabaseClient || !authId) return false;
+
+        const payload = {
+            avatar: sanitizeAvatarUrl(changes?.avatar),
+            theme: sanitizeThemeColor(changes?.theme)
+        };
+
+        try {
+            const { error } = await supabaseClient
+                .from('profiles')
+                .update(payload)
+                .eq('id', authId);
+
+            if (error) {
+                console.error('Supabase: no se pudo actualizar el perfil.', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Supabase: error actualizando el perfil.', error);
+            return false;
+        }
     },
 
     async getTasks() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('tasks')
-                    .select('*');
-
-                if (!error && data) {
-                    UI.updateConnectionStatus(true);
-                    setLocalJSON(CONFIG.localStorageKeys.tasks, data);
-                    return data;
-                }
-
-                if (error) {
-                    UI.updateConnectionStatus(false, error.message);
-                    console.warn('Supabase: no se pudieron cargar las tareas.', error);
-                }
-            } catch (error) {
-                UI.updateConnectionStatus(false, error.message);
-                console.warn('Supabase: error cargando tareas.', error);
-            }
-        } else {
+        if (!supabaseClient) {
             UI.updateConnectionStatus(false);
+            return [];
         }
 
-        return getLocalJSON(CONFIG.localStorageKeys.tasks, []);
+        try {
+            const { data, error } = await supabaseClient
+                .from('tasks')
+                .select('*')
+                .order('created_at', { ascending: true });
+
+            if (error) {
+                UI.updateConnectionStatus(false, error.message);
+                console.error('Supabase: no se pudieron cargar las tareas.', error);
+                return [];
+            }
+
+            UI.updateConnectionStatus(true);
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            UI.updateConnectionStatus(false, error.message);
+            console.error('Supabase: error cargando tareas.', error);
+            return [];
+        }
     },
 
-    async saveTasks(tasks) {
-        const localSaved = setLocalJSON(CONFIG.localStorageKeys.tasks, tasks);
-        let cloudSaved = false;
-
-        if (supabaseClient) {
-            try {
-                const { error } = await supabaseClient
-                    .from('tasks')
-                    .upsert(tasks);
-
-                if (error) {
-                    console.error('Supabase: no se pudieron guardar las tareas.', error);
-                    UI.updateConnectionStatus(false, error.message);
-                } else {
-                    cloudSaved = true;
-                    UI.updateConnectionStatus(true);
-                }
-            } catch (error) {
-                console.error('Supabase: error guardando tareas.', error);
-                UI.updateConnectionStatus(false, error.message);
-            }
+    async saveTasks(tasks, originalTasks = []) {
+        if (!supabaseClient) {
+            UI.updateConnectionStatus(false, 'Supabase no está disponible.');
+            return { cloudSaved: false, error: new Error('Supabase no está disponible.') };
         }
 
-        return { localSaved, cloudSaved };
+        const safeTasks = Array.isArray(tasks) ? tasks : [];
+        const safeOriginal = Array.isArray(originalTasks) ? originalTasks : [];
+        const byId = new Map(safeOriginal.map(task => [String(task.id), task]));
+        const currentIds = new Set(safeTasks.map(task => String(task.id)));
+
+        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
+        const buildPayload = (task) => {
+            const payload = { id: task.id };
+            fields.forEach(field => {
+                payload[field] = task[field] ?? (field === 'isStarred' ? false : '');
+            });
+            return payload;
+        };
+
+        try {
+            const inserted = safeTasks.filter(task => !byId.has(String(task.id)));
+            const updated = safeTasks.filter(task => {
+                const oldTask = byId.get(String(task.id));
+                if (!oldTask) return false;
+                return fields.some(field => String(task[field] ?? '') !== String(oldTask[field] ?? ''));
+            });
+            const deleted = safeOriginal.filter(task => !currentIds.has(String(task.id)));
+
+            if (inserted.length) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .insert(inserted.map(buildPayload))
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== inserted.length) {
+                    throw new Error('Supabase no confirmó todas las tareas nuevas.');
+                }
+            }
+
+            for (const task of updated) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .update(buildPayload(task))
+                    .eq('id', task.id)
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== 1) {
+                    throw new Error(`Supabase no confirmó la actualización de la tarea ${task.id}.`);
+                }
+            }
+
+            for (const task of deleted) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .eq('id', task.id)
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== 1) {
+                    throw new Error(`Supabase no confirmó la eliminación de la tarea ${task.id}.`);
+                }
+            }
+
+            UI.updateConnectionStatus(true);
+            return { cloudSaved: true, inserted: inserted.length, updated: updated.length, deleted: deleted.length };
+        } catch (error) {
+            console.error('Supabase: no se pudieron guardar las tareas.', error);
+            UI.updateConnectionStatus(false, error.message);
+            return { cloudSaved: false, error };
+        }
     },
 
     async getNotes() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('notes')
-                    .select('*')
-                    .order('created_at', { ascending: true });
+        if (!supabaseClient) return [];
 
-                if (!error && data) {
-                    setLocalJSON(CONFIG.localStorageKeys.notes, data);
-                    return data;
-                }
+        try {
+            const { data, error } = await supabaseClient
+                .from('notes')
+                .select('*')
+                .order('created_at', { ascending: true });
 
-                if (error) {
-                    console.warn('Supabase: no se pudieron cargar las notas.', error);
-                }
-            } catch (error) {
-                console.warn('Supabase: error cargando notas.', error);
+            if (error) {
+                console.error('Supabase: no se pudieron cargar las notas.', error);
+                return [];
             }
-        }
 
-        return getLocalJSON(CONFIG.localStorageKeys.notes, []);
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error('Supabase: error cargando notas.', error);
+            return [];
+        }
     },
 
     async saveNote(note) {
-        const notes = getLocalJSON(CONFIG.localStorageKeys.notes, []);
-        notes.push(note);
+        if (!supabaseClient) return { cloudSaved: false };
 
-        const localSaved = setLocalJSON(CONFIG.localStorageKeys.notes, notes);
-        let cloudSaved = false;
+        try {
+            const { data, error } = await supabaseClient
+                .from('notes')
+                .insert([note])
+                .select()
+                .single();
 
-        if (supabaseClient) {
-            try {
-                const { error } = await supabaseClient
-                    .from('notes')
-                    .insert([note]);
-
-                if (error) {
-                    console.error('Supabase: no se pudo guardar la nota.', error);
-                } else {
-                    cloudSaved = true;
-                }
-            } catch (error) {
-                console.error('Supabase: error guardando nota.', error);
+            if (error) {
+                console.error('Supabase: no se pudo guardar la nota.', error);
+                return { cloudSaved: false, error };
             }
-        }
 
-        return { localSaved, cloudSaved };
+            return { cloudSaved: true, data };
+        } catch (error) {
+            console.error('Supabase: error guardando nota.', error);
+            return { cloudSaved: false, error };
+        }
     },
 
     async getMembers() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('members')
-                    .select('name');
+        if (!supabaseClient) return [];
 
-                if (!error && data) {
-                    const members = data.map(item => item.name).filter(Boolean);
-                    setLocalJSON(CONFIG.localStorageKeys.members, members);
-                    return members;
-                }
+        try {
+            const { data, error } = await supabaseClient
+                .from('members')
+                .select('name')
+                .order('name', { ascending: true });
 
-                if (error) {
-                    console.warn('Supabase: no se pudieron cargar los miembros.', error);
-                }
-            } catch (error) {
-                console.warn('Supabase: error cargando miembros.', error);
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los miembros.', error);
+                return [];
             }
-        }
 
-        return getLocalJSON(
-            CONFIG.localStorageKeys.members,
-            ['Camilo', 'David', 'Mafe']
-        );
+            return (data || []).map(item => normalizeText(item.name)).filter(Boolean);
+        } catch (error) {
+            console.error('Supabase: error cargando miembros.', error);
+            return [];
+        }
     },
 
     async addMember(name) {
@@ -437,35 +553,26 @@ const DataService = {
         }
     },
 
-    async saveMembers(members) {
-        return setLocalJSON(CONFIG.localStorageKeys.members, members);
-    },
 
     async getRequesters() {
-        if (supabaseClient) {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('requesters')
-                    .select('name');
+        if (!supabaseClient) return [];
 
-                if (!error && data) {
-                    const requesters = data.map(item => item.name).filter(Boolean);
-                    setLocalJSON(CONFIG.localStorageKeys.requesters, requesters);
-                    return requesters;
-                }
+        try {
+            const { data, error } = await supabaseClient
+                .from('requesters')
+                .select('name')
+                .order('name', { ascending: true });
 
-                if (error) {
-                    console.warn('Supabase: no se pudieron cargar los solicitantes.', error);
-                }
-            } catch (error) {
-                console.warn('Supabase: error cargando solicitantes.', error);
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los solicitantes.', error);
+                return [];
             }
-        }
 
-        return getLocalJSON(
-            CONFIG.localStorageKeys.requesters,
-            ['Comunicaciones Internas', 'Comercial', 'Mkt Interno']
-        );
+            return (data || []).map(item => normalizeText(item.name)).filter(Boolean);
+        } catch (error) {
+            console.error('Supabase: error cargando solicitantes.', error);
+            return [];
+        }
     },
 
     async addRequester(name) {
@@ -509,69 +616,163 @@ const DataService = {
         }
     },
 
-    async saveRequesters(requesters) {
-        return setLocalJSON(CONFIG.localStorageKeys.requesters, requesters);
-    }
 };
 
 const AuthService = {
+    usernameToEmail: (username) => {
+        const cleanUsername = normalizeUsername(username);
+        if (!cleanUsername) return '';
+        return `${cleanUsername}@designhub.local`;
+    },
+
     login: async (username, password) => {
-        const users = await DataService.getUsers();
+        if (!supabaseClient) {
+            console.error('Supabase Auth no está disponible.');
+            UI.showToast('No fue posible conectar con el servicio de autenticación.', 'error');
+            return false;
+        }
+
         const userClean = normalizeUsername(username);
-        const passClean = normalizeText(password);
+        const passClean = String(password ?? '');
+        if (!userClean || !passClean) return false;
 
-        const match = users.find(user =>
-            user &&
-            typeof user.username === 'string' &&
-            normalizeUsername(user.username) === userClean &&
-            user.password === passClean
-        );
-
-        if (match) {
-            setLocalJSON(CONFIG.localStorageKeys.authUser, {
-                username: match.username,
-                name: match.name,
-                role: match.role,
-                avatar: match.avatar,
-                theme: match.theme
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: AuthService.usernameToEmail(userClean),
+                password: passClean
             });
+
+            if (error || !data?.user) {
+                const message = error?.message || 'Supabase no devolvió un usuario autenticado.';
+                console.error('Inicio de sesión rechazado:', error);
+                const loginError = document.getElementById('loginError');
+                if (loginError) {
+                    loginError.textContent = `No fue posible iniciar sesión: ${message}`;
+                    loginError.style.display = 'block';
+                }
+                return false;
+            }
+
+            const profile = await DataService.getProfileByAuthId(data.user.id);
+
+            if (!profile) {
+                const message = 'La autenticación funcionó, pero no existe un perfil válido para este usuario en public.profiles.';
+                console.error(message, { authUserId: data.user.id });
+                const loginError = document.getElementById('loginError');
+                if (loginError) {
+                    loginError.textContent = message;
+                    loginError.style.display = 'block';
+                }
+                await supabaseClient.auth.signOut();
+                return false;
+            }
+
+            const sessionUser = {
+                id: data.user.id,
+                username: profile.username || userClean,
+                name: profile.name || userClean,
+                role: profile.role,
+                avatar: profile.avatar || '',
+                theme: profile.theme || '#4f46e5'
+            };
+
+            UI.updateConnectionStatus(true);
             return true;
+        } catch (error) {
+            console.error('Error durante la autenticación con Supabase:', error);
+            UI.showToast('No fue posible iniciar sesión. Inténtalo nuevamente.', 'error');
+            return false;
         }
-
-        return false;
     },
 
-    logout: () => {
-        localStorage.removeItem(CONFIG.localStorageKeys.authUser);
-        window.location.reload();
+    getUser: async () => {
+        if (!supabaseClient) return null;
+
+        try {
+            const { data, error } = await supabaseClient.auth.getUser();
+
+            if (error || !data?.user) {
+                return null;
+            }
+
+            const authUser = data.user;
+            let username = normalizeUsername(authUser.user_metadata?.username || '');
+            if (!username && authUser.email) username = normalizeUsername(authUser.email.split('@')[0]);
+            if (!username) return null;
+
+            const profile = await DataService.getProfileByAuthId(authUser.id);
+            if (!profile) {
+                console.error(`No existe un perfil de Supabase para el usuario "${username}".`);
+                await supabaseClient.auth.signOut();
+                return null;
+            }
+
+            const sessionUser = {
+                id: authUser.id,
+                username: profile.username || username,
+                name: profile.name || username,
+                role: profile.role,
+                avatar: profile.avatar || '',
+                theme: profile.theme || '#4f46e5'
+            };
+
+            return sessionUser;
+        } catch (error) {
+            console.error('No fue posible validar la sesión:', error);
+            return null;
+        }
     },
 
-    getUser: () => getLocalJSON(CONFIG.localStorageKeys.authUser, null)
-};
-
-const initDemoData = async () => {
-    if (!CONFIG.demoDataEnabled || localStorage.getItem(CONFIG.localStorageKeys.firstLoad)) return;
-
-    {
-        const tasks = await DataService.getTasks();
-        if (tasks.length === 0) {
-            await DataService.saveTasks([
-                {id: "1", name: "Rediseño Logo Corporativo", requester: "Comercial", assignee: "Camilo", status: "En curso", dateReceived: "2026-08-20", dateDelivered: "2026-08-30", isStarred: false}
-            ]);
+    logout: async () => {
+        try {
+            if (supabaseClient) {
+                const { error } = await supabaseClient.auth.signOut();
+                if (error) console.error('Error cerrando sesión en Supabase:', error);
+            }
+        } catch (error) {
+            console.error('Error inesperado cerrando sesión:', error);
+        } finally {
+            window.location.reload();
         }
-        if (supabaseClient) {
-            const currentMembers = await DataService.getMembers();
-            if(currentMembers.length === 0) await supabaseClient.from('members').upsert([{name: 'Camilo'}, {name: 'David'}, {name: 'Mafe'}]);
-            const currentReqs = await DataService.getRequesters();
-            if(currentReqs.length === 0) await supabaseClient.from('requesters').upsert([{name: 'Comunicaciones Internas'}, {name: 'Comercial'}, {name: 'Mkt Interno'}]);
-        }
-        localStorage.setItem(CONFIG.localStorageKeys.firstLoad, '1');
     }
 };
 
+
 /* =========================================
-   UI COMPONENT: CUSTOM DROPDOWNS 
+   UI COMPONENT: CUSTOM DROPDOWNS + ACCESIBILIDAD
    ========================================= */
+function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
+    if (!instance) return;
+
+    const source = instance.input;
+    const baseId = source?.id || `${prefix}-${createId()}`;
+    const baseName = source?.name || baseId;
+    const altInput = instance.altInput;
+
+    if (altInput) {
+        altInput.id = `${baseId}-display`;
+        altInput.name = `${baseName}-display`;
+
+        // Flatpickr oculta el input original y crea un campo visible alternativo.
+        // No manipulamos <label for> aquí: el campo visible recibe su propia
+        // etiqueta accesible para que la asociación no dependa del timing de Flatpickr.
+        const sourceAriaLabel = source?.getAttribute('aria-label');
+        if (sourceAriaLabel) {
+            altInput.setAttribute('aria-label', sourceAriaLabel);
+        } else if (!altInput.getAttribute('aria-label')) {
+            altInput.setAttribute('aria-label', baseName);
+        }
+    }
+
+    const calendar = instance.calendarContainer;
+    if (!calendar) return;
+
+    calendar.querySelectorAll('input, select, textarea').forEach((field, index) => {
+        if (!field.id) field.id = `${baseId}-calendar-field-${index + 1}`;
+        if (!field.name) field.name = `${baseName}-calendar-field-${index + 1}`;
+    });
+}
+
 function buildCustomSelects(container = document) {
     container.querySelectorAll('.select-wrapper').forEach(w => {
         const select = w.querySelector('select');
@@ -632,7 +833,7 @@ function buildCustomSelects(container = document) {
                     applyColor(newColor);
                 }
 
-                select.dispatchEvent(new Event('change'));
+                select.dispatchEvent(new Event('change', { bubbles: true }));
                 optionsDiv.classList.remove('open');
                 trigger.classList.remove('active');
                 Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
@@ -702,16 +903,15 @@ const App = {
     usersList: [],
     notes: [],
     filterDates: [],
+    quickFilter: 'all',
     fpInstances: [],
     hasUnsavedChanges: false,
+    selectedTaskId: null,
     cropperInstance: null,
-    quickFilter: 'all',
-    searchTerm: '',
-    searchTimer: null,
 
     async init() {
-        await initDemoData();
-        this.user = AuthService.getUser();
+        clearLegacyLocalData();
+        this.user = await AuthService.getUser();
         
         if (!this.user) {
             this.showLogin();
@@ -732,7 +932,6 @@ const App = {
         await this.loadData();
         this.setupPlugins();
         this.setupEventListeners();
-        this.setupDynamicEventDelegation();
         this.setupNotesPanel();
         this.renderAll();
         
@@ -758,53 +957,112 @@ const App = {
             });
         }
 
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const user = document.getElementById('usernameInput').value;
-            const pass = document.getElementById('passwordInput').value;
-            
-            try {
-                if (await AuthService.login(user, pass)) window.location.reload();
-                else document.getElementById('loginError').style.display = 'block';
-            } catch (err) {
-                UI.showToast("Error al iniciar sesión.", "error");
-            }
-        });
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm && !loginForm.dataset.bound) {
+            loginForm.dataset.bound = 'true';
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const user = document.getElementById('usernameInput').value;
+                const pass = document.getElementById('passwordInput').value;
+                const loginError = document.getElementById('loginError');
+                const submitBtn = loginForm.querySelector('button[type="submit"]');
+                if (loginError) {
+                    loginError.textContent = '';
+                    loginError.style.display = 'none';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.setAttribute('aria-busy', 'true');
+                    submitBtn.dataset.originalText = submitBtn.textContent;
+                    submitBtn.textContent = 'Verificando…';
+                }
+                try {
+                    if (await AuthService.login(user, pass)) {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    console.error('Error inesperado al iniciar sesión:', err);
+                    if (loginError) {
+                        loginError.textContent = `Error al iniciar sesión: ${err?.message || err}`;
+                        loginError.style.display = 'block';
+                    }
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.removeAttribute('aria-busy');
+                        submitBtn.textContent = submitBtn.dataset.originalText || 'Ingresar al workspace';
+                    }
+                }
+            });
+        }
     },
 
     setupCrossTabSync() {
-        window.addEventListener('storage', async (e) => {
-            if (e.key && e.key.startsWith('db_')) {
-                await this.loadData();
-                this.renderAll();
-                if(e.key === 'db_notes') this.renderNotes();
-            }
-        });
+        // La sincronización entre pestañas se realiza mediante Supabase Realtime.
     },
 
     setupRealtimeSubscription() {
-        if (supabaseClient) {
-            supabaseClient
-                .channel('public-changes')
-                .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-                    
-                    if (payload.table === 'notes') {
-                        const panel = document.getElementById('notesPanel');
-                        if(panel && !panel.classList.contains('open')) {
-                            document.getElementById('btnToggleNotes').querySelector('.notification-badge')?.classList.add('active');
-                        }
-                    } else {
-                        UI.showToast(`Actualización Recibida`, "info", 3000);
+        if (!supabaseClient) return;
+
+        supabaseClient
+            .channel('design-hub-tasks')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
+                await this.loadData();
+                this.renderBoard();
+            })
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime: no fue posible suscribirse a tareas.');
+                }
+            });
+
+        supabaseClient
+            .channel('design-hub-notes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async () => {
+                const panel = document.getElementById('notesPanel');
+                if (panel && !panel.classList.contains('open')) {
+                    document.getElementById('btnToggleNotes')
+                        ?.querySelector('.notification-badge')?.classList.add('active');
+                }
+                this.notes = await DataService.getNotes();
+                this.renderNotes();
+            })
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime: no fue posible suscribirse a notas.');
+                }
+            });
+
+        /*
+         * PERFIL COMPARTIDO:
+         * avatar + color viven en public.profiles. Cuando un compañero
+         * los cambia, todos los clientes vuelven a leer los perfiles y
+         * Carga de Trabajo se actualiza sin cerrar sesión ni recargar.
+         */
+        supabaseClient
+            .channel('design-hub-profiles')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async () => {
+                this.usersList = await DataService.getUsers();
+
+                // Actualiza el usuario actual por si cambió desde otra pestaña.
+                if (this.user?.id) {
+                    const updatedMe = this.usersList.find(
+                        u => String(u.id) === String(this.user.id)
+                    );
+                    if (updatedMe) {
+                        this.user.avatar = updatedMe.avatar || '';
+                        this.user.theme = updatedMe.theme || '#4f46e5';
                     }
-                    
-                    await this.loadData();
-                    this.renderAll();
-                    this.renderNotes();
-                })
-                .subscribe((status) => {
-                    if (status === 'SUBSCRIBED') console.log("Conectado a WebSockets");
-                });
-        }
+                }
+
+                this.updateAvatarUI();
+                this.renderAll();
+            })
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime: no fue posible suscribirse a perfiles.');
+                }
+            });
     },
 
     updateAvatarUI() {
@@ -828,10 +1086,7 @@ const App = {
         this.originalTasks = await DataService.getTasks();
         this.tasks = JSON.parse(JSON.stringify(this.originalTasks));
         // Migración retroactiva: Si alguna tarea antigua no tiene el flag booleano, se lo asignamos
-        this.tasks.forEach(t => {
-            if (typeof t.isStarred === 'undefined') t.isStarred = false;
-            if (typeof t.notes === 'undefined') t.notes = '';
-        });
+        this.tasks.forEach(t => { if (typeof t.isStarred === 'undefined') t.isStarred = false; });
 
         this.members = await DataService.getMembers();
         this.requesters = await DataService.getRequesters();
@@ -842,12 +1097,18 @@ const App = {
     setupPlugins() {
         flatpickr(".date-range-picker", {
             mode: "range", locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'filter-date');
+            },
             onChange: (dates) => { this.filterDates = dates; this.renderBoard(); }
         });
         
         flatpickr(".modal-date", { 
             locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
-            appendTo: document.body 
+            appendTo: document.body,
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'modal-date');
+            }
         });
     },
 
@@ -857,24 +1118,21 @@ const App = {
     },
 
     async saveChanges() {
-        const result = await DataService.saveTasks(this.tasks);
+        const result = await DataService.saveTasks(this.tasks, this.originalTasks);
 
-        if (!result.localSaved) {
-            UI.showToast("No fue posible guardar los cambios localmente.", "error");
+        if (!result.cloudSaved) {
+            const detail = result.error?.message ? `: ${result.error.message}` : '';
+            UI.showToast(`No se pudieron guardar los cambios${detail}`, 'error', 7000);
             return;
         }
 
-        this.originalTasks = JSON.parse(JSON.stringify(this.tasks));
+        const freshTasks = await DataService.getTasks();
+        this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
+        this.tasks = JSON.parse(JSON.stringify(freshTasks));
         this.hasUnsavedChanges = false;
         document.getElementById('unsavedChangesBar').classList.remove('active');
-
-        if (supabaseClient && !result.cloudSaved) {
-            UI.showToast("Guardado localmente. No se pudo sincronizar con la nube.", "warning");
-        } else {
-            UI.showToast("Cambios guardados con éxito", "success");
-        }
-
-        this.renderBoard();
+        UI.showToast("Cambios guardados con éxito", "success");
+        this.renderAll();
     },
 
     undoChanges() {
@@ -894,78 +1152,29 @@ const App = {
         }
     },
 
-    setupDynamicEventDelegation() {
-        const root = document.getElementById('appContainer');
-        if (!root) return;
-
-        root.addEventListener('click', async (e) => {
-            const quick = e.target.closest('[data-quick-filter]');
-            if (quick) {
-                this.quickFilter = quick.dataset.quickFilter || 'all';
-                root.querySelectorAll('.quick-filter').forEach(btn => btn.classList.toggle('active', btn === quick));
-                this.renderBoard();
-                return;
-            }
-
-            const actionEl = e.target.closest('[data-action]');
-            if (!actionEl || !root.contains(actionEl)) return;
-            const action = actionEl.dataset.action;
-            const taskId = actionEl.dataset.taskId;
-
-            if (action === 'toggle-star' && taskId) {
-                e.preventDefault(); e.stopPropagation();
-                this.toggleTaskStar(taskId);
-            } else if (action === 'toggle-status' && taskId) {
-                e.preventDefault(); e.stopPropagation();
-                this.toggleTaskStatus(taskId);
-            } else if (action === 'edit-task' && taskId) {
-                e.preventDefault(); e.stopPropagation();
-                this.openEditModal(taskId);
-            } else if (action === 'delete-task' && taskId) {
-                e.preventDefault(); e.stopPropagation();
-                if (window.confirm('¿Eliminar esta solicitud?')) await this.deleteTask(taskId);
-            } else if (action === 'complete-task' && taskId) {
-                e.stopPropagation();
-                this.updateTask(taskId, 'status', actionEl.checked ? 'Entregado' : 'En curso', true);
-            } else if (action === 'view-task-notes' && taskId) {
-                e.preventDefault(); e.stopPropagation();
-                this.openTaskNotesModal(taskId);
-            } else if (action === 'remove-member') {
-                e.preventDefault(); e.stopPropagation();
-                const index = Number(actionEl.dataset.index);
-                if (Number.isInteger(index) && this.user.role === 'admin') this.removeMember(index);
-            } else if (action === 'remove-requester') {
-                e.preventDefault(); e.stopPropagation();
-                const index = Number(actionEl.dataset.index);
-                if (Number.isInteger(index) && this.user.role === 'admin') this.removeRequester(index);
-            }
-        });
-
-        root.addEventListener('change', (e) => {
-            const el = e.target.closest('[data-action]');
-            if (!el || !root.contains(el)) return;
-            const action = el.dataset.action;
-            const taskId = el.dataset.taskId;
-            if (action === 'change-assignee' && taskId) {
-                this.updateTask(taskId, 'assignee', el.value, false);
-            }
-        });
-
-        root.addEventListener('keydown', (e) => {
-            const status = e.target.closest('[data-action="toggle-status"]');
-            if (status && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault(); e.stopPropagation();
-                this.toggleTaskStatus(status.dataset.taskId);
-            }
-        });
-    },
-
     setupEventListeners() {
         document.getElementById('btnSave').addEventListener('click', () => this.saveChanges());
         document.getElementById('btnUndo').addEventListener('click', () => this.undoChanges());
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
+            const form = document.getElementById('taskForm');
+            if (form) form.reset();
+
+            const requesterSelect = document.getElementById('requesterSelect');
+            const assigneeSelect = document.getElementById('assignee');
+            const statusSelect = document.getElementById('status');
+
+            if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
+            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
+            if (statusSelect) updateCustomSelectUI(statusSelect, 'En cola');
+
+            const taskNotes = document.getElementById('taskNotes');
+            if (taskNotes) taskNotes.value = '';
+
+            const dateDelivered = document.getElementById('dateDelivered');
+            if (dateDelivered?._flatpickr) dateDelivered._flatpickr.clear();
+
             const d = new Date();
             const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             
@@ -978,6 +1187,7 @@ const App = {
         
         this.setupProfileListeners();
         this.setupAdminListeners();
+        this.setupDynamicEventDelegation();
 
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
@@ -985,30 +1195,32 @@ const App = {
             }
         });
         
-        ['filterAssignee', 'filterRequester', 'filterStatus', 'filterSort'].forEach(id => {
+        ['filterAssignee', 'filterRequester', 'filterStatus', 'filterSort', 'filterCompletion'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.addEventListener('change', () => this.renderBoard());
         });
 
         const taskSearch = document.getElementById('taskSearch');
         if (taskSearch) {
+            let searchTimer = null;
             taskSearch.addEventListener('input', () => {
-                clearTimeout(this.searchTimer);
-                this.searchTimer = setTimeout(() => {
-                    this.searchTerm = normalizeText(taskSearch.value).toLowerCase();
-                    this.renderBoard();
-                }, 120);
+                window.clearTimeout(searchTimer);
+                searchTimer = window.setTimeout(() => this.renderBoard(), 120);
             });
         }
 
         document.getElementById('clearFilters').addEventListener('click', () => {
             ['filterAssignee', 'filterRequester', 'filterStatus'].forEach(id => document.getElementById(id).value = 'Todos');
-            document.getElementById('filterSort').value = 'received_asc';
+            const taskSearch = document.getElementById('taskSearch');
             if (taskSearch) taskSearch.value = '';
-            this.searchTerm = '';
-            this.quickFilter = 'all';
-            document.querySelectorAll('.quick-filter').forEach(btn => btn.classList.toggle('active', btn.dataset.quickFilter === 'all'));
+            const filterCompletion = document.getElementById('filterCompletion');
+            if (filterCompletion) filterCompletion.value = 'Pendientes';
+            document.getElementById('filterSort').value = 'received_asc';
             this.filterDates = [];
+            this.quickFilter = 'all';
+            document.querySelectorAll('.quick-filter').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.quickFilter === 'all');
+            });
             const fpInput = document.getElementById('filterDate');
             if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
             this.renderBoard();
@@ -1053,12 +1265,22 @@ const App = {
                 status: normalizeText(document.getElementById('status').value),
                 dateReceived: dateReceivedValue, 
                 dateDelivered: dateDelivered,
-                notes: '',
-                isStarred: false // Nueva propiedad
+                isStarred: false,
+                notes: normalizeText(document.getElementById('taskNotes')?.value)
+
             });
             
             this.markAsUnsaved(); 
             e.target.reset();
+            const newRequesterSelect = document.getElementById('requesterSelect');
+            const newAssigneeSelect = document.getElementById('assignee');
+            const newStatusSelect = document.getElementById('status');
+            if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
+            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, 'No asignado');
+            if (newStatusSelect) updateCustomSelectUI(newStatusSelect, 'En cola');
+            document.getElementById('taskNotes')?.setAttribute('value', '');
+            const newDateDelivered = document.getElementById('dateDelivered');
+            if (newDateDelivered?._flatpickr) newDateDelivered._flatpickr.clear();
             document.getElementById('modalTask').classList.remove('active');
             UI.showToast("Solicitud añadida", "success");
             this.renderBoard();
@@ -1080,11 +1302,190 @@ const App = {
                 task.name = normalizeText(document.getElementById('editTaskName').value);
                 task.requester = normalizeText(document.getElementById('editRequesterSelect').value);
                 task.dateReceived = newRecDate;
+                task.notes = normalizeText(document.getElementById('editTaskNotes')?.value);
                 
                 this.markAsUnsaved();
                 document.getElementById('modalEditTask').classList.remove('active');
                 UI.showToast("Solicitud editada", "success");
                 this.renderBoard();
+            }
+        });
+    },
+
+
+    setupDynamicEventDelegation() {
+        /*
+         * Los elementos de tareas, miembros y solicitantes se generan
+         * dinámicamente. En lugar de insertar JavaScript dentro del HTML
+         * (onclick/onchange/onkeydown), centralizamos sus eventos aquí.
+         */
+        document.addEventListener('click', async (event) => {
+            const target = event.target.closest('[data-action]');
+
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const taskId = target.dataset.taskId;
+
+            const quickFilter = event.target.closest('[data-quick-filter]');
+            if (quickFilter) {
+                this.quickFilter = quickFilter.dataset.quickFilter || 'all';
+                document.querySelectorAll('.quick-filter').forEach(btn => {
+                    btn.classList.toggle('active', btn === quickFilter);
+                });
+                this.renderBoard();
+                return;
+            }
+
+            switch (action) {
+                case 'remove-member': {
+                    const index = Number(target.dataset.index);
+                    if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
+                    if (!confirm('¿Quitar del equipo?')) return;
+
+                    const removedName = this.members[index];
+                    const removed = await DataService.removeMember(removedName);
+                    if (!removed) {
+                        UI.showToast('No fue posible eliminar el colaborador.', 'error');
+                        return;
+                    }
+
+                    this.members.splice(index, 1);
+                    this.usersList = await DataService.getUsers();
+                    this.renderAll();
+                    UI.showToast('Colaborador eliminado', 'success');
+                    break;
+                }
+
+                case 'remove-requester': {
+                    const index = Number(target.dataset.index);
+                    if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
+                    if (!confirm('¿Eliminar solicitante?')) return;
+
+                    const removedName = this.requesters[index];
+                    const removed = await DataService.removeRequester(removedName);
+                    if (!removed) {
+                        UI.showToast('No fue posible eliminar el solicitante.', 'error');
+                        return;
+                    }
+
+                    this.requesters.splice(index, 1);
+                    this.renderAll();
+                    UI.showToast('Solicitante eliminado', 'success');
+                    break;
+                }
+
+                case 'toggle-star':
+                    if (taskId) {
+                        this.toggleTaskStar(taskId);
+                    }
+                    break;
+
+                case 'toggle-status':
+                    if (taskId) {
+                        this.toggleTaskStatus(taskId);
+                    }
+                    break;
+
+                case 'view-task-notes':
+                    if (taskId) this.openTaskNotes(taskId);
+                    break;
+
+                case 'edit-task':
+                    if (taskId) {
+                        this.openEditModal(taskId);
+                    }
+                    break;
+
+                case 'delete-task':
+                    if (!taskId) return;
+
+                    if (confirm('¿Eliminar?')) {
+                        this.tasks = this.tasks.filter(
+                            task => task.id !== taskId
+                        );
+
+                        this.markAsUnsaved();
+                        this.renderBoard();
+
+                        UI.showToast(
+                            'Tarea eliminada',
+                            'success'
+                        );
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        document.addEventListener('change', (event) => {
+            const target = event.target.closest('[data-action]');
+
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const taskId = target.dataset.taskId;
+
+            if (!taskId) return;
+
+            switch (action) {
+                case 'toggle-completed': {
+                    const completed = Boolean(target.checked);
+
+                    this.updateTask(
+                        taskId,
+                        'status',
+                        completed ? 'Entregado' : 'En curso',
+                        true
+                    );
+
+                    /*
+                     * Al marcarla, la tarea deja de estar en Pendientes y
+                     * aparece inmediatamente en Realizadas. Al desmarcarla,
+                     * vuelve a Pendientes.
+                     */
+                    if (completed) {
+                        UI.showToast('Tarea enviada a Realizadas', 'success');
+                    } else {
+                        UI.showToast('Tarea devuelta a Pendientes', 'info');
+                    }
+                    break;
+                }
+
+                case 'change-assignee':
+                    this.updateTask(
+                        taskId,
+                        'assignee',
+                        target.value,
+                        false
+                    );
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            const target = event.target.closest('[data-action]');
+
+            if (!target) return;
+
+            if (
+                target.dataset.action !== 'toggle-status' ||
+                (event.key !== 'Enter' && event.key !== ' ')
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const taskId = target.dataset.taskId;
+
+            if (taskId) {
+                this.toggleTaskStatus(taskId);
             }
         });
     },
@@ -1130,7 +1531,9 @@ const App = {
 
         if (picker) {
             picker.addEventListener('emoji-click', event => {
-                input.value += event.detail.unicode;
+                const unicode = event?.detail?.unicode;
+                if (!unicode || !input) return;
+                input.value += unicode;
                 input.focus();
             });
         }
@@ -1157,17 +1560,13 @@ const App = {
 
             const result = await DataService.saveNote(newNote);
 
-            if (!result.localSaved) {
-                UI.showToast("No fue posible guardar la nota.", "error");
+            if (!result.cloudSaved) {
+                UI.showToast("No se pudo guardar la nota en la nube.", "error");
                 return;
             }
 
-            this.notes.push(newNote);
+            this.notes.push(result.data || newNote);
             input.value = '';
-
-            if (supabaseClient && !result.cloudSaved) {
-                UI.showToast("Nota guardada localmente; no se pudo sincronizar.", "warning");
-            }
             if(pickerWrapper) pickerWrapper.style.display = 'none';
             this.renderNotes();
         });
@@ -1183,99 +1582,41 @@ const App = {
             return;
         }
 
+        const fragment = document.createDocumentFragment();
         this.notes.forEach(n => {
             const dateObj = new Date(n.created_at);
             const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
-            
             const isMine = n.author === this.user.name;
-            const alignClass = isMine ? 'mine' : 'other';
-            const authorText = isMine ? 'Tú' : escapeHTML(n.author);
             const authorColor = this.getColor(n.author);
 
-            const cleanContent = escapeHTML(n.content);
+            const message = document.createElement('div');
+            message.className = `chat-msg ${isMine ? 'mine' : 'other'}`;
 
-            container.innerHTML += `
-                <div class="chat-msg ${alignClass}">
-                    <div class="chat-meta">
-                        <span style="color: ${isMine ? 'var(--text-muted)' : authorColor}; font-weight: 700;">${authorText}</span> 
-                        <span>${dateStr}</span>
-                    </div>
-                    <div class="chat-bubble ${isMine ? '' : 'chat-bubble-other'}" style="${isMine ? `background-color: var(--primary-cold); color: #ffffff;` : `border-left-color: ${authorColor};`}">
-                        ${cleanContent}
-                    </div>
-                </div>
-            `;
+            const meta = document.createElement('div');
+            meta.className = 'chat-meta';
+            const author = document.createElement('span');
+            author.textContent = isMine ? 'Tú' : normalizeText(n.author);
+            author.style.color = isMine ? 'var(--text-muted)' : authorColor;
+            author.style.fontWeight = '700';
+            const time = document.createElement('span');
+            time.textContent = dateStr;
+            meta.append(author, time);
+
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${isMine ? '' : 'chat-bubble-other'}`;
+            bubble.textContent = normalizeText(n.content);
+            if (isMine) {
+                bubble.style.backgroundColor = 'var(--primary-cold)';
+                bubble.style.color = '#ffffff';
+            } else {
+                bubble.style.borderLeftColor = authorColor;
+            }
+            message.append(meta, bubble);
+            fragment.appendChild(message);
         });
+        container.replaceChildren(fragment);
         
         container.scrollTop = container.scrollHeight;
-    },
-
-    async deleteTask(taskId) {
-        const index = this.tasks.findIndex(t => t.id === taskId);
-        if (index < 0) return;
-        const previous = this.tasks[index];
-        this.tasks.splice(index, 1);
-        const result = await DataService.saveTasks(this.tasks);
-        if (!result.localSaved || (supabaseClient && !result.cloudSaved)) {
-            this.tasks.splice(index, 0, previous);
-            UI.showToast('No fue posible eliminar la solicitud.', 'error');
-            return;
-        }
-        this.originalTasks = JSON.parse(JSON.stringify(this.tasks));
-        this.hasUnsavedChanges = false;
-        document.getElementById('unsavedChangesBar')?.classList.remove('active');
-        this.renderAll();
-        UI.showToast('Solicitud eliminada', 'success');
-    },
-
-    openTaskNotesModal(taskId) {
-        const task = this.tasks.find(t => t.id === taskId);
-        if (!task) return;
-
-        let modal = document.getElementById('taskNotesModal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'taskNotesModal';
-            modal.className = 'modal-overlay';
-            modal.innerHTML = `
-                <div class="modal-content task-notes-modal" role="dialog" aria-modal="true" aria-labelledby="taskNotesTitle">
-                    <div class="modal-header">
-                        <h2 id="taskNotesTitle"><i data-lucide="message-square-text"></i> Notas de la solicitud</h2>
-                        <button type="button" class="close-modal" id="closeTaskNotesModal" aria-label="Cerrar"><i data-lucide="x"></i></button>
-                    </div>
-                    <div class="task-notes-content">
-                        <p id="taskNotesContext" class="task-notes-context"></p>
-                        <label for="taskNotesInput">Notas internas</label>
-                        <textarea id="taskNotesInput" class="custom-input task-notes-input" rows="7" placeholder="Escribe aquí información útil para el equipo..."></textarea>
-                        <div class="task-notes-actions">
-                            <button type="button" class="btn btn-secondary" id="cancelTaskNotes">Cancelar</button>
-                            <button type="button" class="btn btn-primary" id="saveTaskNotes"><i data-lucide="save"></i> Guardar notas</button>
-                        </div>
-                    </div>
-                </div>`;
-            document.body.appendChild(modal);
-            document.getElementById('closeTaskNotesModal').addEventListener('click', () => modal.classList.remove('active'));
-            document.getElementById('cancelTaskNotes').addEventListener('click', () => modal.classList.remove('active'));
-            document.getElementById('saveTaskNotes').addEventListener('click', async () => {
-                const currentId = modal.dataset.taskId;
-                const currentTask = this.tasks.find(t => t.id === currentId);
-                if (!currentTask) return;
-                const input = document.getElementById('taskNotesInput');
-                currentTask.notes = normalizeText(input.value);
-                this.markAsUnsaved();
-                modal.classList.remove('active');
-                this.renderBoard();
-                UI.showToast('Notas actualizadas. Recuerda guardar los cambios.', 'success');
-            });
-            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
-            lucide.createIcons();
-        }
-
-        modal.dataset.taskId = taskId;
-        document.getElementById('taskNotesContext').textContent = task.name;
-        document.getElementById('taskNotesInput').value = task.notes || '';
-        modal.classList.add('active');
-        setTimeout(() => document.getElementById('taskNotesInput')?.focus(), 30);
     },
 
     openEditModal(taskId) {
@@ -1284,6 +1625,8 @@ const App = {
 
         document.getElementById('editTaskId').value = task.id;
         document.getElementById('editTaskName').value = task.name;
+        const editNotes = document.getElementById('editTaskNotes');
+        if (editNotes) editNotes.value = task.notes || '';
         
         const reqSelect = document.getElementById('editRequesterSelect');
         updateCustomSelectUI(reqSelect, task.requester);
@@ -1371,21 +1714,23 @@ const App = {
         };
 
         const saveAndClose = async (avatarData) => {
-            this.user.avatar = sanitizeAvatarUrl(avatarData);
-            this.user.theme = selectedTheme;
-            localStorage.setItem('auth_user', JSON.stringify(this.user));
-            
-            let allUsers = await DataService.getUsers();
-            let dbUser = allUsers.find(u => u.username === this.user.username);
-            if(dbUser) {
-                dbUser.avatar = this.user.avatar;
-                dbUser.theme = selectedTheme;
-                try {
-                    await DataService.saveUsers(allUsers);
-                    UI.showToast("Perfil actualizado", "success");
-                } catch (e) { return; }
+            const avatar = sanitizeAvatarUrl(avatarData);
+            const theme = normalizeText(selectedTheme) || '#4f46e5';
+
+            if (!supabaseClient || !this.user.id) {
+                UI.showToast('No se pudo identificar tu perfil en Supabase.', 'error');
+                return;
             }
 
+            const saved = await DataService.updateProfile(this.user.id, { avatar, theme });
+            if (!saved) {
+                UI.showToast('No fue posible guardar el perfil en la nube.', 'error');
+                return;
+            }
+
+            this.user.avatar = avatar;
+            this.user.theme = theme;
+            UI.showToast('Perfil actualizado', 'success');
             this.usersList = await DataService.getUsers();
             this.updateAvatarUI();
             resetProfileModal();
@@ -1464,24 +1809,12 @@ const App = {
             const input = document.getElementById('newMemberInput');
             const name = normalizeText(input.value);
             if (name && !this.members.some(m => m.toLowerCase() === name.toLowerCase())) {
-                this.members.push(name); 
-                await DataService.addMember(name);
-                const localSaved = await DataService.saveMembers(this.members);
-                if (!localSaved) {
-                    this.members.pop();
-                    UI.showToast("No fue posible guardar el colaborador.", "error");
+                const saved = await DataService.addMember(name);
+                if (!saved) {
+                    UI.showToast("No fue posible guardar el colaborador en la nube.", "error");
                     return;
                 }
-                
-                const themeOptions = ['#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488', '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c', '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'];
-                const randomTheme = themeOptions[Math.floor(Math.random() * themeOptions.length)];
-
-                let dbUsers = await DataService.getUsers();
-                if (!dbUsers.some(u => u.username === name.toLowerCase())) {
-                    dbUsers.push({ username: name.toLowerCase(), password: `${name}_DH2026!`, role: "editor", name: name, avatar: "", theme: randomTheme });
-                    await DataService.saveUsers(dbUsers);
-                }
-
+                this.members.push(name);
                 this.usersList = await DataService.getUsers();
                 input.value = ''; 
                 this.renderAll();
@@ -1489,98 +1822,169 @@ const App = {
             }
         });
 
-        this.removeMember = async (index) => {
-            if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
-            if (confirm('¿Eliminar miembro?')) {
-                const removedName = this.members[index];
-                this.members.splice(index, 1);
-                await DataService.removeMember(removedName);
-                await DataService.saveMembers(this.members);
+        document.getElementById('addRequesterForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('newRequesterInput');
+            const name = normalizeText(input.value);
+            if (name && !this.requesters.some(r => r.toLowerCase() === name.toLowerCase())) {
+                const saved = await DataService.addRequester(name);
+                if (!saved) {
+                    UI.showToast("No fue posible guardar el solicitante en la nube.", "error");
+                    return;
+                }
+                this.requesters.push(name);
+                input.value = ''; 
                 this.renderAll();
-                UI.showToast("Miembro eliminado", "success");
+                UI.showToast("Solicitante añadido", "success");
             }
-        };
-
-        this.removeRequester = async (index) => {
-            if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
-            if (confirm('¿Eliminar solicitante?')) {
-                const removedName = this.requesters[index];
-                this.requesters.splice(index, 1);
-                await DataService.removeRequester(removedName);
-                await DataService.saveRequesters(this.requesters);
-                this.renderAll();
-                UI.showToast("Solicitante eliminado", "success");
-            }
-        };
+        });
+        
     },
 
     updateDashboardSummary() {
-        const active = this.tasks.filter(t => t.status !== 'Entregado');
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-        const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
-        set('summaryTotal', active.length);
-        set('summaryCourse', active.filter(t => t.status === 'En curso').length);
-        set('summaryQueue', active.filter(t => t.status === 'En cola').length);
-        set('summaryOverdue', active.filter(t => t.dateDelivered && t.dateDelivered < todayStr).length);
-        set('summaryStarred', active.filter(t => t.isStarred).length);
+        const active = this.tasks.filter(task => task.status !== 'Entregado');
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-        const my = active.filter(t => t.assignee === this.user.name);
-        const myBadge = document.querySelector('.sidebar-card:first-child .card-header h2 .badge-count');
-        if (myBadge) myBadge.textContent = my.length;
+        const values = {
+            summaryTotal: active.length,
+            summaryCourse: active.filter(task => task.status === 'En curso').length,
+            summaryQueue: active.filter(task => task.status === 'En cola').length,
+            summaryOverdue: active.filter(task => task.dateDelivered && task.dateDelivered < todayStr).length,
+            summaryStarred: active.filter(task => task.isStarred).length
+        };
+
+        Object.entries(values).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = String(value);
+        });
     },
 
     renderAll() {
-        this.updateDashboardSummary();
         this.renderDropdowns();
         this.renderTags();
         this.renderBoard();
     },
 
     renderDropdowns() {
-        const sAssignee = ['assignee', 'filterAssignee'];
-        sAssignee.forEach(id => {
-            const el = document.getElementById(id);
-            if(!el) return;
-            el.innerHTML = id === 'filterAssignee' ? '<option value="Todos">Asignación: Todos</option>' : '';
-            el.innerHTML += '<option value="No asignado">No asignado</option>'; 
-            this.members.forEach(m => {
-                const safeM = escapeHTML(m);
-                el.innerHTML += `<option value="${safeM}">${safeM}</option>`;
+        const buildOptions = (select, options, placeholder, emptyOption = false) => {
+            if (!select) return;
+            const fragment = document.createDocumentFragment();
+
+            if (placeholder) {
+                const option = document.createElement('option');
+                option.value = emptyOption ? '' : 'Todos';
+                option.textContent = placeholder;
+                if (emptyOption) option.disabled = true;
+                option.selected = true;
+                fragment.appendChild(option);
+            }
+
+            options.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                fragment.appendChild(option);
             });
+
+            select.replaceChildren(fragment);
+        };
+
+        ['assignee', 'filterAssignee'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            const options = ['No asignado', ...this.members];
+            buildOptions(
+                el,
+                options,
+                id === 'filterAssignee' ? 'Asignación: Todos' : null
+            );
         });
 
-        const sReq = ['requesterSelect', 'filterRequester', 'editRequesterSelect'];
-        sReq.forEach(id => {
+        ['requesterSelect', 'filterRequester', 'editRequesterSelect'].forEach(id => {
             const el = document.getElementById(id);
-            if(!el) return;
-            el.innerHTML = id === 'filterRequester' ? '<option value="Todos">Solicitante: Todos</option>' : '';
-            this.requesters.forEach(r => {
-                const safeR = escapeHTML(r);
-                el.innerHTML += `<option value="${safeR}">${safeR}</option>`;
-            });
+            if (!el) return;
+
+            buildOptions(
+                el,
+                this.requesters,
+                id === 'filterRequester' ? 'Solicitante: Todos' : 'Seleccionar solicitante...',
+                id !== 'filterRequester'
+            );
         });
+
         buildCustomSelects(document.querySelector('.inline-filters-bar'));
         buildCustomSelects(document.querySelector('#taskForm'));
         buildCustomSelects(document.querySelector('#editTaskForm'));
     },
 
     renderTags() {
-        if(this.user.role !== 'admin') return;
+        if (this.user.role !== 'admin') return;
+
         const mList = document.getElementById('membersList');
-        mList.innerHTML = '';
-        this.members.forEach((m) => {
-            const safeM = escapeHTML(m);
-            const hexColor = this.getColor(m);
-            mList.innerHTML += `<div class="member-chip" style="color: ${hexColor}; background-color: ${hexColor}20; border-color: ${hexColor}40;"><span>${safeM}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeM}" data-action="remove-member" data-index="${this.members.indexOf(m)}"><i data-lucide="x"></i></button></div>`;
+        const rList = document.getElementById('requestersList');
+        if (!mList || !rList) return;
+
+        const membersFragment = document.createDocumentFragment();
+
+        this.members.forEach((member, index) => {
+            const safeName = normalizeText(member);
+            const color = this.getColor(member);
+
+            const chip = document.createElement('div');
+            chip.className = 'member-chip';
+            chip.style.color = color;
+            chip.style.backgroundColor = `${color}20`;
+            chip.style.borderColor = `${color}40`;
+
+            const name = document.createElement('span');
+            name.textContent = safeName;
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'remove-member';
+            button.setAttribute('aria-label', `Eliminar ${safeName}`);
+            button.dataset.action = 'remove-member';
+            button.dataset.index = String(index);
+
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'x');
+
+            button.appendChild(icon);
+            chip.append(name, button);
+            membersFragment.appendChild(chip);
         });
 
-        const rList = document.getElementById('requestersList');
-        rList.innerHTML = '';
-        this.requesters.forEach((r, i) => {
-            const safeR = escapeHTML(r);
-            rList.innerHTML += `<div class="member-chip"><span>${safeR}</span><button type="button" class="remove-member" aria-label="Eliminar ${safeR}" data-action="remove-requester" data-index="${i}"><i data-lucide="x"></i></button></div>`;
+        const requestersFragment = document.createDocumentFragment();
+
+        this.requesters.forEach((requester, index) => {
+            const safeName = normalizeText(requester);
+
+            const chip = document.createElement('div');
+            chip.className = 'member-chip';
+
+            const name = document.createElement('span');
+            name.textContent = safeName;
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'remove-member';
+            button.setAttribute('aria-label', `Eliminar ${safeName}`);
+            button.dataset.action = 'remove-requester';
+            button.dataset.index = String(index);
+
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'x');
+
+            button.appendChild(icon);
+            chip.append(name, button);
+            requestersFragment.appendChild(chip);
         });
+
+        mList.replaceChildren(membersFragment);
+        rList.replaceChildren(requestersFragment);
+
         lucide.createIcons();
     },
 
@@ -1602,17 +2006,116 @@ const App = {
     },
 
     updateTask(id, field, value, shouldRender = false) {
-        const t = this.tasks.find(x => x.id === id);
+        const t = this.tasks.find(x => String(x.id) === String(id));
         if (t) {
-            t[field] = normalizeText(value);
-            this.markAsUnsaved(); 
+            t[field] = field === 'isStarred' ? Boolean(value) : normalizeText(value);
+            this.selectedTaskId = String(id);
+            this.markAsUnsaved();
             this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
-            if(shouldRender) this.renderBoard(); 
+            if (shouldRender) this.renderBoard();
         }
+    },
+
+    openTaskNotes(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task) return;
+
+        document.getElementById('taskNotesViewer')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'taskNotesViewer';
+        overlay.className = 'task-notes-viewer-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'taskNotesViewerTitle');
+
+        const card = document.createElement('div');
+        card.className = 'task-notes-viewer-card';
+
+        const header = document.createElement('div');
+        header.className = 'task-notes-viewer-header';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'task-notes-viewer-title-wrap';
+
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'message-square-text');
+
+        const title = document.createElement('h2');
+        title.id = 'taskNotesViewerTitle';
+        title.textContent = 'Notas de la solicitud';
+
+        titleWrap.append(icon, title);
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-icon task-notes-viewer-close';
+        close.setAttribute('aria-label', 'Cerrar notas');
+        const closeIcon = document.createElement('i');
+        closeIcon.setAttribute('data-lucide', 'x');
+        close.appendChild(closeIcon);
+
+        header.append(titleWrap, close);
+
+        const taskName = document.createElement('div');
+        taskName.className = 'task-notes-viewer-task-name';
+        taskName.textContent = normalizeText(task.name);
+
+        const meta = document.createElement('div');
+        meta.className = 'task-notes-viewer-meta';
+        meta.textContent = `Solicitante: ${normalizeText(task.requester || 'No indicado')}`;
+
+        const body = document.createElement('div');
+        body.className = 'task-notes-viewer-body';
+
+        const noteText = document.createElement('p');
+        noteText.className = 'task-notes-viewer-text';
+
+        const notes = normalizeText(task.notes);
+        noteText.textContent = notes || 'Esta solicitud no tiene notas todavía.';
+        if (!notes) body.classList.add('is-empty');
+
+        body.appendChild(noteText);
+        card.append(header, taskName, meta, body);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        lucide.createIcons();
+
+        const closeViewer = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', onKeyDown);
+        };
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') closeViewer();
+        };
+
+        close.addEventListener('click', closeViewer);
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) closeViewer();
+        });
+        document.addEventListener('keydown', onKeyDown);
+
+        requestAnimationFrame(() => overlay.classList.add('active'));
+    },
+
+    selectTask(taskId, render = false) {
+        const id = taskId == null ? null : String(taskId);
+        if (id && !this.tasks.some(t => String(t.id) === id)) return;
+        this.selectedTaskId = id;
+
+        document.querySelectorAll('.task-table tr[data-task-row]').forEach(row => {
+            row.classList.toggle('task-selected', row.dataset.taskRow === id);
+        });
+        document.querySelectorAll('.request-item[data-task-row]').forEach(item => {
+            item.classList.toggle('task-selected', item.dataset.taskRow === id);
+        });
+
+        if (render) this.renderBoard();
     },
 
     renderBoard() {
         this.updateDashboardSummary();
+
         const sList = document.getElementById('sidebarList');
         const sCompList = document.getElementById('sidebarCompletedList');
         const tBody = document.getElementById('tablePrioridades');
@@ -1631,65 +2134,98 @@ const App = {
         const fAssignee = document.getElementById('filterAssignee').value;
         const fRequester = document.getElementById('filterRequester').value;
         const fStatus = document.getElementById('filterStatus').value;
+        const fSearch = normalizeText(document.getElementById('taskSearch')?.value || '').toLowerCase();
+        const fCompletion = document.getElementById('filterCompletion')?.value || 'Pendientes';
         const fSortEl = document.getElementById('filterSort');
         const fSort = fSortEl ? fSortEl.value : 'received_asc';
-        const search = this.searchTerm;
+        const sortModifier = fSort === 'desc' ? -1 : 1;
 
-        const dateValue = (value) => value ? new Date(`${value}T12:00:00`).getTime() : Number.POSITIVE_INFINITY;
-        const todayMs = dateValue(todayStr);
+        /*
+         * Importante: los filtros generales NO deben eliminar las tareas
+         * completadas antes de construir la sección "Realizadas".
+         * Antes, el filtro "Pendientes" hacía que "completadas" quedara
+         * siempre vacío; por eso una tarea marcada parecía desaparecer.
+         */
+        const dateValue = (value) => {
+            if (!value) return Number.POSITIVE_INFINITY;
+            const time = new Date(`${value}T12:00:00`).getTime();
+            return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+        };
 
-        let filtered = this.tasks.filter(t => {
+        const matchesCommonFilters = (t) => {
             const mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
             const mReq = fRequester === 'Todos' || t.requester === fRequester;
             const mStat = fStatus === 'Todos' || t.status === fStatus;
-            const haystack = [t.name, t.requester, t.assignee, t.notes].map(v => normalizeText(v).toLowerCase()).join(' ');
-            const mSearch = !search || haystack.includes(search);
+            const mSearch = !fSearch ||
+                normalizeText(t.name).toLowerCase().includes(fSearch) ||
+                normalizeText(t.requester).toLowerCase().includes(fSearch) ||
+                normalizeText(t.assignee).toLowerCase().includes(fSearch) ||
+                normalizeText(t.notes).toLowerCase().includes(fSearch);
+
+            let mQuick = true;
+            if (this.quickFilter === 'starred') {
+                mQuick = !!t.isStarred;
+            } else if (this.quickFilter === 'overdue') {
+                mQuick = t.status !== 'Entregado' && !!t.dateDelivered && dateValue(t.dateDelivered) < Date.now();
+            } else if (this.quickFilter === 'today') {
+                mQuick = t.status !== 'Entregado' && t.dateDelivered === todayStr;
+            } else if (this.quickFilter === 'course') {
+                mQuick = t.status === 'En curso';
+            } else if (this.quickFilter === 'queue') {
+                mQuick = t.status === 'En cola';
+            }
 
             let mDate = true;
             if (this.filterDates.length > 0) {
-                if(!t.dateDelivered) mDate = false;
-                else {
-                    const start = new Date(this.filterDates[0]); start.setHours(0,0,0,0);
-                    const end = this.filterDates.length > 1 ? new Date(this.filterDates[1]) : new Date(this.filterDates[0]); end.setHours(23,59,59,999);
+                if (!t.dateDelivered) {
+                    mDate = false;
+                } else {
+                    const start = new Date(this.filterDates[0]);
+                    start.setHours(0, 0, 0, 0);
+                    const end = this.filterDates.length > 1
+                        ? new Date(this.filterDates[1])
+                        : new Date(this.filterDates[0]);
+                    end.setHours(23, 59, 59, 999);
                     const taskDate = new Date(t.dateDelivered + 'T12:00:00');
                     mDate = taskDate >= start && taskDate <= end;
                 }
             }
 
-            let mQuick = true;
-            if (this.quickFilter === 'starred') mQuick = !!t.isStarred;
-            else if (this.quickFilter === 'overdue') mQuick = t.status !== 'Entregado' && t.dateDelivered && dateValue(t.dateDelivered) < todayMs;
-            else if (this.quickFilter === 'today') mQuick = t.status !== 'Entregado' && t.dateDelivered === todayStr;
-            else if (this.quickFilter === 'course') mQuick = t.status === 'En curso';
-            else if (this.quickFilter === 'queue') mQuick = t.status === 'En cola';
+            return mAsig && mReq && mStat && mSearch && mQuick && mDate;
+        };
 
-            return mAsig && mReq && mStat && mDate && mSearch && mQuick;
-        });
-
+        const filtered = this.tasks.filter(matchesCommonFilters);
+        // ORDEN POR DEFECTO: fecha de solicitud (recepción),
+        // de la más antigua a la más reciente.
+        // Las estrellas solo toman prioridad en órdenes alternativos.
         const sortTasks = (a, b) => {
-            // Las destacadas siempre primero.
+            // ⭐ Las destacadas siempre van primero.
             if (a.isStarred && !b.isStarred) return -1;
             if (!a.isStarred && b.isStarred) return 1;
 
-            // Por defecto: fecha de solicitud más antigua → más reciente.
-            if (fSort === 'received_asc' || !fSort) {
-                const diff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
-                if (diff !== 0) return diff;
-            } else if (fSort === 'received_desc') {
-                const diff = dateValue(b.dateReceived) - dateValue(a.dateReceived);
-                if (diff !== 0) return diff;
-            } else {
-                const diff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
-                if (diff !== 0) return fSort === 'desc' ? -diff : diff;
-            }
+            // 📅 Dentro de cada grupo: solicitud más antigua → más reciente.
+            const receivedDiff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
+            if (receivedDiff !== 0) return receivedDiff;
+
+            const deliveryDiff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
+            if (deliveryDiff !== 0) return deliveryDiff;
 
             return String(a.id).localeCompare(String(b.id));
         };
 
         const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
         const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
+        const boardTasks = fCompletion === 'Realizadas'
+            ? completadas
+            : fCompletion === 'Todas'
+                ? [...activas, ...completadas].sort(sortTasks)
+                : activas;
+        const activeFragment = document.createDocumentFragment();
+        const completedFragment = document.createDocumentFragment();
+        const sidebarFragment = document.createDocumentFragment();
+        const sidebarCompletedFragment = document.createDocumentFragment();
 
-        document.getElementById('countPrioridades').textContent = activas.length;
+        document.getElementById('countPrioridades').textContent = boardTasks.length;
         document.getElementById('countRealizadas').textContent = completadas.length;
 
         this.renderWorkloadChart(activas);
@@ -1699,9 +2235,10 @@ const App = {
         myTasks.forEach(t => {
             const li = document.createElement('li');
             // Añadir clase de estrella para estilar en el CSS
-            li.className = `request-item ${t.isStarred ? 'task-starred' : ''}`;
+            li.className = `request-item ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`;
             li.tabIndex = 0; 
             li.id = `li-${t.id}`;
+            li.dataset.taskRow = String(t.id);
             
             // Prevent Event Bubbling
             const handleExpand = (e) => {
@@ -1711,8 +2248,18 @@ const App = {
                 document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
             };
 
-            li.addEventListener('click', handleExpand);
-            li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExpand(e); } });
+            li.onclick = (e) => {
+                if (e.target.closest('input, button')) return;
+                this.selectTask(t.id);
+                handleExpand(e);
+            };
+            li.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.selectTask(t.id);
+                    handleExpand(e);
+                }
+            };
             
             const colorHex = this.getColor(t.assignee);
             
@@ -1753,16 +2300,24 @@ const App = {
                     <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(t.assignee)}</span></div>
                 </div>
             `;
-            sList.appendChild(li);
+            sidebarFragment.appendChild(li);
         });
-        if(myTasks.length === 0) sList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default;">No tienes tareas asignadas</li>';
+        if(myTasks.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'request-item';
+            empty.style.cssText = 'color:var(--text-muted); text-align:center; padding:20px 10px; border:none; box-shadow:none; cursor:default;';
+            empty.textContent = 'No tienes tareas asignadas';
+            sidebarFragment.appendChild(empty);
+        }
+        sList.replaceChildren(sidebarFragment);
 
         let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
         
-        activas.forEach(t => {
+        boardTasks.forEach(t => {
             const tr = document.createElement('tr');
             tr.id = `tr-${t.id}`;
-            tr.className = t.isStarred ? 'task-starred' : ''; // Clase de Estrella Visual en la fila
+            tr.className = `${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
+            tr.dataset.taskRow = String(t.id);
             
             const colorHex = this.getColor(t.assignee);
             const isCurso = t.status === 'En curso';
@@ -1772,6 +2327,7 @@ const App = {
                 if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
                     return;
                 }
+                this.selectTask(t.id);
                 document.querySelectorAll('.task-table tr').forEach(r => {
                     if(r !== tr) r.classList.remove('expanded-row');
                 });
@@ -1786,7 +2342,7 @@ const App = {
             }
             
             tr.innerHTML = `
-                <td style="text-align:center;" data-label="Completada"><input type="checkbox" class="custom-checkbox" aria-label="Marcar como entregado" data-action="complete-task" data-task-id="${escapeHTML(t.id)}"></td>
+                <td style="text-align:center;" data-label="Completada"><input type="checkbox" id="complete-task-${escapeHTML(t.id)}" name="complete-task-${escapeHTML(t.id)}" class="custom-checkbox" aria-label="Marcar como entregado" data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}"></td>
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
@@ -1799,13 +2355,13 @@ const App = {
                     </div>
                 </td>
                 <td data-label="Asignación">
-                    <select class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${colorHex}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}" id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}">
+                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
                         ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
                     </select>
                 </td>
                 <td class="date-info" data-label="Fechas (Rec - Ent)">
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                    <input type="text" class="inline-date-picker ${dateClass}" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${t.dateReceived}" value="${dateDeliveredVal}" placeholder="Seleccionar">
+                    <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td data-label="Estado">
                     <div id="status-switch-${t.id}" 
@@ -1813,30 +2369,38 @@ const App = {
                          role="switch" 
                          aria-checked="${isCurso ? 'true' : 'false'}" 
                          tabindex="0"
-                         data-action="toggle-status"
-                         data-task-id="${escapeHTML(t.id)}">
+                         data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
                         <div class="switch-track"><div class="switch-thumb"></div></div>
                         <span class="switch-label">${escapeHTML(t.status)}</span>
                     </div>
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
                     <div class="action-buttons">
-                        <button type="button" class="btn-icon task-notes-button" aria-label="Ver notas de la solicitud" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text"></i></button>
+                        <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
                         <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
                         <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
                     </div>
                 </td>
             `;
-            tBody.appendChild(tr);
+            activeFragment.appendChild(tr);
         });
-        if(activas.length === 0) tBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--text-muted);">No hay tareas pendientes.</td></tr>';
+        if(activas.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 6;
+            cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
+            cell.textContent = 'No hay tareas pendientes.';
+            row.appendChild(cell);
+            activeFragment.appendChild(row);
+        }
+        tBody.replaceChildren(activeFragment);
 
         completadas.forEach(t => {
             const li = document.createElement('li');
             li.className = `request-item completed-item ${t.isStarred ? 'task-starred' : ''}`;
             li.innerHTML = `
                 <div style="display:flex; gap:10px;">
-                    <input type="checkbox" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="complete-task" data-task-id="${escapeHTML(t.id)}">
+                    <input type="checkbox" id="complete-task-${escapeHTML(t.id)}-completed" name="complete-task-${escapeHTML(t.id)}-completed" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}">
                     <div style="width: 100%;">
                         <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">
                             ${t.isStarred ? '<i data-lucide="star" style="width: 12px; height: 12px; color: #f59e0b; fill: #f59e0b; margin-right: 4px;"></i>' : ''}
@@ -1846,9 +2410,16 @@ const App = {
                     </div>
                 </div>
             `;
-            sCompList.appendChild(li);
+            sidebarCompletedFragment.appendChild(li);
         });
-        if(completadas.length === 0) sCompList.innerHTML = '<li class="request-item" style="color:var(--text-muted); text-align:center; padding: 20px 10px; border:none; box-shadow:none; cursor:default; background:transparent;">Sin historial</li>';
+        if(completadas.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'request-item';
+            empty.style.cssText = 'color:var(--text-muted); text-align:center; padding:20px 10px; border:none; box-shadow:none; cursor:default; background:transparent;';
+            empty.textContent = 'Sin historial';
+            sidebarCompletedFragment.appendChild(empty);
+        }
+        sCompList.replaceChildren(sidebarCompletedFragment);
 
         buildCustomSelects(tBody);
         
@@ -1860,6 +2431,9 @@ const App = {
             altInputClass: "inline-date-picker-alt",
             disableMobile: "true",
             appendTo: document.body,
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'inline-date');
+            },
             onChange: (selectedDates, dateStr, instance) => {
                 if(selectedDates.length === 0) return;
                 const id = instance.element.getAttribute('data-id');
@@ -1883,51 +2457,120 @@ const App = {
     renderWorkloadChart(activasTasks) {
         const wContainer = document.getElementById('workloadContainer');
         if (!wContainer) return;
-        
-        const workload = {};
-        let maxTasks = 0;
-        
-        this.members.forEach(m => workload[m] = 0);
+
+        const workload = Object.fromEntries(this.members.map(member => [member, 0]));
         workload['No asignado'] = 0;
-        
-        activasTasks.forEach(t => {
-            const assignee = t.assignee || 'No asignado';
-            if (workload[assignee] === undefined) workload[assignee] = 0;
-            workload[assignee]++;
-            if (workload[assignee] > maxTasks) maxTasks = workload[assignee];
+
+        activasTasks.forEach(task => {
+            const assignee = task.assignee || 'No asignado';
+            workload[assignee] = (workload[assignee] || 0) + 1;
         });
 
-        wContainer.innerHTML = '';
-        const sortedWorkload = Object.entries(workload).sort((a, b) => b[1] - a[1]);
+        const sortedWorkload = Object.entries(workload)
+            .sort((a, b) => b[1] - a[1]);
+
+        const maxTasks = sortedWorkload.reduce(
+            (max, [, count]) => Math.max(max, count),
+            0
+        );
+
+        const fragment = document.createDocumentFragment();
+
+        const findUser = (name) => {
+            if (!name || name === 'No asignado') return null;
+            const normalized = normalizeText(name).toLowerCase();
+            return this.usersList.find(user => {
+                const userName = normalizeText(user?.name).toLowerCase();
+                const username = normalizeText(user?.username).toLowerCase();
+                return userName === normalized || username === normalized;
+            }) || null;
+        };
+
+        const createAvatar = (name, color) => {
+            const avatar = document.createElement('div');
+            avatar.className = 'workload-avatar';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.style.setProperty('--avatar-color', sanitizeThemeColor(color, '#4f46e5'));
+
+            const user = findUser(name);
+            const avatarUrl = sanitizeAvatarUrl(user?.avatar);
+
+            if (avatarUrl) {
+                const image = document.createElement('img');
+                image.src = avatarUrl;
+                image.alt = '';
+                image.loading = 'lazy';
+                image.decoding = 'async';
+                image.addEventListener('error', () => {
+                    image.remove();
+                    avatar.textContent = getInitials(name);
+                    avatar.classList.add('workload-avatar-fallback');
+                }, { once: true });
+                avatar.appendChild(image);
+            } else if (name !== 'No asignado') {
+                avatar.textContent = getInitials(name);
+                avatar.classList.add('workload-avatar-fallback');
+            } else {
+                const icon = document.createElement('i');
+                icon.setAttribute('data-lucide', 'user-round');
+                avatar.appendChild(icon);
+            }
+
+            return avatar;
+        };
 
         sortedWorkload.forEach(([name, count]) => {
-            if(count === 0 && name === 'No asignado') return; 
-            
+            if (count === 0 && name === 'No asignado') return;
+
             const percentage = maxTasks === 0 ? 0 : (count / maxTasks) * 100;
             const color = this.getColor(name);
-            const safeName = escapeHTML(name);
-            const initials = name === 'No asignado' ? '—' : escapeHTML(name.split(/\s+/).map(p => p[0]).slice(0,2).join('').toUpperCase());
-            
-            wContainer.insertAdjacentHTML('beforeend', `
-                <div class="workload-item">
-                    <div class="workload-header">
-                        <span class="workload-person">
-                            <span class="workload-avatar" style="--person-color:${color};">${initials}</span>
-                            <span>${safeName}</span>
-                        </span>
-                        <strong>${count}</strong>
-                    </div>
-                    <div class="workload-bar-bg" aria-label="${safeName}: ${count} tareas activas">
-                        <div class="workload-bar-fill" style="width: ${percentage}%; background-color: ${color};"></div>
-                    </div>
-                </div>
-            `);
+
+            const item = document.createElement('div');
+            item.className = 'workload-item';
+
+            const header = document.createElement('div');
+            header.className = 'workload-header';
+
+            const identity = document.createElement('div');
+            identity.className = 'workload-identity';
+
+            identity.appendChild(createAvatar(name, color));
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'workload-name';
+            nameEl.textContent = normalizeText(name);
+
+            identity.appendChild(nameEl);
+
+            const countEl = document.createElement('span');
+            countEl.className = 'workload-count';
+            countEl.textContent = String(count);
+
+            header.append(identity, countEl);
+
+            const barBg = document.createElement('div');
+            barBg.className = 'workload-bar-bg';
+
+            const barFill = document.createElement('div');
+            barFill.className = 'workload-bar-fill';
+            barFill.style.width = `${percentage}%`;
+            barFill.style.backgroundColor = color;
+
+            barBg.appendChild(barFill);
+            item.append(header, barBg);
+            fragment.appendChild(item);
         });
 
-        if(sortedWorkload.length === 0 || maxTasks === 0) {
-            wContainer.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center;">No hay tareas activas</p>';
+        if (maxTasks === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'workload-empty-state';
+            empty.textContent = 'No hay tareas activas';
+            fragment.appendChild(empty);
         }
-    }
+
+        wContainer.replaceChildren(fragment);
+        lucide.createIcons();
+    },
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
