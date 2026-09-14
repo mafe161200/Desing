@@ -1126,7 +1126,11 @@ const App = {
 
     markAsUnsaved() {
         this.hasUnsavedChanges = true;
-        document.getElementById('unsavedChangesBar').classList.add('active');
+        const bar = document.getElementById('unsavedChangesBar');
+        if (!bar) return;
+        bar.classList.add('active');
+        bar.setAttribute('aria-hidden', 'false');
+        bar.removeAttribute('inert');
     },
 
     async saveChanges() {
@@ -1142,7 +1146,12 @@ const App = {
         this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
         this.tasks = JSON.parse(JSON.stringify(freshTasks));
         this.hasUnsavedChanges = false;
-        document.getElementById('unsavedChangesBar').classList.remove('active');
+        const bar = document.getElementById('unsavedChangesBar');
+        if (bar) {
+            bar.classList.remove('active');
+            bar.setAttribute('aria-hidden', 'true');
+            bar.setAttribute('inert', '');
+        }
         UI.showToast("Cambios guardados con éxito", "success");
         this.renderAll();
     },
@@ -1150,7 +1159,12 @@ const App = {
     undoChanges() {
         this.tasks = JSON.parse(JSON.stringify(this.originalTasks));
         this.hasUnsavedChanges = false;
-        document.getElementById('unsavedChangesBar').classList.remove('active');
+        const bar = document.getElementById('unsavedChangesBar');
+        if (bar) {
+            bar.classList.remove('active');
+            bar.setAttribute('aria-hidden', 'true');
+            bar.setAttribute('inert', '');
+        }
         UI.showToast("Cambios revertidos", "info");
         this.renderBoard();
     },
@@ -1251,11 +1265,6 @@ const App = {
 
         document.getElementById('btnBackToBoard')?.addEventListener('click', () => {
             this.showView('board');
-        });
-
-        document.getElementById('btnViewHistory')?.addEventListener('click', (event) => {
-            event.stopPropagation();
-            this.showView('history');
         });
 
         document.querySelectorAll('.close-modal').forEach(b => {
@@ -2656,7 +2665,6 @@ const App = {
         this.updateDashboardSummary();
 
         const sList = document.getElementById('sidebarList');
-        const sCompList = document.getElementById('sidebarCompletedList');
         const tBody = document.getElementById('tablePrioridades');
         
         const d = new Date();
@@ -2668,7 +2676,7 @@ const App = {
         }
         this.fpInstances = [];
 
-        sList.innerHTML = ''; sCompList.innerHTML = ''; tBody.innerHTML = '';
+        sList.innerHTML = ''; tBody.innerHTML = '';
 
         const fAssignee = document.getElementById('filterAssignee').value;
         const fRequester = document.getElementById('filterRequester').value;
@@ -2774,12 +2782,9 @@ const App = {
                 ? [...activas, ...completadas].sort(sortTasks)
                 : activas;
         const activeFragment = document.createDocumentFragment();
-        const completedFragment = document.createDocumentFragment();
         const sidebarFragment = document.createDocumentFragment();
-        const sidebarCompletedFragment = document.createDocumentFragment();
 
         document.getElementById('countPrioridades').textContent = boardTasks.length;
-        document.getElementById('countRealizadas').textContent = completadas.length;
 
         this.renderWorkloadChart(activas);
 
@@ -2950,32 +2955,6 @@ const App = {
             activeFragment.appendChild(row);
         }
         tBody.replaceChildren(activeFragment);
-
-        completadas.forEach(t => {
-            const li = document.createElement('li');
-            li.className = `request-item completed-item ${t.isStarred ? 'task-starred' : ''}`;
-            li.innerHTML = `
-                <div style="display:flex; gap:10px;">
-                    <input type="checkbox" id="complete-task-${escapeHTML(t.id)}-completed" name="complete-task-${escapeHTML(t.id)}-completed" class="custom-checkbox" aria-label="Desmarcar como entregado" checked data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}">
-                    <div style="width: 100%;">
-                        <div class="req-name-text" style="text-decoration: line-through; color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">
-                            ${t.isStarred ? '<i data-lucide="star" style="width: 12px; height: 12px; color: #f59e0b; fill: #f59e0b; margin-right: 4px;"></i>' : ''}
-                            ${escapeHTML(t.name)}
-                        </div>
-                        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px; font-weight:500;">Entregado: ${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'N/A'} | Por: ${escapeHTML(t.assignee)}</div>
-                    </div>
-                </div>
-            `;
-            sidebarCompletedFragment.appendChild(li);
-        });
-        if(completadas.length === 0) {
-            const empty = document.createElement('li');
-            empty.className = 'request-item';
-            empty.style.cssText = 'color:var(--text-muted); text-align:center; padding:20px 10px; border:none; box-shadow:none; cursor:default; background:transparent;';
-            empty.textContent = 'Sin historial';
-            sidebarCompletedFragment.appendChild(empty);
-        }
-        sCompList.replaceChildren(sidebarCompletedFragment);
 
         buildCustomSelects(tBody);
         

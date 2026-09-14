@@ -142,17 +142,6 @@
                     </div>
                 </div>
 
-                <div class="card sidebar-card card-accent-primary" style="margin-top: 20px;">
-                    <div class="card-header card-header-flex sidebar-history-header">
-                        <h2><i data-lucide="check-circle-2" class="icon-primary"></i> Realizadas <span class="badge-count badge-primary" id="countRealizadas">0</span></h2>
-                        <button type="button" id="btnViewHistory" class="sidebar-history-link" aria-label="Ver historial completo de solicitudes realizadas" title="Ver historial completo">
-                            Ver todo <i data-lucide="arrow-up-right" aria-hidden="true"></i>
-                        </button>
-                    </div>
-                    <div class="sidebar-content">
-                        <ul id="sidebarCompletedList" class="request-list"></ul>
-                    </div>
-                </div>
             </aside>
 
             <main class="main-board" id="mainContent">
@@ -393,13 +382,16 @@
         </div>
     </div>
 
-    <!-- Barra Inferior Flotante (Sticky Unsaved Changes) -->
-    <div id="unsavedChangesBar" class="unsaved-bar">
+    <!-- Barra de cambios pendientes -->
+    <div id="unsavedChangesBar" class="unsaved-bar" role="region" aria-label="Cambios pendientes" aria-live="polite" aria-hidden="true" inert>
         <div class="unsaved-bar-content">
-            <span class="unsaved-text"><i data-lucide="alert-circle"></i> Cambios sin guardar</span>
+            <span class="unsaved-text">
+                <i data-lucide="alert-circle" aria-hidden="true"></i>
+                <span>Cambios sin guardar</span>
+            </span>
             <div class="unsaved-actions">
                 <button type="button" id="btnUndo" class="btn btn-secondary">Deshacer</button>
-                <button type="button" id="btnSave" class="btn btn-success">Guardar Cambios</button>
+                <button type="button" id="btnSave" class="btn btn-success">Guardar cambios</button>
             </div>
         </div>
     </div>
