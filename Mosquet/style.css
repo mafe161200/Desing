@@ -2389,18 +2389,6 @@ main {
     border-radius: 14px;
 }
 
-/* Botón de historial */
-.header-history-btn {
-    min-height: 38px;
-    gap: 7px;
-}
-
-.header-history-btn.active {
-    color: #22d3ee !important;
-    border-color: rgba(34,211,238,.42) !important;
-    background: rgba(34,211,238,.08) !important;
-}
-
 /* =========================================================
    VISTA SOLICITUDES REALIZADAS
    ========================================================= */
@@ -2941,16 +2929,6 @@ main {
 .history-section {
     width: 100%;
     box-sizing: border-box;
-}
-
-/* El botón del header representa navegación, no una acción
-   de creación. */
-.header-history-btn {
-    min-width: 40px;
-}
-
-.header-history-btn.active {
-    box-shadow: inset 0 0 0 1px rgba(34,211,238,.08);
 }
 
 @media (max-width: 768px) {

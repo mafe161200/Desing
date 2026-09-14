@@ -1249,10 +1249,6 @@ const App = {
         this.setupAdminListeners();
         this.setupDynamicEventDelegation();
 
-        document.getElementById('btnRequestsHistory')?.addEventListener('click', () => {
-            this.showView('history');
-        });
-
         document.getElementById('btnBackToBoard')?.addEventListener('click', () => {
             this.showView('board');
         });
@@ -2013,15 +2009,11 @@ const App = {
         const boardLayout = document.querySelector('.layout-grid');
         const summary = document.querySelector('.dashboard-summary');
         const history = document.getElementById('historyView');
-        const historyButton = document.getElementById('btnRequestsHistory');
-
         this.currentView = isHistory ? 'history' : 'board';
 
         if (boardLayout) boardLayout.hidden = isHistory;
         if (summary) summary.hidden = isHistory;
         if (history) history.hidden = !isHistory;
-
-        historyButton?.classList.toggle('active', isHistory);
 
         if (isHistory) {
             if (window.location.hash !== '#solicitudes-realizadas') {
