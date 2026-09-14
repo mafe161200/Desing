@@ -2018,7 +2018,7 @@ const App = {
         this.currentView = isHistory ? 'history' : 'board';
 
         if (boardLayout) boardLayout.hidden = isHistory;
-        if (summary) summary.hidden = false;
+        if (summary) summary.hidden = isHistory;
         if (history) history.hidden = !isHistory;
 
         historyButton?.classList.toggle('active', isHistory);
