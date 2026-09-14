@@ -1021,7 +1021,7 @@ const App = {
                 const panel = document.getElementById('notesPanel');
                 if (panel && !panel.classList.contains('open')) {
                     document.getElementById('btnToggleNotes')
-                        .querySelector('.notification-badge')?.classList.add('active');
+                        ?.querySelector('.notification-badge')?.classList.add('active');
                 }
                 this.notes = await DataService.getNotes();
                 this.renderNotes();
@@ -1029,6 +1029,37 @@ const App = {
             .subscribe((status) => {
                 if (status === 'CHANNEL_ERROR') {
                     console.error('Realtime: no fue posible suscribirse a notas.');
+                }
+            });
+
+        /*
+         * PERFIL COMPARTIDO:
+         * avatar + color viven en public.profiles. Cuando un compañero
+         * los cambia, todos los clientes vuelven a leer los perfiles y
+         * Carga de Trabajo se actualiza sin cerrar sesión ni recargar.
+         */
+        supabaseClient
+            .channel('design-hub-profiles')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async () => {
+                this.usersList = await DataService.getUsers();
+
+                // Actualiza el usuario actual por si cambió desde otra pestaña.
+                if (this.user?.id) {
+                    const updatedMe = this.usersList.find(
+                        u => String(u.id) === String(this.user.id)
+                    );
+                    if (updatedMe) {
+                        this.user.avatar = updatedMe.avatar || '';
+                        this.user.theme = updatedMe.theme || '#4f46e5';
+                    }
+                }
+
+                this.updateAvatarUI();
+                this.renderAll();
+            })
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime: no fue posible suscribirse a perfiles.');
                 }
             });
     },
