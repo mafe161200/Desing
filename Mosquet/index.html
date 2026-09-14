@@ -78,6 +78,10 @@
                     <i data-lucide="message-square"></i>
                 </button>
 
+                <button type="button" id="btnRequestsHistory" class="btn btn-secondary header-history-btn" aria-label="Abrir solicitudes realizadas" title="Solicitudes realizadas">
+                    <i data-lucide="archive"></i><span class="hide-mobile">Solicitudes</span>
+                </button>
+
                 <button type="button" id="btnLogout" class="btn-icon header-logout-btn" aria-label="Cerrar sesión" title="Cerrar sesión">
                     <i data-lucide="log-out"></i>
                 </button>
@@ -240,6 +244,100 @@
             </main>
 
         </div>
+
+        <!-- Vista adicional: historial de solicitudes realizadas -->
+        <section id="historyView" class="history-view" hidden aria-labelledby="historyViewTitle">
+            <div class="card history-section card-accent-primary">
+                <div class="history-header">
+                    <div>
+                        <div class="history-title-row">
+                            <i data-lucide="archive" class="icon-primary" aria-hidden="true"></i>
+                            <h2 id="historyViewTitle">Solicitudes realizadas</h2>
+                            <span id="historyCount" class="badge-count badge-primary">0</span>
+                        </div>
+                        <p class="subtitle">Historial de solicitudes registradas, filtrable por mes, solicitante, responsable y estado.</p>
+                    </div>
+                    <button type="button" id="btnBackToBoard" class="btn btn-secondary">
+                        <i data-lucide="arrow-left"></i> Volver a gestión
+                    </button>
+                </div>
+
+                <div class="history-summary-grid" aria-label="Resumen del historial">
+                    <article class="history-stat">
+                        <span>Solicitudes</span>
+                        <strong id="historyStatTotal">0</strong>
+                    </article>
+                    <article class="history-stat">
+                        <span>Este mes</span>
+                        <strong id="historyStatMonth">0</strong>
+                    </article>
+                    <article class="history-stat">
+                        <span>En curso</span>
+                        <strong id="historyStatCourse">0</strong>
+                    </article>
+                    <article class="history-stat">
+                        <span>Entregadas</span>
+                        <strong id="historyStatDone">0</strong>
+                    </article>
+                </div>
+
+                <div class="history-filters" aria-label="Filtros del historial">
+                    <div class="history-search">
+                        <i data-lucide="search" aria-hidden="true"></i>
+                        <input type="search" id="historySearch" class="custom-input" placeholder="Buscar solicitud..." aria-label="Buscar en solicitudes realizadas">
+                    </div>
+
+                    <label class="history-field">
+                        <span>Mes</span>
+                        <input type="month" id="historyMonth" class="custom-input" aria-label="Filtrar por mes">
+                    </label>
+
+                    <label class="history-field">
+                        <span>Solicitante</span>
+                        <select id="historyRequester" class="history-select" aria-label="Filtrar por solicitante">
+                            <option value="Todos">Todos</option>
+                        </select>
+                    </label>
+
+                    <label class="history-field">
+                        <span>Responsable</span>
+                        <select id="historyAssignee" class="history-select" aria-label="Filtrar por responsable">
+                            <option value="Todos">Todos</option>
+                        </select>
+                    </label>
+
+                    <label class="history-field">
+                        <span>Estado</span>
+                        <select id="historyStatus" class="history-select" aria-label="Filtrar por estado">
+                            <option value="Todos">Todos</option>
+                            <option value="En cola">En cola</option>
+                            <option value="En curso">En curso</option>
+                            <option value="Entregado">Entregado</option>
+                        </select>
+                    </label>
+
+                    <button type="button" id="clearHistoryFilters" class="btn-text history-clear">
+                        <i data-lucide="x-circle"></i> Limpiar
+                    </button>
+                </div>
+
+                <div class="history-table-wrap">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Solicitud</th>
+                                <th>Solicitante</th>
+                                <th>Responsable</th>
+                                <th>Fecha solicitud</th>
+                                <th>Entrega</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     </div>
 
     <!-- PANEL LATERAL DE NOTAS Y CHAT DE EQUIPO -->

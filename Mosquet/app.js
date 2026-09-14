@@ -907,6 +907,14 @@ const App = {
     fpInstances: [],
     hasUnsavedChanges: false,
     selectedTaskId: null,
+    currentView: 'board',
+    historyFilters: {
+        month: '',
+        requester: 'Todos',
+        assignee: 'Todos',
+        status: 'Todos',
+        search: ''
+    },
     cropperInstance: null,
 
     async init() {
@@ -934,8 +942,10 @@ const App = {
         this.setupSidebarCollapse();
         this.setupKeyboardShortcuts();
         this.setupEventListeners();
+        this.setupHistoryView();
         this.setupNotesPanel();
         this.renderAll();
+        this.applyViewFromHash();
         
         this.setupCrossTabSync();
         this.setupRealtimeSubscription();
@@ -1238,6 +1248,14 @@ const App = {
         this.setupProfileListeners();
         this.setupAdminListeners();
         this.setupDynamicEventDelegation();
+
+        document.getElementById('btnRequestsHistory')?.addEventListener('click', () => {
+            this.showView('history');
+        });
+
+        document.getElementById('btnBackToBoard')?.addEventListener('click', () => {
+            this.showView('board');
+        });
 
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
@@ -1930,10 +1948,232 @@ const App = {
         });
     },
 
+    setupHistoryView() {
+        const search = document.getElementById('historySearch');
+        const month = document.getElementById('historyMonth');
+        const requester = document.getElementById('historyRequester');
+        const assignee = document.getElementById('historyAssignee');
+        const status = document.getElementById('historyStatus');
+        const clear = document.getElementById('clearHistoryFilters');
+
+        if (search) {
+            let timer = null;
+            search.addEventListener('input', () => {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(() => {
+                    this.historyFilters.search = normalizeText(search.value).toLowerCase();
+                    this.renderHistory();
+                }, 100);
+            });
+        }
+
+        month?.addEventListener('change', () => {
+            this.historyFilters.month = month.value;
+            this.renderHistory();
+        });
+
+        requester?.addEventListener('change', () => {
+            this.historyFilters.requester = requester.value;
+            this.renderHistory();
+        });
+
+        assignee?.addEventListener('change', () => {
+            this.historyFilters.assignee = assignee.value;
+            this.renderHistory();
+        });
+
+        status?.addEventListener('change', () => {
+            this.historyFilters.status = status.value;
+            this.renderHistory();
+        });
+
+        clear?.addEventListener('click', () => {
+            this.historyFilters = {
+                month: '',
+                requester: 'Todos',
+                assignee: 'Todos',
+                status: 'Todos',
+                search: ''
+            };
+
+            if (search) search.value = '';
+            if (month) month.value = '';
+            if (requester) requester.value = 'Todos';
+            if (assignee) assignee.value = 'Todos';
+            if (status) status.value = 'Todos';
+
+            this.renderHistory();
+        });
+
+        window.addEventListener('hashchange', () => this.applyViewFromHash());
+    },
+
+    showView(view) {
+        const isHistory = view === 'history';
+        const boardLayout = document.querySelector('.layout-grid');
+        const summary = document.querySelector('.dashboard-summary');
+        const history = document.getElementById('historyView');
+        const historyButton = document.getElementById('btnRequestsHistory');
+
+        this.currentView = isHistory ? 'history' : 'board';
+
+        if (boardLayout) boardLayout.hidden = isHistory;
+        if (summary) summary.hidden = false;
+        if (history) history.hidden = !isHistory;
+
+        historyButton?.classList.toggle('active', isHistory);
+
+        if (isHistory) {
+            if (window.location.hash !== '#solicitudes-realizadas') {
+                window.history.pushState(null, '', '#solicitudes-realizadas');
+            }
+            this.renderHistory();
+        } else {
+            if (window.location.hash) {
+                window.history.pushState(null, '', window.location.pathname + window.location.search);
+            }
+            this.renderBoard();
+        }
+
+        requestAnimationFrame(() => {
+            if (window.lucide) lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
+        });
+    },
+
+    applyViewFromHash() {
+        this.showView(window.location.hash === '#solicitudes-realizadas' ? 'history' : 'board');
+    },
+
+    renderHistory() {
+        const body = document.getElementById('historyTableBody');
+        if (!body) return;
+
+        const filters = this.historyFilters;
+        const dateValue = (value) => {
+            if (!value) return Number.POSITIVE_INFINITY;
+            const parsed = new Date(`${value}T12:00:00`).getTime();
+            return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+        };
+
+        const monthOf = (value) => normalizeText(value).slice(0, 7);
+
+        const allTasks = Array.isArray(this.tasks) ? this.tasks : [];
+
+        const filtered = allTasks
+            .filter(task => {
+                if (filters.month && monthOf(task.dateReceived) !== filters.month) return false;
+                if (filters.requester !== 'Todos' && normalizeText(task.requester) !== filters.requester) return false;
+                if (filters.assignee !== 'Todos' && normalizeText(task.assignee) !== filters.assignee) return false;
+                if (filters.status !== 'Todos' && normalizeText(task.status) !== filters.status) return false;
+
+                if (filters.search) {
+                    const haystack = [
+                        task.name,
+                        task.requester,
+                        task.assignee,
+                        task.status,
+                        task.notes
+                    ].map(normalizeText).join(' ').toLowerCase();
+
+                    if (!haystack.includes(filters.search)) return false;
+                }
+
+                return true;
+            })
+            .sort((a, b) => {
+                const received = dateValue(b.dateReceived) - dateValue(a.dateReceived);
+                if (received !== 0) return received;
+                return String(b.id).localeCompare(String(a.id));
+            });
+
+        const thisMonth = (() => {
+            const now = new Date();
+            const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            return allTasks.filter(task => monthOf(task.dateReceived) === month).length;
+        })();
+
+        document.getElementById('historyCount').textContent = String(filtered.length);
+        document.getElementById('historyStatTotal').textContent = String(allTasks.length);
+        document.getElementById('historyStatMonth').textContent = String(thisMonth);
+        document.getElementById('historyStatCourse').textContent =
+            String(allTasks.filter(task => normalizeText(task.status) === 'En curso').length);
+        document.getElementById('historyStatDone').textContent =
+            String(allTasks.filter(task => normalizeText(task.status) === 'Entregado').length);
+
+        if (!filtered.length) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 6;
+            cell.className = 'history-empty';
+            cell.textContent = 'No hay solicitudes que coincidan con los filtros.';
+            row.appendChild(cell);
+            body.replaceChildren(row);
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        filtered.forEach(task => {
+            const row = document.createElement('tr');
+
+            const requestCell = document.createElement('td');
+            requestCell.className = 'history-request-cell';
+
+            const title = document.createElement('strong');
+            title.textContent = normalizeText(task.name);
+            title.title = normalizeText(task.name);
+
+            if (task.isStarred) {
+                const star = document.createElement('span');
+                star.className = 'history-star';
+                star.textContent = '★';
+                star.setAttribute('aria-label', 'Prioridad');
+                requestCell.append(star);
+            }
+
+            requestCell.appendChild(title);
+
+            const requesterCell = document.createElement('td');
+            requesterCell.textContent = normalizeText(task.requester) || 'No indicado';
+
+            const assigneeCell = document.createElement('td');
+            assigneeCell.textContent = normalizeText(task.assignee) || 'No asignado';
+
+            const receivedCell = document.createElement('td');
+            receivedCell.textContent = task.dateReceived
+                ? task.dateReceived.split('-').reverse().join('/')
+                : '—';
+
+            const deliveryCell = document.createElement('td');
+            deliveryCell.textContent = task.dateDelivered
+                ? task.dateDelivered.split('-').reverse().join('/')
+                : '—';
+
+            const statusCell = document.createElement('td');
+            const status = normalizeText(task.status) || 'Sin estado';
+            statusCell.innerHTML = `<span class="history-status ${status === 'En curso' ? 'course' : status === 'Entregado' ? 'done' : 'queue'}">${escapeHTML(status)}</span>`;
+
+            row.append(
+                requestCell,
+                requesterCell,
+                assigneeCell,
+                receivedCell,
+                deliveryCell,
+                statusCell
+            );
+
+            fragment.appendChild(row);
+        });
+
+        body.replaceChildren(fragment);
+    },
+
     renderAll() {
         this.renderDropdowns();
+        this.refreshHistoryFilters();
         this.renderTags();
         this.renderBoard();
+        this.renderHistory();
     },
 
     renderDropdowns() {
@@ -1987,6 +2227,43 @@ const App = {
         buildCustomSelects(document.querySelector('.inline-filters-bar'));
         buildCustomSelects(document.querySelector('#taskForm'));
         buildCustomSelects(document.querySelector('#editTaskForm'));
+    },
+
+    refreshHistoryFilters() {
+        const requester = document.getElementById('historyRequester');
+        const assignee = document.getElementById('historyAssignee');
+        if (!requester || !assignee) return;
+
+        const currentRequester = this.historyFilters.requester;
+        const currentAssignee = this.historyFilters.assignee;
+
+        const unique = values => [...new Set(
+            values.map(normalizeText).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, 'es'));
+
+        const fill = (select, values, current) => {
+            const fragment = document.createDocumentFragment();
+            const all = document.createElement('option');
+            all.value = 'Todos';
+            all.textContent = 'Todos';
+            fragment.appendChild(all);
+
+            values.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                fragment.appendChild(option);
+            });
+
+            select.replaceChildren(fragment);
+            select.value = values.includes(current) ? current : 'Todos';
+        };
+
+        fill(requester, unique(this.tasks.map(task => task.requester)), currentRequester);
+        fill(assignee, unique(this.tasks.map(task => task.assignee)), currentAssignee);
+
+        this.historyFilters.requester = requester.value;
+        this.historyFilters.assignee = assignee.value;
     },
 
     renderTags() {
