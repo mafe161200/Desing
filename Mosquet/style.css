@@ -2129,3 +2129,16 @@ button.en-curso {
     border-color: #22d3ee !important;
     background: rgba(6, 182, 212, .34) !important;
 }
+/* CORRECCIÓN: quitar línea extra debajo de las fechas */
+@media (min-width: 769px) {
+    .task-table td.date-info {
+        border-bottom: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .task-table td.date-info::before,
+    .task-table td.date-info::after {
+        content: none !important;
+        display: none !important;
+    }
+}
