@@ -2076,3 +2076,56 @@ button.en-curso {
     margin-left: 0 !important;
     transform: translateX(-4px);
 }
+
+/* =========================================================
+   ESTADOS — ROSADO + CYAN
+   En cola = rosado | En curso = cyan
+   ========================================================= */
+
+/* EN COLA — rosado */
+.task-table .status-switch.cola {
+    color: #f9a8d4 !important;
+    background: linear-gradient(
+        135deg,
+        rgba(236, 72, 153, .24),
+        rgba(157, 23, 77, .12)
+    ) !important;
+    border-color: #ec4899 !important;
+    box-shadow:
+        0 0 10px rgba(236, 72, 153, .16),
+        inset 0 0 7px rgba(249, 168, 212, .05) !important;
+}
+
+.task-table .status-switch.cola .switch-track {
+    background: #ec4899 !important;
+}
+
+.task-table .status-switch.cola:hover {
+    color: #fbcfe8 !important;
+    border-color: #f472b6 !important;
+    background: rgba(236, 72, 153, .31) !important;
+}
+
+/* EN CURSO — cyan */
+.task-table .status-switch.curso {
+    color: #67e8f9 !important;
+    background: linear-gradient(
+        135deg,
+        rgba(6, 182, 212, .27),
+        rgba(37, 99, 235, .12)
+    ) !important;
+    border-color: #06b6d4 !important;
+    box-shadow:
+        0 0 12px rgba(6, 182, 212, .18),
+        inset 0 0 8px rgba(34, 211, 238, .07) !important;
+}
+
+.task-table .status-switch.curso .switch-track {
+    background: #06b6d4 !important;
+}
+
+.task-table .status-switch.curso:hover {
+    color: #a5f3fc !important;
+    border-color: #22d3ee !important;
+    background: rgba(6, 182, 212, .34) !important;
+}
