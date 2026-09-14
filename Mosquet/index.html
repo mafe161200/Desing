@@ -411,47 +411,90 @@
                 <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
             </div>
             <form id="taskForm" class="task-form">
-                <div class="form-grid">
-                    <div class="field full-width">
-                        <label for="taskName">Nombre de la solicitud</label>
-                        <input type="text" id="taskName" name="taskName" class="custom-input" placeholder="Ej. Banner Redes..." required>
-                    </div>
-                    <div class="field">
-                        <label for="requesterSelect">Solicitante</label>
-                        <select id="requesterSelect" name="requester" class="native-select-hidden" required></select>
-                    </div>
-                    <div class="field">
-                        <label for="assignee">Asignar a</label>
-                        <select id="assignee" name="assignee" class="native-select-hidden" required></select>
-                    </div>
-                    <div class="field">
-                        <label id="dateReceived-label">Fecha de solicitud (Recepción)</label>
-                        <div class="input-with-icon">
-                            <i data-lucide="calendar"></i>
-                            <input type="text" id="dateReceived" name="dateReceived" class="date-picker modal-date custom-input" placeholder="Seleccionar...">
+                <div class="form-intro">
+                    <p>Registra la solicitud con la información mínima necesaria para que el equipo pueda gestionarla sin perder contexto.</p>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-heading">
+                        <span class="form-section-index">01</span>
+                        <div>
+                            <h3>Solicitud</h3>
+                            <p>Describe claramente qué necesita el solicitante.</p>
                         </div>
                     </div>
-                    <div class="field">
-                        <label id="dateDelivered-label">Fecha de entrega esperada</label>
-                        <div class="input-with-icon">
-                            <i data-lucide="calendar-check"></i>
-                            <input type="text" id="dateDelivered" name="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." required>
+                    <div class="form-grid">
+                        <div class="field full-width">
+                            <label for="taskName">Nombre de la solicitud <span class="required-mark" aria-hidden="true">*</span></label>
+                            <input type="text" id="taskName" name="taskName" class="custom-input" placeholder="Ej. Banner para redes — Jornada de Asistencia Técnica" maxlength="180" autocomplete="off" required aria-describedby="taskNameHelp">
+                            <div id="taskNameHelp" class="field-help"><span>Usa un título específico y fácil de identificar.</span><span id="taskNameCount">0/180</span></div>
                         </div>
-                    </div>
-                    <div class="field full-width">
-                        <label for="taskNotes">Notas de la solicitud</label>
-                        <textarea id="taskNotes" name="taskNotes" class="custom-input task-notes-input" rows="3" placeholder="Añade contexto, instrucciones o referencias..." autocomplete="off"></textarea>
-                    </div>
-                    <div class="field full-width">
-                        <label for="status">Estado inicial</label>
-                        <select id="status" name="status" class="native-select-hidden" required>
-                            <option value="En cola" selected>En cola</option>
-                            <option value="En curso">En curso</option>
-                        </select>
                     </div>
                 </div>
+
+                <div class="form-section">
+                    <div class="form-section-heading">
+                        <span class="form-section-index">02</span>
+                        <div>
+                            <h3>Personas y planificación</h3>
+                            <p>Define quién solicita, quién atiende y los tiempos.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="requesterSelect">Solicitante <span class="required-mark" aria-hidden="true">*</span></label>
+                            <select id="requesterSelect" name="requester" class="native-select-hidden" required></select>
+                        </div>
+                        <div class="field">
+                            <label for="assignee">Asignar a <span class="required-mark" aria-hidden="true">*</span></label>
+                            <select id="assignee" name="assignee" class="native-select-hidden" required></select>
+                        </div>
+                        <div class="field">
+                            <label id="dateReceived-label" for="dateReceived">Fecha de solicitud</label>
+                            <div class="input-with-icon">
+                                <i data-lucide="calendar" aria-hidden="true"></i>
+                                <input type="text" id="dateReceived" name="dateReceived" class="date-picker modal-date custom-input" placeholder="Seleccionar..." autocomplete="off" aria-describedby="dateReceivedHelp">
+                            </div>
+                            <div id="dateReceivedHelp" class="field-help">Si la dejas vacía, se usará hoy.</div>
+                        </div>
+                        <div class="field">
+                            <label id="dateDelivered-label" for="dateDelivered">Fecha de entrega esperada <span class="required-mark" aria-hidden="true">*</span></label>
+                            <div class="input-with-icon">
+                                <i data-lucide="calendar-check" aria-hidden="true"></i>
+                                <input type="text" id="dateDelivered" name="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." autocomplete="off" required aria-describedby="dateDeliveredHelp">
+                            </div>
+                            <div id="dateDeliveredHelp" class="field-help">Debe ser igual o posterior a la fecha de solicitud.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-heading">
+                        <span class="form-section-index">03</span>
+                        <div>
+                            <h3>Contexto</h3>
+                            <p>Añade instrucciones o información que ayude a producir la pieza.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="field full-width">
+                            <label for="taskNotes">Notas de la solicitud</label>
+                            <textarea id="taskNotes" name="taskNotes" class="custom-input task-notes-input" rows="4" maxlength="2000" placeholder="Añade contexto, instrucciones, referencias, formatos o enlaces..." autocomplete="off" aria-describedby="taskNotesHelp"></textarea>
+                            <div id="taskNotesHelp" class="field-help"><span>Opcional.</span><span id="taskNotesCount">0/2000</span></div>
+                        </div>
+                        <div class="field">
+                            <label for="status">Estado inicial <span class="required-mark" aria-hidden="true">*</span></label>
+                            <select id="status" name="status" class="native-select-hidden" required>
+                                <option value="En cola" selected>En cola</option>
+                                <option value="En curso">En curso</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Añadir Solicitud</button>
+                    <span class="form-required-note"><span class="required-mark" aria-hidden="true">*</span> Campo obligatorio</span>
+                    <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Añadir Solicitud</button>
                 </div>
             </form>
         </div>

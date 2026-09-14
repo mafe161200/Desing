@@ -1297,6 +1297,71 @@ const App = {
             UI.showToast("Filtros limpiados", "info");
         });
 
+        const setupCharacterCounter = (inputId, counterId) => {
+            const input = document.getElementById(inputId);
+            const counter = document.getElementById(counterId);
+            if (!input || !counter) return;
+
+            const update = () => {
+                counter.textContent = `${input.value.length}/${input.maxLength}`;
+            };
+
+            input.addEventListener('input', update);
+            update();
+        };
+
+        setupCharacterCounter('taskName', 'taskNameCount');
+        setupCharacterCounter('taskNotes', 'taskNotesCount');
+
+        const taskNameInput = document.getElementById('taskName');
+        const taskForm = document.getElementById('taskForm');
+
+        taskNameInput?.addEventListener('input', () => {
+            const value = taskNameInput.value.trim();
+            taskNameInput.setCustomValidity(
+                value.length < 3 ? 'Escribe un título de al menos 3 caracteres.' : ''
+            );
+        });
+
+        document.getElementById('dateDelivered')?.addEventListener('change', () => {
+            const received = normalizeText(document.getElementById('dateReceived')?.value);
+            const delivered = normalizeText(document.getElementById('dateDelivered')?.value);
+            const input = document.getElementById('dateDelivered');
+
+            if (received && delivered && new Date(delivered) < new Date(received)) {
+                input.setCustomValidity('La fecha de entrega no puede ser anterior a la fecha de solicitud.');
+            } else {
+                input.setCustomValidity('');
+            }
+        });
+
+        taskForm?.addEventListener('submit', (e) => {
+            const name = document.getElementById('taskName');
+            const received = normalizeText(document.getElementById('dateReceived')?.value);
+            const delivered = normalizeText(document.getElementById('dateDelivered')?.value);
+
+            if (name) {
+                const value = name.value.trim();
+                name.setCustomValidity(
+                    value.length < 3 ? 'Escribe un título de al menos 3 caracteres.' : ''
+                );
+            }
+
+            const deliveryInput = document.getElementById('dateDelivered');
+            if (deliveryInput) {
+                deliveryInput.setCustomValidity(
+                    received && delivered && new Date(delivered) < new Date(received)
+                        ? 'La fecha de entrega no puede ser anterior a la fecha de solicitud.'
+                        : ''
+                );
+            }
+
+            if (!taskForm.checkValidity()) {
+                e.preventDefault();
+                taskForm.reportValidity();
+            }
+        }, true);
+
         document.getElementById('taskForm').addEventListener('submit', (e) => {
             e.preventDefault();
             
