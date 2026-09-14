@@ -1210,7 +1210,7 @@ const App = {
             if (taskSearch) taskSearch.value = '';
             const filterCompletion = document.getElementById('filterCompletion');
             if (filterCompletion) filterCompletion.value = 'Pendientes';
-            document.getElementById('filterSort').value = 'asc';
+            document.getElementById('filterSort').value = 'received_asc';
             this.filterDates = [];
             const fpInput = document.getElementById('filterDate');
             if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
@@ -2146,25 +2146,20 @@ const App = {
         };
 
         const sortTasks = (a, b) => {
-            if (fSort === 'received_asc') {
-                const diff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
-                if (diff !== 0) return diff;
-            } else if (fSort === 'received_desc') {
-                const diff = dateValue(b.dateReceived) - dateValue(a.dateReceived);
-                if (diff !== 0) return diff;
-            } else {
-                if (a.isStarred && !b.isStarred) return -1;
-                if (!a.isStarred && b.isStarred) return 1;
+            // ⭐ PRIORIDAD ABSOLUTA: las destacadas siempre van primero.
+            if (a.isStarred && !b.isStarred) return -1;
+            if (!a.isStarred && b.isStarred) return 1;
 
-                if (!a.dateDelivered && !b.dateDelivered) return 0;
-                if (!a.dateDelivered) return 1;
-                if (!b.dateDelivered) return -1;
+            // Dentro de cada grupo, ordenar por FECHA DE SOLICITUD:
+            // más antigua → más reciente.
+            const receivedDiff = dateValue(a.dateReceived) - dateValue(b.dateReceived);
+            if (receivedDiff !== 0) return receivedDiff;
 
-                return (dateValue(a.dateDelivered) - dateValue(b.dateDelivered)) * sortModifier;
-            }
-
+            // Desempate por fecha de entrega.
             const deliveryDiff = dateValue(a.dateDelivered) - dateValue(b.dateDelivered);
             if (deliveryDiff !== 0) return deliveryDiff;
+
+            // Desempate final estable.
             return String(a.id).localeCompare(String(b.id));
         };
 
