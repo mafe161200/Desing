@@ -686,3 +686,208 @@ select:focus-visible,
     .task-notes-actions { flex-direction:column-reverse; }
     .task-notes-actions .btn { width:100%; justify-content:center; }
 }
+
+
+/* =========================================================
+   DESIGN HUB V3 — REFINAMIENTO VISUAL FINAL
+   Objetivo: corregir proporciones y jerarquía sin alterar
+   la estructura ni la lógica existente.
+   ========================================================= */
+
+/* 1. RESUMEN: contraste real sobre superficies oscuras */
+.summary-card .summary-label {
+    color: #8ea4c2 !important;
+}
+
+.summary-card strong {
+    color: #f4f8ff !important;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.summary-card:hover strong {
+    color: #ffffff !important;
+}
+
+/* 2. CARGA DE TRABAJO: evitar que las fotos se expandan
+      y mantenerlas como avatares reales */
+.workload-identity {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+}
+
+.workload-avatar {
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px;
+    min-height: 24px;
+    max-width: 24px;
+    max-height: 24px;
+    flex: 0 0 24px;
+    overflow: hidden;
+    border-radius: 50%;
+    position: relative;
+}
+
+.workload-avatar img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 100%;
+    min-height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
+    object-position: center;
+    border-radius: 50%;
+}
+
+.workload-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.workload-count {
+    min-width: 18px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.workload-item {
+    margin-bottom: 11px !important;
+}
+
+/* 3. TABLA: un poco más de aire y menos sensación de
+      formulario/hoja de cálculo */
+.task-table th {
+    height: 40px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.task-table td {
+    padding-top: 13px;
+    padding-bottom: 13px;
+}
+
+.task-table tr {
+    transition: background-color .16s ease, box-shadow .16s ease;
+}
+
+/* Separación limpia: una sola línea por fila */
+.task-table td.date-info {
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+}
+
+.task-table td.date-info::before,
+.task-table td.date-info::after {
+    display: none !important;
+    content: none !important;
+}
+
+/* 4. TÍTULO: protagonista, pero sin crecer demasiado */
+.req-title-cell strong {
+    line-height: 1.25;
+}
+
+.req-title-text {
+    font-weight: 650;
+}
+
+.req-title-cell > span,
+.req-title-cell strong + span {
+    margin-top: 4px;
+}
+
+/* 5. FECHAS: recepción secundaria, entrega claramente
+      accionable */
+.task-table .date-info {
+    gap: 5px !important;
+}
+
+.task-table .date-req {
+    font-size: .68rem !important;
+    color: #8296b2 !important;
+}
+
+.task-table .inline-date-picker-alt {
+    box-shadow: none !important;
+}
+
+/* 6. ESTADOS: menos protagonismo, misma identificación */
+.task-table .status-switch {
+    min-width: 112px;
+    box-shadow: none !important;
+}
+
+.task-table .status-switch:hover {
+    transform: translateY(-1px);
+}
+
+/* 7. ACCIONES: agrupación más limpia */
+.task-table .action-buttons {
+    gap: 4px;
+}
+
+.task-table .action-buttons .btn-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+}
+
+/* 8. TOAST: nunca debe quedar cortado por el borde */
+.toast-container {
+    right: 16px !important;
+    bottom: 16px !important;
+    width: min(380px, calc(100vw - 32px));
+}
+
+.toast {
+    max-width: 100%;
+}
+
+/* 9. FILTROS: buscador ligeramente más importante */
+.filter-search input {
+    min-height: 38px;
+}
+
+.quick-filter {
+    white-space: nowrap;
+}
+
+/* 10. RESPONSIVE: conservar las mejoras sin romper
+       la experiencia móvil */
+@media (max-width: 1100px) {
+    .workload-avatar {
+        width: 22px !important;
+        height: 22px !important;
+        min-width: 22px;
+        min-height: 22px;
+        flex-basis: 22px;
+    }
+}
+
+@media (max-width: 768px) {
+    .task-table .status-switch {
+        min-width: 0;
+    }
+
+    .toast-container {
+        right: 12px !important;
+        bottom: 12px !important;
+        width: calc(100vw - 24px);
+    }
+}
+
+/* 11. ACCESIBILIDAD: foco visible y consistente */
+.task-table button:focus-visible,
+.task-table input:focus-visible,
+.quick-filter:focus-visible {
+    outline: 2px solid #38bdf8 !important;
+    outline-offset: 2px;
+}
