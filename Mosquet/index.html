@@ -281,6 +281,33 @@
                     </article>
                 </div>
 
+                <section class="history-analytics" aria-labelledby="historyAnalyticsTitle">
+                    <div class="history-analytics-heading">
+                        <div>
+                            <h3 id="historyAnalyticsTitle">Resumen operativo</h3>
+                            <p>Volumen de solicitudes y distribución del trabajo según los filtros activos.</p>
+                        </div>
+                    </div>
+                    <div class="history-analytics-grid">
+                        <article class="history-chart-card">
+                            <div class="history-chart-title">Solicitudes por mes</div>
+                            <div id="historyMonthlyChart" class="history-monthly-chart" aria-label="Solicitudes por mes"></div>
+                        </article>
+                        <article class="history-chart-card">
+                            <div class="history-chart-title">Por solicitante</div>
+                            <div id="historyRequesterChart" class="history-bars"></div>
+                        </article>
+                        <article class="history-chart-card">
+                            <div class="history-chart-title">Por responsable</div>
+                            <div id="historyAssigneeChart" class="history-bars"></div>
+                        </article>
+                        <article class="history-chart-card">
+                            <div class="history-chart-title">Por estado</div>
+                            <div id="historyStatusChart" class="history-bars"></div>
+                        </article>
+                    </div>
+                </section>
+
                 <div class="history-filters" aria-label="Filtros del historial">
                     <div class="history-search">
                         <i data-lucide="search" aria-hidden="true"></i>

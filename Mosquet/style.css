@@ -2717,3 +2717,206 @@ main {
         min-width: 760px;
     }
 }
+
+
+/* =========================================================
+   DESIGN HUB V4.4 — ANALÍTICA OPERATIVA + SIDEBAR RAIL
+   ========================================================= */
+
+/* El rail colapsado debe ser literalmente un rail, no cards vacías. */
+.sidebar-col.is-collapsed {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    width: 58px !important;
+    min-width: 58px !important;
+}
+
+.sidebar-col.is-collapsed > .sidebar-card {
+    display: none !important;
+}
+
+.sidebar-col.is-collapsed .sidebar-collapse-btn {
+    display: flex !important;
+    flex: 0 0 58px;
+    width: 58px !important;
+    height: 58px !important;
+    margin: 0 !important;
+}
+
+/* =========================================================
+   ANALÍTICA DEL HISTORIAL
+   ========================================================= */
+.history-analytics {
+    padding: 0 24px 18px;
+}
+
+.history-analytics-heading {
+    margin-bottom: 10px;
+}
+
+.history-analytics-heading h3 {
+    margin: 0;
+    color: #dcecff;
+    font-size: .88rem;
+    font-weight: 750;
+}
+
+.history-analytics-heading p {
+    margin: 3px 0 0;
+    color: #7186a3;
+    font-size: .70rem;
+}
+
+.history-analytics-grid {
+    display: grid;
+    grid-template-columns: 1.45fr 1fr 1fr 1fr;
+    gap: 10px;
+}
+
+.history-chart-card {
+    min-width: 0;
+    min-height: 190px;
+    padding: 13px 14px;
+    box-sizing: border-box;
+    border: 1px solid #20334e;
+    border-radius: 11px;
+    background: #07101d;
+}
+
+.history-chart-title {
+    margin-bottom: 12px;
+    color: #91a6c2;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.history-monthly-chart {
+    height: 136px;
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    padding-top: 4px;
+}
+
+.history-month {
+    min-width: 0;
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 5px;
+}
+
+.history-month-bar-wrap {
+    position: relative;
+    height: 108px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    border-bottom: 1px solid #1d3049;
+}
+
+.history-month-bar {
+    display: block;
+    width: min(26px, 65%);
+    min-height: 8px;
+    border-radius: 5px 5px 2px 2px;
+    background: linear-gradient(180deg, #22d3ee, #0e7490);
+    box-shadow: 0 0 12px rgba(34,211,238,.12);
+}
+
+.history-month-bar-wrap strong {
+    position: absolute;
+    top: 0;
+    color: #dcecff;
+    font-size: .67rem;
+}
+
+.history-month-label {
+    color: #7186a3;
+    text-align: center;
+    font-size: .60rem;
+    white-space: nowrap;
+}
+
+.history-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.history-bar-row {
+    min-width: 0;
+}
+
+.history-bar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.history-bar-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #9db1cb;
+    font-size: .68rem;
+}
+
+.history-bar-top strong {
+    flex: 0 0 auto;
+    color: #dcecff;
+    font-size: .68rem;
+}
+
+.history-bar-track {
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #122036;
+}
+
+.history-bar-fill {
+    display: block;
+    height: 100%;
+    min-width: 5px;
+    border-radius: inherit;
+    background: #22d3ee;
+    opacity: .82;
+}
+
+.history-chart-empty {
+    min-height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #60748f;
+    font-size: .70rem;
+    text-align: center;
+}
+
+@media (max-width: 1180px) {
+    .history-analytics-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .history-analytics {
+        padding: 0 16px 14px;
+    }
+
+    .history-analytics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .history-chart-card {
+        min-height: 170px;
+    }
+}
