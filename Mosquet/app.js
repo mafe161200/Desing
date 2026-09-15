@@ -3316,40 +3316,37 @@ const App = {
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td class="task-status-action-cell" data-label="Estado">
-                    ${t.status === 'En cola' ? `
+                    <div class="task-status-slider" role="group" aria-label="Estado de la solicitud">
                         <button type="button"
-                                class="btn btn-task-action btn-start-task"
-                                aria-label="Iniciar solicitud ${escapeHTML(t.name)}"
-                                title="Iniciar solicitud"
+                                class="task-status-step ${t.status === 'En cola' ? 'is-active is-queue' : ''}"
+                                aria-label="${t.status === 'En cola' ? 'Estado actual: En cola' : 'Volver a En cola'}"
+                                aria-pressed="${t.status === 'En cola' ? 'true' : 'false'}"
+                                title="${t.status === 'En cola' ? 'Estado actual: En cola' : 'Volver a En cola'}"
+                                data-action="back-task"
+                                data-task-id="${escapeHTML(t.id)}">
+                            <i data-lucide="pause-circle" aria-hidden="true"></i>
+                            <span>En cola</span>
+                        </button>
+                        <button type="button"
+                                class="task-status-step ${t.status === 'En curso' ? 'is-active is-progress' : ''}"
+                                aria-label="${t.status === 'En curso' ? 'Estado actual: En curso' : 'Iniciar solicitud'}"
+                                aria-pressed="${t.status === 'En curso' ? 'true' : 'false'}"
+                                title="${t.status === 'En curso' ? 'Estado actual: En curso' : 'Iniciar solicitud'}"
                                 data-action="start-task"
                                 data-task-id="${escapeHTML(t.id)}">
-                            <i data-lucide="play" aria-hidden="true"></i>
-                            <span>Iniciar solicitud</span>
+                            <i data-lucide="play-circle" aria-hidden="true"></i>
+                            <span>En curso</span>
                         </button>
-                    ` : t.status === 'En curso' ? `
-                        <div class="task-status-actions">
-                            <button type="button"
-                                    class="btn btn-task-action btn-back-task"
-                                    aria-label="Volver a poner en cola ${escapeHTML(t.name)}"
-                                    title="Volver a En cola"
-                                    data-action="back-task"
-                                    data-task-id="${escapeHTML(t.id)}">
-                                <i data-lucide="undo-2" aria-hidden="true"></i>
-                                <span>Volver</span>
-                            </button>
-                            <button type="button"
-                                    class="btn btn-task-action btn-finish-task"
-                                    aria-label="Finalizar solicitud ${escapeHTML(t.name)}"
-                                    title="Finalizar solicitud"
-                                    data-action="finish-task"
-                                    data-task-id="${escapeHTML(t.id)}">
-                                <i data-lucide="check" aria-hidden="true"></i>
-                                <span>Finalizar</span>
-                            </button>
-                        </div>
-                    ` : `
-                        <span class="task-status-completed">Realizada</span>
-                    `}
+                        <button type="button"
+                                class="task-status-step task-status-finish ${t.status === 'En curso' ? 'is-finish-ready' : ''}"
+                                aria-label="Finalizar solicitud ${escapeHTML(t.name)}"
+                                title="Finalizar solicitud"
+                                data-action="finish-task"
+                                data-task-id="${escapeHTML(t.id)}">
+                            <i data-lucide="check-circle-2" aria-hidden="true"></i>
+                            <span>Finalizar</span>
+                        </button>
+                    </div>
                 </td>
             `;
             activeFragment.appendChild(tr);

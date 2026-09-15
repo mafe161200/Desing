@@ -4538,7 +4538,7 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 }
 
 
-/* ESTADO — flujo de 3 fases, con acciones alineadas y sin deformaciones. */
+/* ESTADO — control de 3 fases: En cola → En curso → Finalizar. */
 .task-table .task-status-action-cell {
     text-align: left !important;
     vertical-align: middle;
@@ -4547,62 +4547,78 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     padding-right: 12px !important;
 }
 
-.task-table .task-status-actions {
-    display: flex;
-    align-items: center;
+.task-table .task-status-slider {
+    display: inline-flex;
+    align-items: stretch;
     justify-content: flex-start;
-    gap: 8px;
-    flex-wrap: nowrap;
-    width: 100%;
+    gap: 2px;
+    width: auto;
+    max-width: 100%;
+    min-height: 40px;
+    padding: 3px;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    background: var(--bg-subtle);
+    box-sizing: border-box;
 }
 
-.task-table .task-status-action-cell > .btn-task-action,
-.task-table .task-status-actions .btn-task-action {
+.task-table .task-status-step {
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-width: 140px;
-    min-height: 44px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    white-space: nowrap;
-    line-height: 1.2;
-    flex: 0 0 auto;
-    text-align: center;
-}
-
-.task-table .task-status-actions .btn-back-task {
-    min-width: 88px;
-    padding: 8px 12px;
-    background: var(--card-bg);
-    border: 1px solid var(--border-light);
+    gap: 6px;
+    min-width: 84px;
+    min-height: 34px;
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
     color: var(--text-muted);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
 
-.task-table .task-status-actions .btn-back-task:hover {
-    background: var(--bg-subtle);
-    border-color: var(--primary-cold);
-    color: var(--primary-cold);
+.task-table .task-status-step:hover {
+    color: var(--text-main);
+    background: rgba(255,255,255,.04);
 }
 
-.task-table .task-status-action-cell .btn-task-action:focus-visible {
-    outline: 3px solid var(--cyber-cyan);
-    outline-offset: 2px;
+.task-table .task-status-step.is-queue {
+    color: var(--status-cola);
+    background: var(--status-cola-bg);
+    border-color: var(--status-cola-border);
 }
 
-.task-table .task-status-completed {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 8px 16px;
-    border-radius: 8px;
+.task-table .task-status-step.is-progress {
+    color: var(--status-curso);
+    background: var(--status-curso-bg);
+    border-color: var(--status-curso-border);
+}
+
+.task-table .task-status-step.task-status-finish {
+    color: var(--success);
+}
+
+.task-table .task-status-step.task-status-finish.is-finish-ready {
     color: var(--success);
     background: var(--status-entregado-bg);
-    border: 1px solid var(--status-entregado-border);
-    font-weight: 600;
-    white-space: nowrap;
+    border-color: var(--status-entregado-border);
+}
+
+.task-table .task-status-step:focus-visible {
+    outline: 3px solid var(--cyber-cyan);
+    outline-offset: 2px;
+    z-index: 2;
+}
+
+.task-table .task-status-step:active {
+    transform: translateY(1px);
 }
 
 @media (min-width: 769px) {
@@ -4619,9 +4635,13 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
         padding-right: 0 !important;
     }
 
-    .task-table .task-status-actions {
+    .task-table .task-status-slider {
         width: 100%;
-        justify-content: flex-start;
+        overflow-x: auto;
+    }
+
+    .task-table .task-status-step {
+        flex: 1 0 auto;
     }
 
     .task-table .task-status-action-cell > .btn-task-action {
