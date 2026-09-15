@@ -4491,3 +4491,92 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
         padding: 15px;
     }
 }
+
+
+/* ESTADO — flujo único: un solo botón de acción por solicitud. */
+.task-table .task-status-action-cell {
+    text-align: left !important;
+    vertical-align: middle;
+    width: 120px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+.task-table .task-status-action-cell .action-buttons {
+    width: 100%;
+    justify-content: flex-start !important;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+}
+
+.task-table .task-status-action-cell .btn-task-action {
+    width: 100%;
+    max-width: 120px;
+    min-height: 44px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .task-table .task-status-action-cell {
+        width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .task-table .task-status-action-cell .action-buttons {
+        width: 100%;
+        justify-content: flex-start !important;
+    }
+
+    .task-table .task-status-action-cell .btn-task-action {
+        max-width: 100%;
+    }
+}
+
+
+/* ESTADO — flujo único en una sola columna. */
+.task-table .task-status-action-cell {
+    width: 120px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    text-align: left !important;
+    vertical-align: middle;
+}
+.task-table .task-status-action-cell .action-buttons {
+    width: 100%;
+    justify-content: flex-start !important;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 0;
+}
+.task-table .task-status-action-cell .btn-task-action {
+    width: 100%;
+    max-width: 120px;
+    min-height: 44px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+@media (min-width: 769px) {
+    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 39% !important; }
+    .task-table th:nth-child(2), .task-table td:nth-child(2) { width: 22% !important; }
+    .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 24% !important; }
+    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 15% !important; }
+}
+
+@media (max-width: 768px) {
+    .task-table .task-status-action-cell {
+        width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    .task-table .task-status-action-cell .action-buttons {
+        width: 100%;
+        justify-content: flex-start !important;
+    }
+    .task-table .task-status-action-cell .btn-task-action {
+        max-width: 100%;
+    }
+}

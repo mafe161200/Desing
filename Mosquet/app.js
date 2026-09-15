@@ -1567,12 +1567,6 @@ const App = {
                     }
                     break;
 
-                case 'toggle-status':
-                    if (taskId) {
-                        this.toggleTaskStatus(taskId);
-                    }
-                    break;
-
                 case 'start-task':
                     if (taskId) {
                         this.updateTask(taskId, 'status', 'En curso', true);
@@ -1820,28 +1814,6 @@ const App = {
         }
 
         document.getElementById('modalEditTask').classList.add('active');
-    },
-
-    toggleTaskStatus(taskId) {
-        const task = this.tasks.find(t => t.id === taskId);
-        if (!task) return;
-
-        const newStatus = task.status === 'En curso' ? 'En cola' : 'En curso';
-        task.status = newStatus;
-        
-        const element = document.getElementById(`status-switch-${taskId}`);
-        if (element) {
-            const isCurso = newStatus === 'En curso';
-            element.className = `status-switch ${isCurso ? 'curso' : 'cola'}`;
-            element.setAttribute('aria-checked', isCurso ? 'true' : 'false');
-            element.innerHTML = `
-                <div class="switch-track"><div class="switch-thumb"></div></div>
-                <span class="switch-label">${newStatus}</span>
-            `;
-        }
-
-        this.markAsUnsaved();
-        this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
     },
 
     setupProfileListeners() {
@@ -3266,11 +3238,10 @@ const App = {
             tr.dataset.taskRow = String(t.id);
             
             const colorHex = this.getColor(t.assignee);
-            const isCurso = t.status === 'En curso';
             
             tr.addEventListener('click', (e) => {
                 // Ignore clicks on buttons to prevent bubbling collision
-                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
+                if (e.target.closest('select, input, button, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
                     return;
                 }
                 this.selectTask(t.id);
@@ -3308,16 +3279,7 @@ const App = {
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
-                <td data-label="Estado">
-                    <button type="button" id="status-switch-${t.id}"
-                            class="status-switch ${isCurso ? 'curso' : 'cola'}"
-                            aria-label="Cambiar estado de ${escapeHTML(t.name)}. Estado actual: ${escapeHTML(t.status)}"
-                            data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
-                        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-                        <span class="switch-label">${escapeHTML(t.status)}</span>
-                    </button>
-                </td>
-                <td style="text-align:center;" data-label="Acciones">
+                <td class="task-status-action-cell" data-label="Estado">
                     <div class="action-buttons">
                         ${t.status === 'En cola' ? `
                             <button type="button"
@@ -3348,7 +3310,7 @@ const App = {
         if(activas.length === 0) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
-            cell.colSpan = 5;
+            cell.colSpan = 4;
             cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
             cell.textContent = 'No hay tareas pendientes.';
             row.appendChild(cell);
