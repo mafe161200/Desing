@@ -1,8 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://npmcdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://gbltrfqxohrmkopanghx.supabase.co wss://gbltrfqxohrmkopanghx.supabase.co; worker-src 'self' blob:;">
+    <title>Design Hub | Plataforma Colaborativa</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%234f46e5%27/%3E%3Ctext x=%2732%27 y=%2744%27 text-anchor=%27middle%27 font-size=%2738%27 font-family=%27Georgia%27 font-style=%27italic%27 fill=%27white%27%3ED%3C/text%3E%3C/svg%3E">
+        
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,800&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <a class="skip-link" href="#mainContent">Saltar al contenido principal</a>
+
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card" style="text-align: left;">
+            <h1 class="mixed-title logo-large" style="margin-bottom: 30px;">
+                <span class="logo-typographic">Design</span>
+            </h1>
+            <h2>Acceso al Sistema</h2>
+            <p style="margin-bottom: 24px;">Inicia sesión en la plataforma colaborativa</p>
+            <form id="loginForm" class="login-form">
+                <div class="field">
+                    <label for="usernameInput">Usuario</label>
+                    <input type="text" id="usernameInput" name="username" class="custom-input" placeholder="Ej: admin o Camilo" required autocomplete="username">
+                </div>
+                <div class="field">
+                    <label for="passwordInput">Contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="passwordInput" name="password" class="custom-input" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" id="togglePasswordBtn" class="toggle-password-btn" aria-label="Mostrar contraseña">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="loginError" class="login-error" role="alert">Usuario o contraseña incorrectos.</div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Ingresar al workspace</button>
+                
+                <div class="login-hint">
+                    El acceso se gestiona de forma segura mediante Supabase Auth.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="appContainer" class="main-container" style="display: none;">
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="mixed-title">
+                    <span class="logo-typographic">Design</span>
+                </h1>
+                <p class="header-subtitle">Gestión de Solicitudes<br>y Entregables de Diseño</p>
+            </div>
+            
+            <div class="top-actions">
+                <div class="connection-status" id="connectionStatus" title="Estado de sincronización">
+                    <span class="status-dot"></span> <span id="statusText">Modo Local</span>
+                </div>
+
+                <div class="user-profile" id="userProfileBtn" title="Configurar Perfil" tabindex="0" role="button">
+                    <img id="userAvatar" src="" alt="Avatar del usuario" class="user-avatar">
+                    <span id="currentUserName">Usuario</span>
+                </div>
+                
+                <div class="header-divider hide-mobile"></div>
+                
+                <button type="button" id="btnToggleNotes" class="btn-icon position-relative" aria-label="Notas del Equipo" title="Notas del Equipo">
+                    <i data-lucide="message-square"></i>
+                </button>
+
+                <button type="button" id="btnLogout" class="btn-icon header-logout-btn" aria-label="Cerrar sesión" title="Cerrar sesión">
+                    <i data-lucide="log-out"></i>
+                </button>
+                
+                <button type="button" id="btnNewTask" class="btn btn-primary">
+                    <i data-lucide="plus-circle"></i> <span class="hide-mobile">Nueva Solicitud</span>
+                </button>
+                <button type="button" id="btnManageTeam" class="btn btn-secondary admin-only">
+                    <i data-lucide="users"></i> <span class="hide-mobile">Equipo</span>
+                </button>
+                <button type="button" id="btnManageReq" class="btn btn-secondary admin-only">
+                    <i data-lucide="building-2"></i> <span class="hide-mobile">Solicitantes</span>
+                </button>
+            </div>
+        </header>
+
+        <section class="dashboard-summary" aria-label="Resumen de trabajo">
+            <article class="summary-card summary-total is-interactive" data-summary="total" role="button" tabindex="0" aria-label="Mostrar todas las tareas activas">
+                <div class="summary-icon"><i data-lucide="inbox"></i></div>
+                <div><span class="summary-label">Activas</span><strong id="summaryTotal">0</strong></div>
+            </article>
+            <article class="summary-card summary-course is-interactive" data-summary="course" role="button" tabindex="0" aria-label="Mostrar tareas en curso">
+                <div class="summary-icon"><i data-lucide="play-circle"></i></div>
+                <div><span class="summary-label">En curso</span><strong id="summaryCourse">0</strong></div>
+            </article>
+            <article class="summary-card summary-queue is-interactive" data-summary="queue" role="button" tabindex="0" aria-label="Mostrar tareas en cola">
+                <div class="summary-icon"><i data-lucide="clock-3"></i></div>
+                <div><span class="summary-label">En cola</span><strong id="summaryQueue">0</strong></div>
+            </article>
+            <article class="summary-card summary-overdue is-interactive" data-summary="overdue" role="button" tabindex="0" aria-label="Mostrar tareas vencidas">
+                <div class="summary-icon"><i data-lucide="triangle-alert"></i></div>
+                <div><span class="summary-label">Vencidas</span><strong id="summaryOverdue">0</strong></div>
+            </article>
+            <article class="summary-card summary-starred is-interactive" data-summary="starred" role="button" tabindex="0" aria-label="Mostrar tareas prioritarias">
+                <div class="summary-icon"><i data-lucide="star"></i></div>
+                <div><span class="summary-label">Prioridad</span><strong id="summaryStarred">0</strong></div>
+            </article>
+        </section>
+
+        <div class="layout-grid">
+            
+            <aside class="sidebar-col" id="sidebarCol">
+                <div class="card sidebar-card card-accent-primary">
+                    <div class="card-header">
+                        <h2><i data-lucide="user-round" class="icon-primary"></i> Mis Tareas <span class="badge-count badge-primary" aria-label="Tareas asignadas">0</span></h2>
+                    </div>
+                    <div class="sidebar-content">
+                        <ul id="sidebarList" class="request-list"></ul>
+                    </div>
+                </div>
+
+                <div class="card sidebar-card card-accent-primary" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2><i data-lucide="bar-chart-2" class="icon-primary"></i> Carga de Trabajo</h2>
+                    </div>
+                    <div class="sidebar-content" id="workloadContainer" style="padding: 16px;">
+                        <!-- Gráfica inyectada vía JS -->
+                    </div>
+                </div>
+
+                <nav class="sidebar-navigation" aria-label="Archivo y actividad">
+                    <button type="button" id="btnOpenChangeHistory" class="sidebar-nav-button" aria-controls="changeHistoryView" aria-label="Abrir historial general de cambios">
+                        <span><i data-lucide="history" aria-hidden="true"></i> Historial de cambios</span>
+                        <i data-lucide="arrow-right" aria-hidden="true"></i>
+                    </button>
+                </nav>
+
+            </aside>
+
+            <main class="main-board" id="mainContent">
+                <section class="card board-section card-accent-primary">
+                    <div class="card-header card-header-flex">
+                        <div>
+                            <h2>Solicitudes</h2>
+                            <p class="section-subtitle">Gestiona las solicitudes activas del equipo.</p>
+                        </div>
+
+                        <div class="board-actions">
+                            <div class="search-wrapper">
+                                <i data-lucide="search" aria-hidden="true"></i>
+                                <label class="visually-hidden" for="taskSearch">Buscar solicitudes</label>
+                                <input type="search" id="taskSearch" class="custom-input" placeholder="Buscar..." autocomplete="off">
+                            </div>
+
+                            <select id="taskStatusFilter" class="custom-input native-select" aria-label="Filtrar por estado">
+                                <option value="Todos">Todos los estados</option>
+                                <option value="En cola">En cola</option>
+                                <option value="En curso">En curso</option>
+                                <option value="Entregado">Entregado</option>
+                            </select>
+
+                            <button type="button" id="clearTaskFilters" class="btn btn-secondary">
+                                <i data-lucide="x"></i> Limpiar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="taskBoard" class="task-board" aria-live="polite"></div>
+
+                    <div id="emptyBoard" class="empty-state" style="display:none;">
+                        <i data-lucide="inbox"></i>
+                        <h3>No hay solicitudes</h3>
+                        <p>No se encontraron solicitudes con los filtros actuales.</p>
+                    </div>
+
+                    <div class="board-footer-actions">
+                        <button type="button" id="btnOpenHistoryBottom" class="btn btn-secondary">
+                            <i data-lucide="archive"></i>
+                            Ver solicitudes realizadas
+                        </button>
+                    </div>
+                </section>
+
+                <section id="historyView" class="card board-section history-section" style="display:none;" aria-labelledby="historyTitle">
+                    <div class="card-header card-header-flex history-header">
+                        <div>
+                            <h2 id="historyTitle"><i data-lucide="archive" class="icon-primary"></i> Solicitudes realizadas</h2>
+                            <p class="section-subtitle">Consulta y analiza las solicitudes entregadas.</p>
+                        </div>
+                        <button type="button" id="btnBackToBoard" class="btn btn-secondary">
+                            <i data-lucide="arrow-left"></i> Volver a solicitudes
+                        </button>
+                    </div>
+
+                    <div class="history-filters card-inner">
+                        <div class="field">
+                            <label for="historySearch">Buscar</label>
+                            <div class="input-with-icon">
+                                <i data-lucide="search"></i>
+                                <input type="search" id="historySearch" class="custom-input" placeholder="Título, solicitante, responsable..." autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="historyStatusFilter">Estado</label>
+                            <select id="historyStatusFilter" class="custom-input native-select">
+                                <option value="Todos">Todos</option>
+                                <option value="Entregado">Entregado</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="historyFrom">Desde</label>
+                            <input type="text" id="historyFrom" class="custom-input history-date-picker" placeholder="dd/mm/aaaa" autocomplete="off">
+                        </div>
+
+                        <div class="field">
+                            <label for="historyTo">Hasta</label>
+                            <input type="text" id="historyTo" class="custom-input history-date-picker" placeholder="dd/mm/aaaa" autocomplete="off">
+                        </div>
+
+                        <div class="field history-filter-action">
+                            <label>&nbsp;</label>
+                            <button type="button" id="clearHistoryFilters" class="btn btn-secondary">
+                                <i data-lucide="rotate-ccw"></i> Limpiar filtros
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="history-analytics">
+                        <article class="history-stat-card">
+                            <span>Resultados</span>
+                            <strong id="historyStatTotal">0</strong>
+                        </article>
+                        <article class="history-stat-card">
+                            <span>Entregadas</span>
+                            <strong id="historyStatDelivered">0</strong>
+                        </article>
+                        <article class="history-stat-card">
+                            <span>Tiempo promedio</span>
+                            <strong id="historyStatAverage">—</strong>
+                        </article>
+                        <article class="history-stat-card">
+                            <span>Responsable principal</span>
+                            <strong id="historyStatTopUser">—</strong>
+                        </article>
+                    </div>
+
+                    <div class="history-monthly card-inner">
+                        <div class="history-monthly-header">
+                            <div>
+                                <h3>Actividad mensual</h3>
+                                <p>Distribución de las solicitudes según fecha de entrega.</p>
+                            </div>
+                            <span id="historyMonthlySummary" class="history-monthly-summary">Sin datos</span>
+                        </div>
+                        <div id="historyMonthlyChart" class="history-monthly-chart" aria-label="Gráfica mensual de solicitudes"></div>
+                    </div>
+
+                    <div class="history-results-header">
+                        <div>
+                            <h3>Resultados</h3>
+                            <span id="historyResult" class="result-summary" aria-live="polite">0 solicitudes</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table history-table">
+                            <thead>
+                                <tr>
+                                    <th>Solicitud</th>
+                                    <th>Solicitante</th>
+                                    <th>Responsable</th>
+                                    <th>Recepción</th>
+                                    <th>Entrega</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="historyEmpty" class="empty-state" style="display:none;">
+                        <i data-lucide="archive-x"></i>
+                        <h3>No hay resultados</h3>
+                        <p>Ajusta los filtros para encontrar solicitudes realizadas.</p>
+                    </div>
+                </section>
+
+                <section id="changeHistoryView" class="card board-section change-history-section" style="display:none;" aria-labelledby="changeHistoryTitle">
+                    <div class="card-header card-header-flex">
+                        <div>
+                            <h2 id="changeHistoryTitle"><i data-lucide="history" class="icon-primary"></i> Historial de cambios</h2>
+                            <p class="section-subtitle">Registro general de las modificaciones realizadas en las solicitudes.</p>
+                        </div>
+                        <button type="button" id="btnBackFromChangeHistory" class="btn btn-secondary">
+                            <i data-lucide="arrow-left"></i> Volver
+                        </button>
+                    </div>
+
+                    <div class="change-history-filters card-inner">
+                        <div class="field">
+                            <label for="changeHistorySearch">Buscar</label>
+                            <div class="input-with-icon">
+                                <i data-lucide="search"></i>
+                                <input type="search" id="changeHistorySearch" class="custom-input" placeholder="Solicitud, usuario o cambio..." autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="changeHistoryFrom">Desde</label>
+                            <input type="text" id="changeHistoryFrom" class="custom-input change-history-date-picker" placeholder="dd/mm/aaaa" autocomplete="off">
+                        </div>
+
+                        <div class="field">
+                            <label for="changeHistoryTo">Hasta</label>
+                            <input type="text" id="changeHistoryTo" class="custom-input change-history-date-picker" placeholder="dd/mm/aaaa" autocomplete="off">
+                        </div>
+
+                        <div class="field">
+                            <label for="changeHistoryUser">Usuario</label>
+                            <select id="changeHistoryUser" class="custom-input native-select">
+                                <option value="Todos">Todos</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="changeHistoryOperation">Acción</label>
+                            <select id="changeHistoryOperation" class="custom-input native-select">
+                                <option value="Todos">Todos</option>
+                                <option value="INSERT">Creación</option>
+                                <option value="UPDATE">Edición</option>
+                                <option value="DELETE">Eliminación</option>
+                            </select>
+                        </div>
+
+                        <div class="field change-history-filter-action">
+                            <label>&nbsp;</label>
+                            <button type="button" id="clearChangeHistoryFilters" class="btn btn-secondary">
+                                <i data-lucide="rotate-ccw"></i> Limpiar filtros
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="change-history-summary card-inner">
+                        <span>Movimientos encontrados</span>
+                        <strong id="changeHistoryCount" aria-live="polite">0</strong>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table change-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Solicitud</th>
+                                    <th>Acción</th>
+                                    <th>Usuario</th>
+                                    <th>Detalle</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="changeHistoryTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="changeHistoryEmpty" class="empty-state" style="display:none;">
+                        <i data-lucide="history"></i>
+                        <h3>No hay cambios registrados</h3>
+                        <p>Cuando se creen o modifiquen solicitudes, aparecerán aquí.</p>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Solicitud -->
+    <div id="modalNewTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalNewTaskTitle">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="modalNewTaskTitle"><i data-lucide="plus-circle" class="icon-primary"></i> Nueva Solicitud</h2>
+                <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+
+            <form id="newTaskForm">
+                <div class="form-grid">
+                    <div class="field full-width">
+                        <label for="taskTitle">Título de la solicitud</label>
+                        <input type="text" id="taskTitle" name="taskTitle" class="custom-input" placeholder="Ej. Pieza para campaña interna..." required maxlength="180" autocomplete="off">
+                    </div>
+
+                    <div class="field">
+                        <label for="taskRequester">Solicitante</label>
+                        <select id="taskRequester" name="taskRequester" class="custom-input native-select" required></select>
+                    </div>
+
+                    <div class="field">
+                        <label for="taskAssigned">Responsable</label>
+                        <select id="taskAssigned" name="taskAssigned" class="custom-input native-select" required></select>
+                    </div>
+
+                    <div class="field">
+                        <label id="taskDateReceived-label" for="taskDateReceived">Fecha de recepción</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" id="taskDateReceived" name="taskDateReceived" class="date-picker custom-input" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="taskDateDue">Fecha de entrega</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar-clock"></i>
+                            <input type="text" id="taskDateDue" name="taskDateDue" class="date-picker custom-input" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="field full-width">
+                        <label for="taskNotes">Notas de la solicitud</label>
+                        <textarea id="taskNotes" name="taskNotes" class="custom-input task-notes-input" rows="4" placeholder="Añade contexto, instrucciones o referencias..." autocomplete="off"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="plus"></i> Crear solicitud
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Editar Solicitud -->
+    <div id="modalEditTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalEditTaskTitle">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="modalEditTaskTitle"><i data-lucide="pencil" class="icon-primary"></i> Editar Solicitud</h2>
+                <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+
+            <form id="editTaskForm">
+                <input type="hidden" id="editTaskId" name="editTaskId">
+
+                <div class="form-grid">
+                    <div class="field full-width">
+                        <label for="editTaskTitle">Título de la solicitud</label>
+                        <input type="text" id="editTaskTitle" name="editTaskTitle" class="custom-input" required maxlength="180" autocomplete="off">
+                    </div>
+
+                    <div class="field">
+                        <label for="editAssignedSelect">Responsable</label>
+                        <select id="editAssignedSelect" name="editAssigned" class="custom-input native-select" required></select>
+                    </div>
+
+                    <div class="field">
+                        <label for="editRequesterSelect">Solicitante</label>
+                        <select id="editRequesterSelect" name="editRequester" class="native-select-hidden" required></select>
+                    </div>
+
+                    <div class="field">
+                        <label id="editDateReceived-label" for="editDateReceived">Fecha de recepción</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" id="editDateReceived" name="editDateReceived" class="date-picker modal-date custom-input" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="editDateDue">Fecha de entrega</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar-clock"></i>
+                            <input type="text" id="editDateDue" name="editDateDue" class="date-picker modal-date custom-input" required autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="editStatusSelect">Estado</label>
+                        <select id="editStatusSelect" name="editStatus" class="custom-input native-select" required>
+                            <option value="En cola">En cola</option>
+                            <option value="En curso">En curso</option>
+                            <option value="Entregado">Entregado</option>
+                        </select>
+                    </div>
+
                     <div class="field full-width">
                         <label for="editTaskNotes">Notas de la solicitud</label>
                         <textarea id="editTaskNotes" name="editTaskNotes" class="custom-input task-notes-input" rows="4" placeholder="Añade contexto, instrucciones o referencias..." autocomplete="off"></textarea>
                     </div>
                 </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn btn-primary">Guardar Edición</button>
                 </div>
@@ -17,15 +512,18 @@
                 <h2 id="modalTeamTitle"><i data-lucide="users" class="icon-primary"></i> Gestión de Equipo</h2>
                 <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
             </div>
+
             <div class="profile-controls">
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
                     Contraseña por defecto al añadir: <strong>Nombre_DH2026!</strong>
                 </p>
+
                 <form id="addMemberForm" class="input-group">
                     <label for="newMemberInput" class="visually-hidden">Nombre del colaborador</label>
-                    <input type="text" id="newMemberInput" name="memberName" class="custom-input" placeholder="Nombre del colaborador..." required>
+                    <input type="text" id="newMemberInput" name="memberName" class="custom-input" placeholder="Nombre del colaborador..." required autocomplete="off">
                     <button type="submit" id="addMemberBtn" class="btn btn-primary">Añadir</button>
                 </form>
+
                 <div id="membersList" class="members-tags"></div>
             </div>
         </div>
@@ -38,12 +536,14 @@
                 <h2 id="modalReqTitle"><i data-lucide="building-2" class="icon-primary"></i> Áreas Solicitantes</h2>
                 <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
             </div>
+
             <div class="profile-controls">
                 <form id="addRequesterForm" class="input-group">
                     <label for="newRequesterInput" class="visually-hidden">Nombre o área</label>
-                    <input type="text" id="newRequesterInput" name="requesterName" class="custom-input" placeholder="Nombre o área..." required>
+                    <input type="text" id="newRequesterInput" name="requesterName" class="custom-input" placeholder="Nombre o área..." required autocomplete="off">
                     <button type="submit" id="addRequesterBtn" class="btn btn-primary">Añadir</button>
                 </form>
+
                 <div id="requestersList" class="members-tags"></div>
             </div>
         </div>
@@ -56,26 +556,27 @@
                 <h2 id="modalProfileTitle"><i data-lucide="user-cog" class="icon-primary"></i> Personalizar Perfil</h2>
                 <button type="button" class="close-modal" id="closeProfileModalBtn" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
             </div>
+
             <div class="profile-controls">
-                
                 <div id="avatarPreviewContainer" style="text-align: center; margin-bottom: 10px;">
                     <img id="previewAvatar" src="" alt="Previsualización de avatar" class="user-avatar" style="width: 80px; height: 80px; border-width: 3px;">
+
                     <div style="margin-top: 8px;">
                         <button type="button" id="btnRemoveAvatar" class="btn-text" style="color: var(--danger); font-size: 0.75rem;">
                             <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Eliminar foto
                         </button>
                     </div>
                 </div>
-                
+
                 <div id="cropperWrapper" style="display: none; width: 100%; max-height: 350px; margin-bottom: 16px; text-align: center; border-radius: 8px; overflow: hidden;">
                     <img id="cropperImage" src="" alt="Recortar imagen" style="max-width: 100%; max-height: 350px; display: block;">
                 </div>
 
                 <form id="profileForm" style="display: flex; flex-direction: column; gap: 16px;">
-                    
                     <div class="field" style="border-bottom: 1px solid var(--border-light); padding-bottom: 16px;">
                         <span id="colorPickerLabel" style="display:block; font-size:0.8rem; font-weight:600; color:var(--primary-cold); margin-bottom:8px;">Tu color de perfil exclusivo</span>
                         <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; margin-bottom: 12px;">Elige el color con el que verás tus tareas.</p>
+
                         <div class="color-picker-group" id="colorPickerGroup" role="radiogroup" aria-labelledby="colorPickerLabel">
                             <div class="color-swatch" data-color="#4f46e5" style="background-color: #4f46e5;" role="radio" aria-label="Color #4f46e5" tabindex="0"></div>
                             <div class="color-swatch" data-color="#2563eb" style="background-color: #2563eb;" role="radio" aria-label="Color #2563eb" tabindex="0"></div>
@@ -99,12 +600,12 @@
                         <label for="avatarFileInput">Subir foto desde tu PC</label>
                         <input type="file" id="avatarFileInput" name="avatarFile" class="custom-input" accept="image/png, image/jpeg, image/webp">
                     </div>
-                    
+
                     <div id="urlDivider" style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 600;">O</div>
-                    
+
                     <div class="field" id="urlFieldGroup">
                         <label for="avatarUrlInput">Usar enlace (URL)</label>
-                        <input type="url" id="avatarUrlInput" name="avatarUrl" class="custom-input" placeholder="https://ejemplo.com/mifoto.jpg">
+                        <input type="url" id="avatarUrlInput" name="avatarUrl" class="custom-input" placeholder="https://ejemplo.com/mifoto.jpg" autocomplete="url">
                     </div>
 
                     <div style="display: flex; gap: 12px; margin-top: 10px;">
