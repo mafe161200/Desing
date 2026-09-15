@@ -30,7 +30,7 @@
             </h1>
             <h2>Acceso al Sistema</h2>
             <p style="margin-bottom: 24px;">Inicia sesión en la plataforma colaborativa</p>
-            <form id="loginForm" class="login-form">
+            <form id="loginForm" class="login-form" method="post" action="" novalidate>
                 <div class="field">
                     <label for="usernameInput">Usuario</label>
                     <input type="text" id="usernameInput" name="username" class="custom-input" placeholder="Ej: admin o Camilo" required autocomplete="username">
@@ -383,35 +383,16 @@
                     </div>
                 </section>
 
-<<<<<<< HEAD
                 <div class="change-history-list-wrap">
                     <div class="change-history-empty" id="changeHistoryEmpty" hidden>
                         <i data-lucide="history" aria-hidden="true"></i>
                         <strong>No hay cambios que mostrar</strong>
                         <span>Cuando se registren cambios en las solicitudes aparecerán aquí.</span>
-=======
-                <div class="change-history-table-wrap">
-                    <div class="change-history-empty" id="changeHistoryEmpty" hidden>
-                        <i data-lucide="history" aria-hidden="true"></i>
-                        <strong>No hay cambios que mostrar</strong>
-                        <span>Cuando se registren cambios en las solicitudes aparecerán aquí.</span>
->>>>>>> dc263f4d3d9b31b573252367d1985b675b40d4fe
                     </div>
-<<<<<<< HEAD
                     <div id="changeHistoryTableBody" class="change-history-list" role="list" aria-label="Lista general de cambios"></div>
                 </div>
             </div>
         </section>
-=======
-                    <table class="change-history-table">
-                        <caption class="sr-only">Historial general de cambios</caption>
-                        <thead><tr><th>Fecha</th><th>Solicitud</th><th>Usuario</th><th>Acción</th><th>Cambio</th><th aria-label="Acciones"></th></tr></thead>
-                        <tbody id="changeHistoryTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
->>>>>>> dc263f4d3d9b31b573252367d1985b675b40d4fe
 
 
                 <section class="history-analytics" aria-labelledby="historyAnalyticsTitle">
@@ -586,6 +567,7 @@
                             <textarea id="taskNotes" name="taskNotes" class="custom-input task-notes-input" rows="4" maxlength="2000" placeholder="Añade contexto, instrucciones, referencias, formatos o enlaces..." autocomplete="off" aria-describedby="taskNotesHelp"></textarea>
                             <div id="taskNotesHelp" class="field-help"><span>Opcional.</span><span id="taskNotesCount">0/2000</span></div>
                         </div>
+                    </div>
                 </div>
 
                 <div class="form-actions">

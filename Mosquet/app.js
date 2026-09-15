@@ -1425,7 +1425,7 @@ const App = {
                 name: taskNameRaw,
                 requester: requesterRaw,
                 assignee: normalizeText(document.getElementById('assignee').value),
-                status: normalizeText(document.getElementById('status').value),
+                status: normalizeText(document.getElementById('status')?.value) || 'En cola',
                 dateReceived: dateReceivedValue, 
                 dateDelivered: dateDelivered,
                 isStarred: false,
