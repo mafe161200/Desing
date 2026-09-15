@@ -4230,3 +4230,32 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 @media (prefers-reduced-motion:reduce){
     .change-history-item{animation:none}
 }
+/* Corrección de las acciones nuevas: se mantienen dentro de la columna existente. */
+.task-table .action-buttons {
+    align-items: stretch;
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+}
+.task-table .btn-task-action {
+    width: 108px;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 5px 6px;
+    gap: 4px;
+    font-size: .68rem;
+    line-height: 1.15;
+    white-space: normal;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+.task-table .btn-task-action svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+}
+.task-table .btn-task-action span {
+    min-width: 0;
+}
