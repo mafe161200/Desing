@@ -1574,8 +1574,17 @@ const App = {
                     }
                     break;
 
+                case 'back-task':
+                    if (taskId) {
+                        this.updateTask(taskId, 'status', 'En cola', true);
+                        UI.showToast('Solicitud devuelta a la cola', 'success');
+                    }
+                    break;
+
                 case 'finish-task':
                     if (taskId) {
+                        const confirmed = window.confirm('¿Confirmas que deseas finalizar esta tarea?');
+                        if (!confirmed) break;
                         this.updateTask(taskId, 'status', 'Entregado', true);
                         UI.showToast('Solicitud finalizada', 'success');
                     }
@@ -3217,6 +3226,33 @@ const App = {
                     <div class="req-detail-row"><span>Solicitante:</span><strong>${escapeHTML(t.requester)}</strong></div>
                     <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(t.assignee)}</span></div>
                 </div>
+                <div class="request-card-actions" aria-label="Acciones de la solicitud">
+                    <button type="button"
+                            class="btn-icon task-notes-button"
+                            aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}"
+                            title="${t.notes ? 'Ver notas' : 'Sin notas'}"
+                            data-action="view-task-notes"
+                            data-task-id="${escapeHTML(t.id)}">
+                        <i data-lucide="message-square-text" aria-hidden="true"></i>
+                        ${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}
+                    </button>
+                    <button type="button"
+                            class="btn-icon edit"
+                            aria-label="Editar solicitud"
+                            title="Editar solicitud"
+                            data-action="edit-task"
+                            data-task-id="${escapeHTML(t.id)}">
+                        <i data-lucide="edit-3" aria-hidden="true"></i>
+                    </button>
+                    <button type="button"
+                            class="btn-icon delete"
+                            aria-label="Eliminar solicitud"
+                            title="Eliminar solicitud"
+                            data-action="delete-task"
+                            data-task-id="${escapeHTML(t.id)}">
+                        <i data-lucide="trash-2" aria-hidden="true"></i>
+                    </button>
+                </div>
             `;
             sidebarFragment.appendChild(li);
         });
@@ -3280,18 +3316,27 @@ const App = {
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td class="task-status-action-cell" data-label="Estado">
-                    <div class="action-buttons">
-                        ${t.status === 'En cola' ? `
+                    ${t.status === 'En cola' ? `
+                        <button type="button"
+                                class="btn btn-task-action btn-start-task"
+                                aria-label="Iniciar solicitud ${escapeHTML(t.name)}"
+                                title="Iniciar solicitud"
+                                data-action="start-task"
+                                data-task-id="${escapeHTML(t.id)}">
+                            <i data-lucide="play" aria-hidden="true"></i>
+                            <span>Iniciar solicitud</span>
+                        </button>
+                    ` : t.status === 'En curso' ? `
+                        <div class="task-status-actions">
                             <button type="button"
-                                    class="btn btn-task-action btn-start-task"
-                                    aria-label="Iniciar solicitud ${escapeHTML(t.name)}"
-                                    title="Iniciar solicitud"
-                                    data-action="start-task"
+                                    class="btn btn-task-action btn-back-task"
+                                    aria-label="Volver a poner en cola ${escapeHTML(t.name)}"
+                                    title="Volver a En cola"
+                                    data-action="back-task"
                                     data-task-id="${escapeHTML(t.id)}">
-                                <i data-lucide="play" aria-hidden="true"></i>
-                                <span>Iniciar solicitud</span>
+                                <i data-lucide="undo-2" aria-hidden="true"></i>
+                                <span>Volver</span>
                             </button>
-                        ` : t.status === 'En curso' ? `
                             <button type="button"
                                     class="btn btn-task-action btn-finish-task"
                                     aria-label="Finalizar solicitud ${escapeHTML(t.name)}"
@@ -3301,8 +3346,10 @@ const App = {
                                 <i data-lucide="check" aria-hidden="true"></i>
                                 <span>Finalizar</span>
                             </button>
-                        ` : ''}
-                    </div>
+                        </div>
+                    ` : `
+                        <span class="task-status-completed">Realizada</span>
+                    `}
                 </td>
             `;
             activeFragment.appendChild(tr);

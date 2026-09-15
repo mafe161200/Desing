@@ -2208,6 +2208,51 @@ main {
     overflow: visible;
 }
 
+/* Acciones de tarjeta: notas, editar y eliminar. Sin acceso al historial aquí. */
+.sidebar-card .request-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-light);
+}
+.sidebar-card .request-card-actions .btn-icon {
+    width: 30px;
+    height: 30px;
+    padding: 5px;
+    flex: 0 0 30px;
+}
+.sidebar-card .request-card-actions .task-notes-button {
+    position: relative;
+    color: #7dd3fc;
+}
+.sidebar-card .request-card-actions .task-notes-button:hover,
+.sidebar-card .request-card-actions .task-notes-button.has-notes {
+    color: #67e8f9;
+    background: rgba(34,211,238,.07);
+    border-color: rgba(34,211,238,.28);
+}
+.sidebar-card .request-card-actions .edit:hover {
+    color: var(--cyber-cyan);
+    background: rgba(34,211,238,.07);
+}
+.sidebar-card .request-card-actions .delete:hover {
+    color: #fb7185;
+    background: rgba(251,113,133,.08);
+}
+.sidebar-card .request-card-actions .task-notes-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #22d3ee;
+    box-shadow: 0 0 5px rgba(34,211,238,.6);
+}
+
 .sidebar-card .request-item .req-header {
     min-width: 0;
 }
@@ -4493,77 +4538,78 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 }
 
 
-/* ESTADO — flujo único: un solo botón de acción por solicitud. */
+/* ESTADO — flujo de 3 fases, con acciones alineadas y sin deformaciones. */
 .task-table .task-status-action-cell {
     text-align: left !important;
     vertical-align: middle;
-    width: 120px !important;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+    width: 250px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
 }
 
-.task-table .task-status-action-cell .action-buttons {
-    width: 100%;
-    justify-content: flex-start !important;
+.task-table .task-status-actions {
+    display: flex;
     align-items: center;
-    gap: 0;
+    justify-content: flex-start;
+    gap: 8px;
     flex-wrap: nowrap;
-}
-
-.task-table .task-status-action-cell .btn-task-action {
     width: 100%;
-    max-width: 120px;
-    min-height: 44px;
-    white-space: nowrap;
-    flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
-    .task-table .task-status-action-cell {
-        width: 100% !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-
-    .task-table .task-status-action-cell .action-buttons {
-        width: 100%;
-        justify-content: flex-start !important;
-    }
-
-    .task-table .task-status-action-cell .btn-task-action {
-        max-width: 100%;
-    }
-}
-
-
-/* ESTADO — flujo único en una sola columna. */
-.task-table .task-status-action-cell {
-    width: 120px !important;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-    text-align: left !important;
-    vertical-align: middle;
-}
-.task-table .task-status-action-cell .action-buttons {
-    width: 100%;
-    justify-content: flex-start !important;
+.task-table .task-status-action-cell > .btn-task-action,
+.task-table .task-status-actions .btn-task-action {
+    box-sizing: border-box;
+    display: inline-flex;
     align-items: center;
-    flex-wrap: nowrap;
-    gap: 0;
-}
-.task-table .task-status-action-cell .btn-task-action {
-    width: 100%;
-    max-width: 120px;
+    justify-content: center;
+    gap: 8px;
+    min-width: 140px;
     min-height: 44px;
+    padding: 8px 16px;
+    border-radius: 8px;
     white-space: nowrap;
-    flex-shrink: 0;
+    line-height: 1.2;
+    flex: 0 0 auto;
+    text-align: center;
+}
+
+.task-table .task-status-actions .btn-back-task {
+    min-width: 88px;
+    padding: 8px 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-light);
+    color: var(--text-muted);
+}
+
+.task-table .task-status-actions .btn-back-task:hover {
+    background: var(--bg-subtle);
+    border-color: var(--primary-cold);
+    color: var(--primary-cold);
+}
+
+.task-table .task-status-action-cell .btn-task-action:focus-visible {
+    outline: 3px solid var(--cyber-cyan);
+    outline-offset: 2px;
+}
+
+.task-table .task-status-completed {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: var(--success);
+    background: var(--status-entregado-bg);
+    border: 1px solid var(--status-entregado-border);
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 @media (min-width: 769px) {
-    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 39% !important; }
-    .task-table th:nth-child(2), .task-table td:nth-child(2) { width: 22% !important; }
-    .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 24% !important; }
-    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 15% !important; }
+    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 35% !important; }
+    .task-table th:nth-child(2), .task-table td:nth-child(2) { width: 20% !important; }
+    .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 20% !important; }
+    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 25% !important; }
 }
 
 @media (max-width: 768px) {
@@ -4572,11 +4618,13 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
         padding-left: 0 !important;
         padding-right: 0 !important;
     }
-    .task-table .task-status-action-cell .action-buttons {
+
+    .task-table .task-status-actions {
         width: 100%;
-        justify-content: flex-start !important;
+        justify-content: flex-start;
     }
-    .task-table .task-status-action-cell .btn-task-action {
+
+    .task-table .task-status-action-cell > .btn-task-action {
         max-width: 100%;
     }
 }
