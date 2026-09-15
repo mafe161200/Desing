@@ -1,6 +1,6 @@
 /* ============================================================
    DESIGN HUB — APP.JS
-   V6.2 — Historial general de cambios
+   V6.3 — Historial general en lista + solicitudes activas
    ============================================================ */
 
 'use strict';
@@ -240,8 +240,6 @@ const debounce = (callback, delay = 250) => {
 
 /* ============================================================
    ORDEN DE TAREAS
-   Prioridad primero.
-   Después: fecha de recepción más antigua.
    ============================================================ */
 
 const sortTasks = (a, b) => {
@@ -679,13 +677,13 @@ function renderSummary() {
         App.tasks.filter(task => task.status !== 'Entregado');
 
     const course =
-        App.tasks.filter(task => task.status === 'En curso');
+        activeTasks.filter(task => task.status === 'En curso');
 
     const queue =
-        App.tasks.filter(task => task.status === 'En cola');
+        activeTasks.filter(task => task.status === 'En cola');
 
     const overdue =
-        App.tasks.filter(task => isOverdue(task));
+        activeTasks.filter(task => isOverdue(task));
 
     const starred =
         activeTasks.filter(task => task.isStarred);
@@ -784,6 +782,11 @@ function getFilteredTasks() {
 
     return App.tasks
         .filter(task => {
+            /* Las entregadas nunca forman parte de las activas */
+            if (task.status === 'Entregado') {
+                return false;
+            }
+
             if (status !== 'Todos' && task.status !== status) {
                 return false;
             }
@@ -1108,16 +1111,25 @@ async function toggleStar(taskId) {
     if (!task) return;
 
     try {
-        await DataService.updateTask(task.id, {
-            isStarred: !task.isStarred
-        });
+        const newValue = !task.isStarred;
 
-        task.isStarred = !task.isStarred;
+        const updated =
+            await DataService.updateTask(
+                task.id,
+                {
+                    isStarred: newValue
+                }
+            );
+
+        Object.assign(
+            task,
+            normalizeTask(updated)
+        );
 
         renderAll();
 
         showToast(
-            task.isStarred
+            newValue
                 ? 'Solicitud marcada como prioridad.'
                 : 'Prioridad retirada.',
             'success'
@@ -1904,11 +1916,15 @@ function getFilteredChangeHistory() {
     });
 }
 
+/*
+ * El historial general se presenta como una lista visual.
+ * No depende de una tabla comprimida.
+ */
 function renderChangeHistory() {
-    const tbody = $('#changeHistoryTableBody');
+    const container = $('#changeHistoryTableBody');
     const empty = $('#changeHistoryEmpty');
 
-    if (!tbody) return;
+    if (!container) return;
 
     const entries =
         getFilteredChangeHistory();
@@ -1919,7 +1935,7 @@ function renderChangeHistory() {
     );
 
     if (!entries.length) {
-        tbody.innerHTML = '';
+        container.innerHTML = '';
 
         if (empty) {
             empty.style.display = '';
@@ -1932,7 +1948,7 @@ function renderChangeHistory() {
         empty.style.display = 'none';
     }
 
-    tbody.innerHTML =
+    container.innerHTML =
         entries.map(renderChangeHistoryRow).join('');
 
     if (window.lucide) {
@@ -1967,28 +1983,39 @@ function renderChangeHistoryRow(entry) {
         Boolean(entry.before_data);
 
     return `
-        <tr>
-            <td>${escapeHTML(formatDateTime(entry.created_at))}</td>
+        <article
+            class="change-history-item"
+            data-history-id="${escapeHTML(entry.id)}"
+        >
+            <div class="change-history-main">
 
-            <td>
-                <strong>${escapeHTML(title)}</strong>
-            </td>
+                <div class="change-history-date">
+                    <i data-lucide="clock-3" aria-hidden="true"></i>
+                    <span>${escapeHTML(formatDateTime(entry.created_at))}</span>
+                </div>
 
-            <td>
-                <span class="change-operation change-${escapeHTML(entry.operation.toLowerCase())}">
-                    ${escapeHTML(operationLabel)}
-                </span>
-            </td>
+                <div class="change-history-title">
+                    <strong>${escapeHTML(title)}</strong>
+                </div>
 
-            <td>${escapeHTML(userName)}</td>
+                <div class="change-history-meta">
+                    <span class="change-operation change-${escapeHTML(entry.operation.toLowerCase())}">
+                        ${escapeHTML(operationLabel)}
+                    </span>
 
-            <td>
-                <span class="change-detail">
+                    <span class="change-history-user">
+                        <i data-lucide="user-round" aria-hidden="true"></i>
+                        ${escapeHTML(userName)}
+                    </span>
+                </div>
+
+                <div class="change-history-detail">
                     ${escapeHTML(detail)}
-                </span>
-            </td>
+                </div>
 
-            <td>
+            </div>
+
+            <div class="change-history-action">
                 ${
                     canRestore
                         ? `
@@ -1997,15 +2024,16 @@ function renderChangeHistoryRow(entry) {
                             class="btn btn-secondary btn-small"
                             data-action="restore-change"
                             data-history-id="${escapeHTML(entry.id)}"
+                            aria-label="Restaurar ${escapeHTML(title)}"
                         >
                             <i data-lucide="undo-2" aria-hidden="true"></i>
                             Restaurar
                         </button>
                         `
-                        : '—'
+                        : ''
                 }
-            </td>
-        </tr>
+            </div>
+        </article>
     `;
 }
 
@@ -2218,13 +2246,6 @@ function renderMembers() {
     }
 }
 
-/*
- * La creación de usuarios de Supabase Auth no debe hacerse
- * desde el navegador con service_role.
- *
- * El botón de administración se mantiene preparado para que
- * el backend / Edge Function de invitaciones gestione el alta.
- */
 async function handleAddMember(event) {
     event.preventDefault();
 
@@ -2713,7 +2734,11 @@ function showView(view) {
     const changeHistoryView =
         $('#changeHistoryView');
 
-    if (boardSection && boardSection !== historyView && boardSection !== changeHistoryView) {
+    if (
+        boardSection &&
+        boardSection !== historyView &&
+        boardSection !== changeHistoryView
+    ) {
         boardSection.style.display =
             view === 'board'
                 ? ''
@@ -2741,11 +2766,13 @@ function showView(view) {
             'solicitudes-realizadas';
 
         renderHistory();
+
     } else if (view === 'change-history') {
         window.location.hash =
             'historial-cambios';
 
         loadChangeHistory();
+
     } else {
         window.location.hash = '';
 
@@ -3298,6 +3325,8 @@ async function handleDelegatedClick(event) {
             `Mostrando tareas de ${assigned}.`,
             'info'
         );
+
+        return;
     }
 
     const memberDelete =
@@ -3352,16 +3381,9 @@ function applySummaryFilter(type) {
             App.filters.status = 'Todos';
             App.filters.search = '';
 
-            /*
-             * Se muestra un filtro temporal mediante
-             * la clase del tablero.
-             */
             renderTaskBoard();
 
-            const overdueCards =
-                $$('.task-card');
-
-            overdueCards.forEach(card => {
+            $$('.task-card').forEach(card => {
                 const task =
                     App.tasks.find(
                         item =>
