@@ -448,19 +448,32 @@ const DataService = {
         }
     },
 
-    async getChangeHistory(limit = 300) {
+    async getChangeHistory() {
         if (!supabaseClient) return [];
+
         try {
-            const { data, error } = await supabaseClient
-                .from('task_change_history')
-                .select('id, task_id, operation, before_data, after_data, changed_by, created_at')
-                .order('created_at', { ascending: false })
-                .limit(limit);
-            if (error) {
-                console.error('Supabase: no se pudo cargar el historial general.', error);
-                return [];
+            const pageSize = 1000;
+            const history = [];
+
+            for (let from = 0; ; from += pageSize) {
+                const { data, error } = await supabaseClient
+                    .from('task_change_history')
+                    .select('id, task_id, operation, before_data, after_data, changed_by, created_at')
+                    .order('created_at', { ascending: false })
+                    .range(from, from + pageSize - 1);
+
+                if (error) {
+                    console.error('Supabase: no se pudo cargar el historial general.', error);
+                    return [];
+                }
+
+                const page = Array.isArray(data) ? data : [];
+                history.push(...page);
+
+                if (page.length < pageSize) break;
             }
-            return Array.isArray(data) ? data : [];
+
+            return history;
         } catch (error) {
             console.error('Supabase: error cargando historial general.', error);
             return [];
@@ -1560,6 +1573,20 @@ const App = {
                     }
                     break;
 
+                case 'start-task':
+                    if (taskId) {
+                        this.updateTask(taskId, 'status', 'En curso', true);
+                        UI.showToast('Solicitud iniciada', 'success');
+                    }
+                    break;
+
+                case 'finish-task':
+                    if (taskId) {
+                        this.updateTask(taskId, 'status', 'Entregado', true);
+                        UI.showToast('Solicitud finalizada', 'success');
+                    }
+                    break;
+
                 case 'view-task-notes':
                     if (taskId) this.openTaskNotes(taskId);
                     break;
@@ -2239,12 +2266,15 @@ const App = {
             const after = entry.after_data || {};
             const fields = changedFields(entry);
 
-            const item = document.createElement('article');
+            const item = document.createElement('details');
             item.className = 'change-history-item';
             item.setAttribute('role', 'listitem');
             item.dataset.historyId = String(entry.id);
             item.style.animationDelay =
                 `${Math.min(index, 8) * 18}ms`;
+
+            const summary = document.createElement('summary');
+            summary.className = 'change-history-summary';
 
             const main = document.createElement('div');
             main.className = 'change-history-main';
@@ -2306,6 +2336,52 @@ const App = {
             }
 
             main.append(date, title, meta, detail);
+            summary.appendChild(main);
+            item.appendChild(summary);
+
+            const content = document.createElement('div');
+            content.className = 'change-history-content';
+
+            const changes = document.createElement('div');
+            changes.className = 'change-history-changes';
+
+            if (fields.length) {
+                fields.forEach(field => {
+                    const change = document.createElement('div');
+                    change.className = 'change-history-change';
+
+                    const fieldName = document.createElement('span');
+                    fieldName.className = 'change-history-change-field';
+                    fieldName.textContent = labels[field];
+
+                    const beforeValue = document.createElement('span');
+                    beforeValue.className = 'change-history-change-before';
+                    beforeValue.textContent = display(field, before[field]);
+
+                    const arrow = document.createElement('span');
+                    arrow.className = 'change-history-change-arrow';
+                    arrow.setAttribute('aria-hidden', 'true');
+                    arrow.textContent = '→';
+
+                    const afterValue = document.createElement('span');
+                    afterValue.className = 'change-history-change-after';
+                    afterValue.textContent = display(field, after[field]);
+
+                    change.append(fieldName, beforeValue, arrow, afterValue);
+                    changes.appendChild(change);
+                });
+            } else {
+                const change = document.createElement('div');
+                change.className = 'change-history-change';
+                change.textContent = entry.operation === 'INSERT'
+                    ? 'Se creó la solicitud con los datos registrados.'
+                    : entry.operation === 'DELETE'
+                        ? 'Se eliminó la solicitud con los datos registrados.'
+                        : 'No se detectaron campos modificados.';
+                changes.appendChild(change);
+            }
+
+            content.appendChild(changes);
 
             const actions = document.createElement('div');
             actions.className = 'change-history-action';
@@ -2370,7 +2446,8 @@ const App = {
                 actions.appendChild(button);
             }
 
-            item.append(main, actions);
+            content.appendChild(actions);
+            item.appendChild(content);
             fragment.appendChild(item);
         });
 
@@ -3243,9 +3320,30 @@ const App = {
                 </td>
                 <td style="text-align:center;" data-label="Acciones">
                     <div class="action-buttons">
+                        ${t.status === 'En cola' ? `
+                            <button type="button"
+                                    class="btn btn-task-action btn-start-task"
+                                    aria-label="Iniciar solicitud ${escapeHTML(t.name)}"
+                                    title="Iniciar solicitud"
+                                    data-action="start-task"
+                                    data-task-id="${escapeHTML(t.id)}">
+                                <i data-lucide="play" aria-hidden="true"></i>
+                                <span>Iniciar solicitud</span>
+                            </button>
+                        ` : t.status === 'En curso' ? `
+                            <button type="button"
+                                    class="btn btn-task-action btn-finish-task"
+                                    aria-label="Finalizar solicitud ${escapeHTML(t.name)}"
+                                    title="Finalizar solicitud"
+                                    data-action="finish-task"
+                                    data-task-id="${escapeHTML(t.id)}">
+                                <i data-lucide="check" aria-hidden="true"></i>
+                                <span>Finalizar</span>
+                            </button>
+                        ` : ''}
                         <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
-                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
-                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
+                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" title="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3" aria-hidden="true"></i></button>
+                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" title="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2" aria-hidden="true"></i></button>
                     </div>
                 </td>
             `;
