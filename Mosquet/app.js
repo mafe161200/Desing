@@ -1,6 +1,6 @@
 /* ============================================================
    DESIGN HUB — APP.JS
-   V6.3 — Historial general en lista + solicitudes activas
+   V6.2 — Historial general de cambios
    ============================================================ */
 
 'use strict';
@@ -240,6 +240,8 @@ const debounce = (callback, delay = 250) => {
 
 /* ============================================================
    ORDEN DE TAREAS
+   Prioridad primero.
+   Después: fecha de recepción más antigua.
    ============================================================ */
 
 const sortTasks = (a, b) => {
@@ -677,13 +679,13 @@ function renderSummary() {
         App.tasks.filter(task => task.status !== 'Entregado');
 
     const course =
-        activeTasks.filter(task => task.status === 'En curso');
+        App.tasks.filter(task => task.status === 'En curso');
 
     const queue =
-        activeTasks.filter(task => task.status === 'En cola');
+        App.tasks.filter(task => task.status === 'En cola');
 
     const overdue =
-        activeTasks.filter(task => isOverdue(task));
+        App.tasks.filter(task => isOverdue(task));
 
     const starred =
         activeTasks.filter(task => task.isStarred);
@@ -782,7 +784,6 @@ function getFilteredTasks() {
 
     return App.tasks
         .filter(task => {
-            /* Las entregadas nunca forman parte de las activas */
             if (task.status === 'Entregado') {
                 return false;
             }
@@ -1111,25 +1112,16 @@ async function toggleStar(taskId) {
     if (!task) return;
 
     try {
-        const newValue = !task.isStarred;
+        await DataService.updateTask(task.id, {
+            isStarred: !task.isStarred
+        });
 
-        const updated =
-            await DataService.updateTask(
-                task.id,
-                {
-                    isStarred: newValue
-                }
-            );
-
-        Object.assign(
-            task,
-            normalizeTask(updated)
-        );
+        task.isStarred = !task.isStarred;
 
         renderAll();
 
         showToast(
-            newValue
+            task.isStarred
                 ? 'Solicitud marcada como prioridad.'
                 : 'Prioridad retirada.',
             'success'
@@ -1916,15 +1908,11 @@ function getFilteredChangeHistory() {
     });
 }
 
-/*
- * El historial general se presenta como una lista visual.
- * No depende de una tabla comprimida.
- */
 function renderChangeHistory() {
-    const container = $('#changeHistoryTableBody');
+    const tbody = $('#changeHistoryTableBody');
     const empty = $('#changeHistoryEmpty');
 
-    if (!container) return;
+    if (!tbody) return;
 
     const entries =
         getFilteredChangeHistory();
@@ -1934,8 +1922,13 @@ function renderChangeHistory() {
         entries.length
     );
 
+    setText(
+        '#changeHistoryResult',
+        `${entries.length} ${entries.length === 1 ? 'cambio' : 'cambios'}`
+    );
+
     if (!entries.length) {
-        container.innerHTML = '';
+        tbody.innerHTML = '';
 
         if (empty) {
             empty.style.display = '';
@@ -1948,7 +1941,7 @@ function renderChangeHistory() {
         empty.style.display = 'none';
     }
 
-    container.innerHTML =
+    tbody.innerHTML =
         entries.map(renderChangeHistoryRow).join('');
 
     if (window.lucide) {
@@ -1982,61 +1975,72 @@ function renderChangeHistoryRow(entry) {
         entry.operation === 'UPDATE' &&
         Boolean(entry.before_data);
 
+    const operationClass =
+        entry.operation.toLowerCase();
+
+    const iconName =
+        entry.operation === 'INSERT'
+            ? 'plus'
+            : entry.operation === 'DELETE'
+                ? 'trash-2'
+                : 'pencil';
+
     return `
-        <article
-            class="change-history-item"
-            data-history-id="${escapeHTML(entry.id)}"
-        >
-            <div class="change-history-main">
+        <tr class="change-history-list-row">
+            <td colspan="6">
+                <article class="change-history-item">
+                    <div class="change-history-marker change-history-marker-${escapeHTML(operationClass)}" aria-hidden="true">
+                        <i data-lucide="${iconName}"></i>
+                    </div>
 
-                <div class="change-history-date">
-                    <i data-lucide="clock-3" aria-hidden="true"></i>
-                    <span>${escapeHTML(formatDateTime(entry.created_at))}</span>
-                </div>
+                    <div class="change-history-main">
+                        <div class="change-history-heading">
+                            <time class="change-history-date" datetime="${escapeHTML(entry.created_at || '')}">
+                                ${escapeHTML(formatDateTime(entry.created_at))}
+                            </time>
+                            <span class="change-history-operation ${escapeHTML(operationClass)}">
+                                ${escapeHTML(operationLabel)}
+                            </span>
+                        </div>
 
-                <div class="change-history-title">
-                    <strong>${escapeHTML(title)}</strong>
-                </div>
+                        <h3 class="change-history-task">
+                            ${escapeHTML(title)}
+                        </h3>
 
-                <div class="change-history-meta">
-                    <span class="change-operation change-${escapeHTML(entry.operation.toLowerCase())}">
-                        ${escapeHTML(operationLabel)}
-                    </span>
+                        <div class="change-history-meta">
+                            <span class="change-history-user">
+                                <i data-lucide="user-round" aria-hidden="true"></i>
+                                <strong>${escapeHTML(userName)}</strong>
+                            </span>
+                            <span class="change-history-detail">
+                                ${escapeHTML(detail)}
+                            </span>
+                        </div>
+                    </div>
 
-                    <span class="change-history-user">
-                        <i data-lucide="user-round" aria-hidden="true"></i>
-                        ${escapeHTML(userName)}
-                    </span>
-                </div>
-
-                <div class="change-history-detail">
-                    ${escapeHTML(detail)}
-                </div>
-
-            </div>
-
-            <div class="change-history-action">
-                ${
-                    canRestore
-                        ? `
-                        <button
-                            type="button"
-                            class="btn btn-secondary btn-small"
-                            data-action="restore-change"
-                            data-history-id="${escapeHTML(entry.id)}"
-                            aria-label="Restaurar ${escapeHTML(title)}"
-                        >
-                            <i data-lucide="undo-2" aria-hidden="true"></i>
-                            Restaurar
-                        </button>
-                        `
-                        : ''
-                }
-            </div>
-        </article>
+                    <div class="change-history-actions">
+                        ${
+                            canRestore
+                                ? `
+                                <button
+                                    type="button"
+                                    class="btn btn-secondary btn-small change-history-restore"
+                                    data-action="restore-change"
+                                    data-history-id="${escapeHTML(entry.id)}"
+                                    aria-label="Restaurar ${escapeHTML(title)} al estado anterior a este cambio"
+                                >
+                                    <i data-lucide="undo-2" aria-hidden="true"></i>
+                                    Restaurar
+                                </button>
+                                `
+                                : ''
+                        }
+                    </div>
+                </article>
+            </td>
+        </tr>
     `;
 }
-
 function operationLabelFor(operation) {
     switch (operation) {
         case 'INSERT':
@@ -2246,6 +2250,13 @@ function renderMembers() {
     }
 }
 
+/*
+ * La creación de usuarios de Supabase Auth no debe hacerse
+ * desde el navegador con service_role.
+ *
+ * El botón de administración se mantiene preparado para que
+ * el backend / Edge Function de invitaciones gestione el alta.
+ */
 async function handleAddMember(event) {
     event.preventDefault();
 
@@ -2734,11 +2745,7 @@ function showView(view) {
     const changeHistoryView =
         $('#changeHistoryView');
 
-    if (
-        boardSection &&
-        boardSection !== historyView &&
-        boardSection !== changeHistoryView
-    ) {
+    if (boardSection && boardSection !== historyView && boardSection !== changeHistoryView) {
         boardSection.style.display =
             view === 'board'
                 ? ''
@@ -2766,13 +2773,11 @@ function showView(view) {
             'solicitudes-realizadas';
 
         renderHistory();
-
     } else if (view === 'change-history') {
         window.location.hash =
             'historial-cambios';
 
         loadChangeHistory();
-
     } else {
         window.location.hash = '';
 
@@ -3325,8 +3330,6 @@ async function handleDelegatedClick(event) {
             `Mostrando tareas de ${assigned}.`,
             'info'
         );
-
-        return;
     }
 
     const memberDelete =
@@ -3381,9 +3384,16 @@ function applySummaryFilter(type) {
             App.filters.status = 'Todos';
             App.filters.search = '';
 
+            /*
+             * Se muestra un filtro temporal mediante
+             * la clase del tablero.
+             */
             renderTaskBoard();
 
-            $$('.task-card').forEach(card => {
+            const overdueCards =
+                $$('.task-card');
+
+            overdueCards.forEach(card => {
                 const task =
                     App.tasks.find(
                         item =>

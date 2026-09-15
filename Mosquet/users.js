@@ -1,41 +1,36 @@
-/**
- * Design Hub - metadatos visuales de perfiles
- *
- * IMPORTANTE:
- * - Este archivo NO contiene contraseñas.
- * - Este archivo NO define roles ni permisos.
- * - La autenticación y los roles oficiales vienen de Supabase Auth + public.profiles.
- * - Estos datos son únicamente valores visuales de respaldo para la interfaz.
- */
+// Base de datos inicial de usuarios (Simulación de Backend)
+// ADVERTENCIA DE SEGURIDAD: 
+// Las contraseñas en texto plano solo se utilizan para propósitos de demostración.
+// En un entorno de producción, la validación de usuarios debe realizarse
+// mediante un Backend seguro (JWT) y las contraseñas guardadas con hashes (Bcrypt/Argon2).
 
 const INITIAL_USERS = [
-    {
-        username: "admin",
-        email: "admin@designhub.local",
+    { 
+        username: "admin", 
+        password: "Admin_DH2026!", 
+        role: "admin", 
         name: "Administrador General",
-        avatar: "",
         theme: "#4f46e5"
     },
-    {
-        username: "camilo",
-        email: "camilo@designhub.local",
+    { 
+        username: "camilo", 
+        password: "Camilo_DH2026!", 
+        role: "editor", 
         name: "Camilo",
-        avatar: "",
-        theme: "#db2777"
+        theme: "#db2777" 
     },
-    {
-        username: "david",
-        email: "david@designhub.local",
+    { 
+        username: "david", 
+        password: "David_DH2026!", 
+        role: "editor", 
         name: "David",
-        avatar: "",
-        theme: "#ea580c"
+        theme: "#ea580c" 
     },
-    {
-        username: "mafe",
-        email: "mafe@designhub.local",
+    { 
+        username: "mafe", 
+        password: "Mafe_DH2026!", 
+        role: "editor", 
         name: "Mafe",
-        avatar: "",
-        theme: "#0284c7"
+        theme: "#0284c7" 
     }
 ];
-
