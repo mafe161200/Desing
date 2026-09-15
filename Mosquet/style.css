@@ -4237,3 +4237,257 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 @media (prefers-reduced-motion:reduce){
     .change-history-item{animation:none}
 }
+/* =========================================================
+   DESIGN HUB — DASHBOARD FACELIFT
+   Solo presentación visual: no modifica estructura ni lógica.
+   ========================================================= */
+
+/* 1. KPIs: más jerarquía, profundidad y lectura inmediata. */
+.dashboard-summary .summary-card {
+    min-height: 86px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    border-color: rgba(88, 116, 151, .42);
+    background:
+        radial-gradient(circle at 92% 8%, rgba(34, 211, 238, .08), transparent 38%),
+        linear-gradient(145deg, rgba(14, 23, 40, .98), rgba(8, 16, 29, .98));
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.025),
+        0 10px 26px rgba(0,0,0,.20);
+}
+
+.dashboard-summary .summary-card:hover {
+    border-color: rgba(34, 211, 238, .34);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.03),
+        0 14px 30px rgba(0,0,0,.24),
+        0 0 18px rgba(34, 211, 238, .045);
+}
+
+.dashboard-summary .summary-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    background: rgba(34, 211, 238, .09);
+    box-shadow: inset 0 0 0 1px rgba(34,211,238,.08);
+}
+
+.dashboard-summary .summary-card strong {
+    margin-top: 5px;
+    font-size: 1.75rem;
+    line-height: .95;
+    font-weight: 800;
+    letter-spacing: -.035em;
+    text-shadow: 0 0 18px rgba(34,211,238,.08);
+}
+
+.dashboard-summary .summary-label {
+    font-size: .66rem;
+    font-weight: 700;
+    letter-spacing: .085em;
+}
+
+/* 2. Filtros: altura consistente + superficies limpias + focus visible. */
+.inline-filters-bar {
+    padding: 13px 16px;
+    gap: 9px;
+    background: rgba(7, 14, 26, .96);
+}
+
+.inline-filters-bar .custom-input,
+.inline-filters-bar .select-trigger,
+.inline-filter-item .select-trigger,
+.history-filters .custom-input,
+.history-filters .history-select,
+.change-history-filters .custom-input,
+.change-history-filters .history-select {
+    min-height: 38px;
+    height: 38px;
+    box-sizing: border-box;
+    border: 1px solid rgba(88, 116, 151, .42);
+    border-radius: 9px;
+    background: #0a1424;
+    color: #dcecff;
+    transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.inline-filters-bar .custom-input:focus,
+.inline-filters-bar .select-trigger:focus-visible,
+.history-filters .custom-input:focus,
+.history-filters .history-select:focus,
+.change-history-filters .custom-input:focus,
+.change-history-filters .history-select:focus {
+    border-color: #22d3ee !important;
+    background: #0b1729;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, .11);
+}
+
+.inline-filter-item .select-trigger {
+    display: flex;
+    align-items: center;
+}
+
+/* 3. Gráfica vertical: barras más gruesas y con presencia. */
+.history-chart-card-monthly {
+    min-height: 230px;
+}
+
+.history-monthly-chart {
+    height: 158px;
+    gap: 10px;
+    padding: 8px 6px 0;
+}
+
+.history-month {
+    gap: 7px;
+}
+
+.history-month-bar-wrap {
+    height: 128px;
+    border-bottom-color: rgba(88, 116, 151, .26);
+}
+
+.history-month-bar {
+    width: min(40px, 76%);
+    min-height: 10px;
+    border-radius: 8px 8px 3px 3px;
+    background: linear-gradient(180deg, #67e8f9 0%, #22d3ee 58%, #0891b2 100%);
+    box-shadow:
+        0 0 14px rgba(34, 211, 238, .22),
+        inset 0 1px 0 rgba(255,255,255,.16);
+}
+
+.history-month-bar-wrap strong {
+    top: -1px;
+    font-size: .70rem;
+    font-weight: 800;
+}
+
+.history-month-label {
+    font-size: .67rem;
+    font-weight: 700;
+}
+
+/* 4. Barras horizontales: verdadero progreso 0–100%. */
+.history-bars {
+    gap: 15px;
+    padding-top: 2px;
+}
+
+.history-bar-row {
+    padding: 1px 0;
+}
+
+.history-bar-top {
+    margin-bottom: 7px;
+    gap: 12px;
+}
+
+.history-bar-label {
+    color: #a9bad0;
+    font-size: .70rem;
+    font-weight: 600;
+}
+
+.history-bar-top strong {
+    color: #e6f3ff;
+    font-size: .72rem;
+    font-weight: 800;
+}
+
+.history-bar-track {
+    position: relative;
+    height: 9px;
+    overflow: hidden;
+    border: 1px solid rgba(88, 116, 151, .20);
+    border-radius: 6px;
+    background: rgba(71, 85, 105, .20);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.30);
+}
+
+.history-bar-fill {
+    height: 100%;
+    min-width: 7px;
+    border-radius: 5px;
+    opacity: 1;
+    background: linear-gradient(90deg, #0891b2 0%, #22d3ee 65%, #67e8f9 100%);
+    box-shadow:
+        0 0 12px rgba(34, 211, 238, .28),
+        inset 0 1px 0 rgba(255,255,255,.15);
+}
+
+/* 5. Profundidad y aire en paneles de analítica. */
+.history-analytics {
+    padding: 0 24px 22px;
+}
+
+.history-analytics-grid {
+    gap: 14px;
+}
+
+.history-chart-card {
+    padding: 17px 18px;
+    border-radius: 16px;
+    border-color: rgba(88, 116, 151, .36);
+    background:
+        linear-gradient(145deg, rgba(10, 19, 34, .98), rgba(6, 14, 25, .98));
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.018),
+        0 12px 28px rgba(0,0,0,.17);
+}
+
+.history-chart-title {
+    margin-bottom: 15px;
+    color: #a8bbd2;
+    font-size: .69rem;
+    font-weight: 750;
+    letter-spacing: .055em;
+}
+
+.card,
+.sidebar-card,
+.workload-card,
+.summary-card {
+    border-radius: 16px;
+}
+
+.card-header {
+    padding: 18px 22px;
+}
+
+/* Mantener legibilidad y proporciones en pantallas pequeñas. */
+@media (max-width: 900px) {
+    .dashboard-summary .summary-card {
+        min-height: 78px;
+        padding: 13px 14px;
+    }
+
+    .dashboard-summary .summary-card strong {
+        font-size: 1.45rem;
+    }
+
+    .history-monthly-chart {
+        gap: 7px;
+    }
+
+    .history-month-bar {
+        width: min(32px, 72%);
+    }
+}
+
+@media (max-width: 620px) {
+    .dashboard-summary .summary-card {
+        min-height: 74px;
+        border-radius: 13px;
+    }
+
+    .dashboard-summary .summary-card strong {
+        font-size: 1.30rem;
+    }
+
+    .history-chart-card {
+        border-radius: 13px;
+        padding: 15px;
+    }
+}
