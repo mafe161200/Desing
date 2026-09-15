@@ -3974,34 +3974,174 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 
 /* =========================================================
    V6.2 — HISTORIAL GENERAL DE CAMBIOS
-   Lista visual, legible y accesible
    ========================================================= */
 .sidebar-navigation{margin-top:12px}
-.sidebar-nav-button{width:100%;min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;border:1px solid #203650;border-radius:10px;background:#081321;color:#c5d5e8;font:inherit;font-size:.82rem;font-weight:700;cursor:pointer;transition:border-color .16s ease,background-color .16s ease,color .16s ease}.sidebar-nav-button span{display:inline-flex;align-items:center;gap:8px}.sidebar-nav-button svg{width:17px;height:17px}.sidebar-nav-button span svg{color:#22d3ee}.sidebar-nav-button:hover{background:#0c1a2b;border-color:#31506e;color:#eef7ff}.sidebar-nav-button:focus-visible{outline:3px solid #67e8f9;outline-offset:2px}
-.change-history-filter-panel{margin:0 24px 20px;padding:18px;border:1px solid #20334e;border-radius:14px;background:#08111f}
-.change-history-filters{display:grid;grid-template-columns:minmax(260px,1.6fr) repeat(4,minmax(135px,1fr)) auto;gap:12px;align-items:end}
-.change-history-table-wrap{margin:0 24px 28px;overflow:hidden;border:1px solid #203550;border-radius:14px;background:#07111e}
-.change-history-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
-.change-history-table thead{display:none}
-.change-history-table tbody{display:block;width:100%}
-.change-history-table .change-history-list-row{display:block;width:100%;margin:0;background:#081321;border-bottom:1px solid #1b2d45;transition:background-color .16s ease}
-.change-history-table .change-history-list-row:last-child{border-bottom:0}
-.change-history-table .change-history-list-row:hover{background:#0b1828}
-.change-history-table .change-history-list-row>td{display:block;width:100%;box-sizing:border-box;padding:0;border:0;color:inherit}
-.change-history-item{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:14px;align-items:center;padding:20px 22px;min-width:0}
-.change-history-marker{width:36px;height:36px;display:flex;align-items:center;justify-content:center;margin-top:1px;border:1px solid #29415d;border-radius:50%;background:#0b1727}.change-history-marker svg{width:18px;height:18px}
-.change-history-marker-insert{color:#6ee7b7;border-color:rgba(110,231,183,.35);background:rgba(16,185,129,.10)}
-.change-history-marker-update{color:#67e8f9;border-color:rgba(103,232,249,.35);background:rgba(34,211,238,.10)}
-.change-history-marker-delete{color:#fb7185;border-color:rgba(251,113,133,.35);background:rgba(244,63,94,.10)}
-.change-history-main{min-width:0}
-.change-history-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px}
-.change-history-date{color:#a9bdd5;font-size:.84rem;font-weight:600;line-height:1.35}
-.change-history-operation{display:inline-flex;align-items:center;min-height:27px;padding:4px 10px;border:1px solid #2a405d;border-radius:999px;font-size:.75rem;font-weight:800;white-space:nowrap}.change-history-operation.insert{color:#6ee7b7;border-color:rgba(110,231,183,.35);background:rgba(16,185,129,.08)}.change-history-operation.update{color:#67e8f9;border-color:rgba(103,232,249,.35);background:rgba(34,211,238,.08)}.change-history-operation.delete{color:#fb7185;border-color:rgba(251,113,133,.35);background:rgba(244,63,94,.08)}
-.change-history-task{margin:0;color:#f1f7ff;font-size:1rem;font-weight:750;line-height:1.42;overflow-wrap:anywhere}
-.change-history-meta{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:8px;color:#a8bad0;font-size:.84rem;line-height:1.45}.change-history-meta>span{display:inline-flex;align-items:center;gap:6px}.change-history-meta svg{width:15px;height:15px;color:#718aa6}.change-history-user strong{color:#dcecff;font-weight:700}.change-history-detail{color:#d0deed;font-weight:600}
-.change-history-actions{display:flex;align-items:center;justify-content:flex-end;min-width:110px}.change-history-restore{font-size:.78rem!important;min-height:38px}.change-history-restore svg{width:16px;height:16px}
-.change-history-empty{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:34px;text-align:center;color:#9aafc7}.change-history-empty svg{width:32px;height:32px;color:#4e6783}.change-history-empty strong{color:#e5effb;font-size:.94rem}.change-history-empty span{max-width:480px;font-size:.8rem;line-height:1.55}
-@media(max-width:1180px){.change-history-filters{grid-template-columns:repeat(3,minmax(150px,1fr))}.change-history-filters .history-search{grid-column:1/-1}}
-@media(max-width:760px){.change-history-filter-panel{margin:0 14px 16px;padding:14px}.change-history-table-wrap{margin:0 14px 20px}.change-history-filters{grid-template-columns:1fr}.change-history-filters .history-search{grid-column:auto}.change-history-item{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:16px}.change-history-marker{width:32px;height:32px}.change-history-marker svg{width:16px;height:16px}.change-history-actions{grid-column:2;justify-content:flex-start;min-width:0}.change-history-task{font-size:.94rem}.change-history-date{font-size:.8rem}.change-history-meta{font-size:.78rem;gap:10px}}
-@media(max-width:480px){.change-history-heading{gap:7px}.change-history-operation{font-size:.69rem}.change-history-item{padding:14px}.change-history-detail{width:100%}}
-@media(prefers-reduced-motion:reduce){.change-history-table .change-history-list-row{transition:none!important}}
+.sidebar-nav-button{width:100%;min-height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #203650;border-radius:9px;background:#081321;color:#b9cce3;font:inherit;font-size:.73rem;font-weight:700;cursor:pointer;transition:border-color .16s ease,background-color .16s ease,color .16s ease}
+.sidebar-nav-button span{display:inline-flex;align-items:center;gap:8px}.sidebar-nav-button svg{width:16px;height:16px}.sidebar-nav-button span svg{color:#22d3ee}.sidebar-nav-button:hover{background:#0c1a2b;border-color:#31506e;color:#eef7ff}.sidebar-nav-button:focus-visible{outline:3px solid #67e8f9;outline-offset:2px}
+.change-history-filter-panel{margin:0 24px 18px;padding:14px;border:1px solid #20334e;border-radius:12px;background:#08111f}
+.change-history-filters{display:grid;grid-template-columns:minmax(220px,1.5fr) repeat(4,minmax(120px,1fr)) auto;gap:10px;align-items:end}
+.change-history-table-wrap{margin:0 24px 24px;overflow-x:auto;border:1px solid #203550;border-radius:12px;background:#07111e}
+.change-history-table{width:100%;min-width:860px;border-collapse:collapse;font-size:.69rem}.change-history-table th{padding:10px 12px;border-bottom:1px solid #263d59;background:#0b1727;color:#9fb4ce;font-size:.63rem;font-weight:750;text-align:left;white-space:nowrap}.change-history-table td{padding:11px 12px;border-bottom:1px solid #182a40;color:#cbd9e9;vertical-align:top}.change-history-table tbody tr{animation:historyRowIn .2s ease both;transition:background-color .15s ease}.change-history-table tbody tr:hover{background:#0b1828}.change-history-table tbody tr:last-child td{border-bottom:0}
+.change-history-task{max-width:300px;color:#eef6ff!important;font-weight:700;overflow-wrap:anywhere}.change-history-operation{display:inline-flex;align-items:center;min-height:25px;padding:4px 8px;border:1px solid #2a405d;border-radius:999px;font-size:.61rem;font-weight:800;white-space:nowrap}.change-history-operation.insert{color:#6ee7b7;border-color:rgba(110,231,183,.35);background:rgba(16,185,129,.08)}.change-history-operation.update{color:#67e8f9;border-color:rgba(103,232,249,.35);background:rgba(34,211,238,.08)}.change-history-operation.delete{color:#fb7185;border-color:rgba(251,113,133,.35);background:rgba(244,63,94,.08)}
+.change-history-diff-cell{min-width:300px;color:#aebfd2!important}.change-history-diff-line{line-height:1.45;overflow-wrap:anywhere}.change-history-more{margin-top:3px;color:#7288a3;font-size:.62rem}.change-history-actions{text-align:right;white-space:nowrap}.change-history-restore{color:#67e8f9;font-weight:750}
+.change-history-empty{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:30px;text-align:center;color:#8fa5bf}.change-history-empty svg{width:30px;height:30px;color:#4e6783}.change-history-empty strong{color:#dce8f7;font-size:.82rem}.change-history-empty span{max-width:420px;font-size:.68rem;line-height:1.5}
+@media(max-width:1100px){.change-history-filters{grid-template-columns:repeat(3,minmax(150px,1fr))}.change-history-filters .history-search{grid-column:1/-1}}
+@media(max-width:620px){.change-history-filter-panel{margin:0 10px 14px}.change-history-filters{grid-template-columns:1fr}.change-history-filters .history-search{grid-column:auto}.change-history-table-wrap{margin:0 10px 14px}}
+@media(prefers-reduced-motion:reduce){.change-history-table tbody tr{animation:none!important;transition:none!important}}
+
+
+/* ============================================================
+   V6.4 — HISTORIAL GENERAL COMO LISTA LEGIBLE
+   ============================================================ */
+
+.change-history-list-wrap{
+    margin:0 24px 28px;
+    overflow:hidden;
+    border:1px solid #203550;
+    border-radius:14px;
+    background:#07111e;
+}
+
+.change-history-list{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+}
+
+.change-history-item{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:20px;
+    align-items:center;
+    padding:20px 22px;
+    min-width:0;
+    border-bottom:1px solid #1c3048;
+    background:#091423;
+    animation:changeHistoryItemIn .22s ease both;
+}
+
+.change-history-item:last-child{border-bottom:0}
+.change-history-item:hover{background:#0c1929}
+
+.change-history-main{
+    min-width:0;
+    display:grid;
+    gap:7px;
+}
+
+.change-history-date{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:#a9bbcf;
+    font-size:.9rem;
+    line-height:1.4;
+}
+
+.change-history-title{
+    min-width:0;
+    color:#f4f8fc;
+    font-size:1.08rem;
+    font-weight:700;
+    line-height:1.4;
+    overflow-wrap:anywhere;
+}
+
+.change-history-meta{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:9px;
+    color:#b9c8d8;
+    font-size:.92rem;
+    line-height:1.4;
+}
+
+.change-history-operation{
+    display:inline-flex;
+    align-items:center;
+    min-height:28px;
+    padding:3px 9px;
+    border:1px solid #35506b;
+    border-radius:999px;
+    font-size:.82rem;
+    font-weight:700;
+}
+
+.change-history-operation.insert{
+    color:#07110b;
+    background:#72e0a3;
+    border-color:#72e0a3;
+}
+
+.change-history-operation.update{
+    color:#07111d;
+    background:#68d5f4;
+    border-color:#68d5f4;
+}
+
+.change-history-operation.delete{
+    color:#fff;
+    background:#8f3d55;
+    border-color:#a94c68;
+}
+
+.change-history-user{color:#c8d5e2}
+
+.change-history-detail{
+    color:#d5e0ea;
+    font-size:.95rem;
+    line-height:1.55;
+    overflow-wrap:anywhere;
+}
+
+.change-history-action{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    flex:0 0 auto;
+}
+
+.change-history-restore{
+    min-height:40px;
+    padding:8px 13px;
+    font-size:.9rem;
+    white-space:nowrap;
+}
+
+.change-history-empty{padding:44px 24px;text-align:center}
+.change-history-empty strong{
+    display:block;
+    margin-top:10px;
+    color:#f4f8fc;
+    font-size:1.05rem;
+}
+.change-history-empty span{
+    display:block;
+    margin-top:6px;
+    color:#a9bbcf;
+    font-size:.95rem;
+    line-height:1.5;
+}
+
+@keyframes changeHistoryItemIn{
+    from{opacity:0;transform:translateY(5px)}
+    to{opacity:1;transform:translateY(0)}
+}
+
+@media (max-width:760px){
+    .change-history-list-wrap{margin:0 14px 22px}
+    .change-history-item{
+        grid-template-columns:1fr;
+        gap:14px;
+        padding:17px 16px;
+    }
+    .change-history-action{justify-content:flex-start}
+    .change-history-restore{width:100%}
+    .change-history-title{font-size:1rem}
+    .change-history-detail,.change-history-meta{font-size:.9rem}
+}
+
+@media (prefers-reduced-motion:reduce){
+    .change-history-item{animation:none}
+}

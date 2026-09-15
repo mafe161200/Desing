@@ -1,3956 +1,3420 @@
-/* ============================================================
-   DESIGN HUB — APP.JS
-   V6.2 — Historial general de cambios
-   ============================================================ */
+lucide.createIcons();
 
-'use strict';
-
-/* ============================================================
-   CONFIGURACIÓN
-   ============================================================ */
-
-const SUPABASE_URL = 'https://gbltrfqxohrmkopanghx.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU';
-
-const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-);
-
-/* ============================================================
-   ESTADO GLOBAL
-   ============================================================ */
-
-const App = {
-    currentUser: null,
-    profile: null,
-    members: [],
-    requesters: [],
-    tasks: [],
-    notes: [],
-    changeHistory: [],
-
-    filters: {
-        search: '',
-        status: 'Todos'
-    },
-
-    historyFilters: {
-        search: '',
-        status: 'Todos',
-        from: '',
-        to: ''
-    },
-
-    changeHistoryFilters: {
-        search: '',
-        from: '',
-        to: '',
-        user: 'Todos',
-        operation: 'Todos'
-    },
-
-    currentView: 'board',
-
-    realtimeChannels: [],
-
-    editingTaskId: null,
-    cropper: null,
-    cropFileData: null,
-
-    initialized: false
+/* =========================================
+   UTILITIES & UI CORE (Seguridad y Sanitización)
+   ========================================= */
+const escapeHTML = (str) => {
+    if (!str) return '';
+    const entityMap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+        '/': '&#x2F;',
+        '`': '&#x60;',
+        '=': '&#x3D;'
+    };
+    return String(str).replace(/[&<>"'`=\/]/g, s => entityMap[s]);
 };
 
-/* ============================================================
-   UTILIDADES
-   ============================================================ */
+const CONFIG = Object.freeze({
+    supabaseUrl: "https://gbltrfqxohrmkopanghx.supabase.co",
+    supabasePublishableKey: "sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU"
+});
 
-const $ = (selector) => document.querySelector(selector);
+const LEGACY_LOCAL_STORAGE_KEYS = Object.freeze([
+    'db_tasks',
+    'db_notes',
+    'db_members',
+    'db_reqs',
+    'dh_first_load'
+]);
 
-const $$ = (selector) => Array.from(document.querySelectorAll(selector));
-
-const escapeHTML = (value) => {
-    const div = document.createElement('div');
-    div.textContent = value == null ? '' : String(value);
-    return div.innerHTML;
-};
-
-const normalizeText = (value) =>
-    String(value ?? '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim();
-
-const formatDate = (value) => {
-    if (!value) return '—';
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) return '—';
-
-    return new Intl.DateTimeFormat('es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    }).format(date);
-};
-
-const formatDateTime = (value) => {
-    if (!value) return '—';
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) return '—';
-
-    return new Intl.DateTimeFormat('es-CO', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(date);
-};
-
-const dateValue = (value) => {
-    if (!value) return Number.MAX_SAFE_INTEGER;
-
-    const date = new Date(value);
-    const time = date.getTime();
-
-    return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
-};
-
-const todayStart = () => {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    return date;
-};
-
-const isOverdue = (task) => {
-    if (!task || task.status === 'Entregado') return false;
-
-    if (!task.dateDue) return false;
-
-    return dateValue(task.dateDue) < todayStart().getTime();
-};
-
-const getInitials = (name) => {
-    const clean = String(name || '').trim();
-
-    if (!clean) return '?';
-
-    const parts = clean.split(/\s+/).filter(Boolean);
-
-    if (parts.length === 1) {
-        return parts[0].slice(0, 2).toUpperCase();
+const clearLegacyLocalData = () => {
+    try {
+        LEGACY_LOCAL_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+    } catch (error) {
+        console.warn('No fue posible limpiar datos locales heredados.', error);
     }
+};
+
+const normalizeText = (value) => String(value ?? '').trim();
+
+const getInitials = (value) => {
+    const parts = normalizeText(value)
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
 
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 };
 
-const getMemberById = (id) =>
-    App.members.find(member => String(member.id) === String(id));
+const normalizeUsername = (value) => normalizeText(value).toLowerCase();
 
-const getMemberByName = (name) =>
-    App.members.find(member => normalizeText(member.name) === normalizeText(name));
+const createId = () => (
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+);
 
-const getRequesterById = (id) =>
-    App.requesters.find(requester => String(requester.id) === String(id));
-
-const getRequesterName = (id) => {
-    const requester = getRequesterById(id);
-    return requester?.name || 'Sin solicitante';
+const sanitizeThemeColor = (value, fallback = '#4f46e5') => {
+    const color = normalizeText(value);
+    return /^#[0-9a-fA-F]{6}$/.test(color) ? color : fallback;
 };
 
-const getMemberName = (id) => {
-    const member = getMemberById(id);
-    return member?.name || 'Sin asignar';
-};
+const sanitizeAvatarUrl = (value) => {
+    const url = normalizeText(value);
+    if (!url) return '';
 
-const getCurrentUserName = () =>
-    App.profile?.name ||
-    App.currentUser?.email?.split('@')[0] ||
-    'Usuario';
+    if (url.startsWith('data:image/')) return url;
 
-const isAdmin = () =>
-    App.profile?.role === 'admin';
-
-const isEditor = () =>
-    App.profile?.role === 'editor' || isAdmin();
-
-const showToast = (message, type = 'info') => {
-    const container = $('#toastContainer');
-
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-
-    const iconName = {
-        success: 'check-circle-2',
-        error: 'circle-alert',
-        warning: 'triangle-alert',
-        info: 'info'
-    }[type] || 'info';
-
-    toast.innerHTML = `
-        <i data-lucide="${iconName}" aria-hidden="true"></i>
-        <span>${escapeHTML(message)}</span>
-    `;
-
-    container.appendChild(toast);
-
-    if (window.lucide) {
-        window.lucide.createIcons();
+    try {
+        const parsed = new URL(url, window.location.origin);
+        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+            return parsed.href;
+        }
+    } catch (error) {
+        console.warn('URL de avatar inválida.', error);
     }
 
-    window.setTimeout(() => {
-        toast.classList.add('toast-hide');
-
-        window.setTimeout(() => {
-            toast.remove();
-        }, 250);
-    }, 3500);
+    return '';
 };
 
-const handleSupabaseError = (error, fallbackMessage = 'No fue posible completar la operación.') => {
-    console.error(error);
+// ----------------------------------------------------------------------
+// CONFIGURACIÓN SUPABASE
+// ----------------------------------------------------------------------
+let supabaseClient = null;
 
-    const message =
-        error?.message ||
-        error?.details ||
-        error?.hint ||
-        fallbackMessage;
+if (CONFIG.supabaseUrl && typeof supabase !== 'undefined') {
+    try {
+        supabaseClient = supabase.createClient(
+            CONFIG.supabaseUrl,
+            CONFIG.supabasePublishableKey
+        );
+    } catch (error) {
+        console.warn("Error al inicializar Supabase.", error);
+    }
+}
 
-    showToast(message, 'error');
-};
+class UI {
+    static showToast(message, type = 'info', duration = 8000, onClickCallback = null, persistent = false) {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
 
-const debounce = (callback, delay = 250) => {
-    let timeout;
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}${persistent ? ' toast-persistent' : ''}`;
 
-    return (...args) => {
-        window.clearTimeout(timeout);
+        let icon = 'info';
+        if (type === 'success') icon = 'check-circle';
+        if (type === 'error') icon = 'alert-circle';
+        if (type === 'warning') icon = 'alert-triangle';
 
-        timeout = window.setTimeout(() => {
-            callback(...args);
-        }, delay);
-    };
-};
+        const iconEl = document.createElement('i');
+        iconEl.setAttribute('data-lucide', icon);
+        iconEl.setAttribute('aria-hidden', 'true');
 
-/* ============================================================
-   ORDEN DE TAREAS
-   Prioridad primero.
-   Después: fecha de recepción más antigua.
-   ============================================================ */
+        const content = document.createElement('span');
+        content.className = 'toast-message';
+        content.textContent = message;
 
-const sortTasks = (a, b) => {
-    if (a.isStarred && !b.isStarred) return -1;
+        const closeButton = document.createElement('button');
+        closeButton.type = 'button';
+        closeButton.className = 'toast-close';
+        closeButton.setAttribute('aria-label', 'Cerrar notificación');
+        closeButton.title = 'Cerrar';
+        closeButton.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
 
-    if (!a.isStarred && b.isStarred) return 1;
+        closeButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toast.classList.add('fade-out');
+            setTimeout(() => {
+                if (toast.parentElement) toast.remove();
+            }, 250);
+        });
 
-    const receivedDiff =
-        dateValue(a.dateReceived) -
-        dateValue(b.dateReceived);
+        toast.appendChild(iconEl);
+        toast.appendChild(content);
+        toast.appendChild(closeButton);
 
-    if (receivedDiff !== 0) {
-        return receivedDiff;
+        if (onClickCallback) {
+            toast.classList.add('toast-clickable');
+            toast.title = 'Haz clic para ir a la tarea';
+            toast.addEventListener('click', (event) => {
+                if (event.target.closest('.toast-close')) return;
+                onClickCallback();
+            });
+        }
+
+        container.appendChild(toast);
+        lucide.createIcons();
+
+        if (!persistent) {
+            setTimeout(() => {
+                if (!toast.parentElement) return;
+                toast.classList.add('fade-out');
+                setTimeout(() => {
+                    if (toast.parentElement) toast.remove();
+                }, 250);
+            }, duration);
+        }
     }
 
-    const deliveryDiff =
-        dateValue(a.dateDelivered) -
-        dateValue(b.dateDelivered);
-
-    if (deliveryDiff !== 0) {
-        return deliveryDiff;
+    static updateConnectionStatus(isOnline, errMessage = null) {
+        const el = document.getElementById('connectionStatus');
+        const txt = document.getElementById('statusText');
+        if (!el || !txt) return;
+        
+        if (isOnline) {
+            el.classList.add('online');
+            txt.textContent = 'En línea (Nube)';
+        } else {
+            el.classList.remove('online');
+            txt.textContent = 'Modo Local';
+            if (errMessage) console.error("Conexión rechazada:", errMessage);
+        }
     }
+}
 
-    return String(a.id).localeCompare(String(b.id));
+// ----------------------------------------------------------------------
+// SERVICIO DE NOTIFICACIONES (Clean Architecture)
+// ----------------------------------------------------------------------
+const NotificationService = {
+    checkStartupAlerts: (tasks, userName) => {
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        
+        // Enrutamiento Visual (Callback para ir a la tarea)
+        const highlightTask = (taskId) => {
+            // Limpiamos filtros para asegurar que la tarea se muestre
+            document.getElementById('filterAssignee').value = 'Todos';
+            document.getElementById('filterRequester').value = 'Todos';
+            document.getElementById('filterStatus').value = 'Todos';
+            App.filterDates = [];
+            const fpInput = document.getElementById('filterDate');
+            if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
+            
+            App.renderBoard(); // Forzar renderizado sin filtros
+            
+            setTimeout(() => {
+                // Buscamos la fila en la tabla principal
+                const row = document.getElementById(`tr-${taskId}`);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.remove('task-highlight-pulse');
+                    void row.offsetWidth; // Reflow
+                    row.classList.add('task-highlight-pulse');
+                    setTimeout(() => row.classList.remove('task-highlight-pulse'), 3000);
+                }
+                // Si la pantalla es pequeña y estamos viendo el sidebar, también la buscamos ahí
+                const li = document.getElementById(`li-${taskId}`);
+                if (li && window.innerWidth <= 980) {
+                     li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                     li.classList.remove('task-highlight-pulse');
+                     void li.offsetWidth;
+                     li.classList.add('task-highlight-pulse');
+                     setTimeout(() => li.classList.remove('task-highlight-pulse'), 3000);
+                }
+            }, 100);
+        };
+
+        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && t.dateDelivered);
+        if (myPendingTasks.length > 0) {
+            myPendingTasks.sort((a, b) => new Date(a.dateDelivered).getTime() - new Date(b.dateDelivered).getTime());
+            const nearest = myPendingTasks[0];
+            const callback = () => highlightTask(nearest.id);
+            
+            if (nearest.dateDelivered < todayStr) {
+                 setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error', 8000, callback, true), 1000);
+            } else if (nearest.dateDelivered === todayStr) {
+                 setTimeout(() => UI.showToast(`Tu tarea más próxima es para hoy: ${nearest.name}`, 'warning', 8000, callback), 1000);
+            } else {
+                 setTimeout(() => UI.showToast(`Próxima entrega: ${nearest.name} el ${nearest.dateDelivered.split('-').reverse().join('/')}`, 'info', 8000, callback), 1000);
+            }
+        }
+
+        const unassigned = tasks.filter(t => t.assignee === 'No asignado' && t.status !== 'Entregado' && t.dateReceived);
+        const oldUnassigned = unassigned.filter(t => {
+            const recDate = new Date(t.dateReceived);
+            const diffTime = Math.abs(now - recDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays > 3;
+        });
+
+        if (oldUnassigned.length > 0) {
+            setTimeout(() => UI.showToast(`Hay ${oldUnassigned.length} tarea(s) sin asignar desde hace más de 3 días.`, 'warning', 8000, null), 2500);
+        }
+    }
 };
 
-/* ============================================================
-   DATA SERVICE
-   ============================================================ */
-
+/* =========================================
+   CAPA DE SERVICIOS (PERSISTENCIA Y AUTH)
+   ========================================= */
 const DataService = {
+    async getUsers() {
+        if (!supabaseClient) {
+            console.error('Supabase no está disponible. No se cargarán perfiles locales.');
+            return [];
+        }
 
-    async getCurrentUser() {
-        const { data, error } =
-            await supabaseClient.auth.getUser();
+        try {
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('id, username, email, name, role, avatar, theme, created_at')
+                .order('username', { ascending: true });
 
-        if (error) throw error;
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los perfiles.', error);
+                UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
+                return [];
+            }
 
-        return data?.user || null;
+            return (data || []).map(profile => ({
+                id: profile.id,
+                username: normalizeUsername(profile.username),
+                email: normalizeText(profile.email),
+                name: normalizeText(profile.name),
+                role: profile.role === 'admin' ? 'admin' : 'editor',
+                avatar: sanitizeAvatarUrl(profile.avatar),
+                theme: sanitizeThemeColor(profile.theme),
+                created_at: profile.created_at
+            }));
+        } catch (error) {
+            console.error('Supabase: error cargando perfiles.', error);
+            UI.showToast('No se pudieron cargar los perfiles del equipo.', 'error');
+            return [];
+        }
     },
 
-    async getProfile(userId) {
-        const { data, error } = await supabaseClient
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .maybeSingle();
+    async getProfileByAuthId(authId) {
+        if (!supabaseClient || !authId) return null;
 
-        if (error) throw error;
+        try {
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('id, username, email, name, role, avatar, theme, created_at')
+                .eq('id', authId)
+                .maybeSingle();
 
-        return data;
+            if (error) {
+                console.error('Supabase: no se pudo cargar el perfil.', error);
+                return null;
+            }
+
+            if (!data) return null;
+
+            return {
+                id: data.id,
+                username: normalizeUsername(data.username),
+                email: normalizeText(data.email),
+                name: normalizeText(data.name),
+                role: data.role === 'admin' ? 'admin' : 'editor',
+                avatar: sanitizeAvatarUrl(data.avatar),
+                theme: sanitizeThemeColor(data.theme),
+                created_at: data.created_at
+            };
+        } catch (error) {
+            console.error('Supabase: error cargando el perfil.', error);
+            return null;
+        }
     },
 
-    async getMembers() {
-        const { data, error } = await supabaseClient
-            .from('profiles')
-            .select('*')
-            .order('name', { ascending: true });
+    async updateProfile(authId, changes) {
+        if (!supabaseClient || !authId) return false;
 
-        if (error) throw error;
+        const payload = {
+            avatar: sanitizeAvatarUrl(changes?.avatar),
+            theme: sanitizeThemeColor(changes?.theme)
+        };
 
-        return data || [];
-    },
+        try {
+            const { error } = await supabaseClient
+                .from('profiles')
+                .update(payload)
+                .eq('id', authId);
 
-    async getRequesters() {
-        const { data, error } = await supabaseClient
-            .from('requesters')
-            .select('*')
-            .order('name', { ascending: true });
+            if (error) {
+                console.error('Supabase: no se pudo actualizar el perfil.', error);
+                return false;
+            }
 
-        if (error) throw error;
-
-        return data || [];
+            return true;
+        } catch (error) {
+            console.error('Supabase: error actualizando el perfil.', error);
+            return false;
+        }
     },
 
     async getTasks() {
-        const { data, error } = await supabaseClient
-            .from('tasks')
-            .select('*');
+        if (!supabaseClient) {
+            UI.updateConnectionStatus(false);
+            return [];
+        }
 
-        if (error) throw error;
+        try {
+            const { data, error } = await supabaseClient
+                .from('tasks')
+                .select('*')
+                .order('created_at', { ascending: true });
 
-        return data || [];
+            if (error) {
+                UI.updateConnectionStatus(false, error.message);
+                console.error('Supabase: no se pudieron cargar las tareas.', error);
+                return [];
+            }
+
+            UI.updateConnectionStatus(true);
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            UI.updateConnectionStatus(false, error.message);
+            console.error('Supabase: error cargando tareas.', error);
+            return [];
+        }
     },
 
-    async getNotes() {
-        const { data, error } = await supabaseClient
-            .from('notes')
-            .select('*')
-            .order('created_at', { ascending: true });
+    async saveTasks(tasks, originalTasks = []) {
+        if (!supabaseClient) {
+            UI.updateConnectionStatus(false, 'Supabase no está disponible.');
+            return { cloudSaved: false, error: new Error('Supabase no está disponible.') };
+        }
 
-        if (error) throw error;
+        const safeTasks = Array.isArray(tasks) ? tasks : [];
+        const safeOriginal = Array.isArray(originalTasks) ? originalTasks : [];
+        const byId = new Map(safeOriginal.map(task => [String(task.id), task]));
+        const currentIds = new Set(safeTasks.map(task => String(task.id)));
 
-        return data || [];
+        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
+        const buildPayload = (task) => {
+            const payload = { id: task.id };
+            fields.forEach(field => {
+                payload[field] = task[field] ?? (field === 'isStarred' ? false : '');
+            });
+            return payload;
+        };
+
+        try {
+            const inserted = safeTasks.filter(task => !byId.has(String(task.id)));
+            const updated = safeTasks.filter(task => {
+                const oldTask = byId.get(String(task.id));
+                if (!oldTask) return false;
+                return fields.some(field => String(task[field] ?? '') !== String(oldTask[field] ?? ''));
+            });
+            const deleted = safeOriginal.filter(task => !currentIds.has(String(task.id)));
+
+            if (inserted.length) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .insert(inserted.map(buildPayload))
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== inserted.length) {
+                    throw new Error('Supabase no confirmó todas las tareas nuevas.');
+                }
+            }
+
+            for (const task of updated) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .update(buildPayload(task))
+                    .eq('id', task.id)
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== 1) {
+                    throw new Error(`Supabase no confirmó la actualización de la tarea ${task.id}.`);
+                }
+            }
+
+            for (const task of deleted) {
+                const { data, error } = await supabaseClient
+                    .from('tasks')
+                    .delete()
+                    .eq('id', task.id)
+                    .select('id');
+                if (error) throw error;
+                if (!data || data.length !== 1) {
+                    throw new Error(`Supabase no confirmó la eliminación de la tarea ${task.id}.`);
+                }
+            }
+
+            UI.updateConnectionStatus(true);
+            return { cloudSaved: true, inserted: inserted.length, updated: updated.length, deleted: deleted.length };
+        } catch (error) {
+            console.error('Supabase: no se pudieron guardar las tareas.', error);
+            UI.updateConnectionStatus(false, error.message);
+            return { cloudSaved: false, error };
+        }
     },
 
     async getChangeHistory(limit = 300) {
-        const { data, error } = await supabaseClient
-            .from('task_change_history')
-            .select(`
-                id,
-                task_id,
-                operation,
-                before_data,
-                after_data,
-                changed_by,
-                created_at
-            `)
-            .order('created_at', { ascending: false })
-            .limit(limit);
-
-        if (error) throw error;
-
-        return data || [];
+        if (!supabaseClient) return [];
+        try {
+            const { data, error } = await supabaseClient
+                .from('task_change_history')
+                .select('id, task_id, operation, before_data, after_data, changed_by, created_at')
+                .order('created_at', { ascending: false })
+                .limit(limit);
+            if (error) {
+                console.error('Supabase: no se pudo cargar el historial general.', error);
+                return [];
+            }
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error('Supabase: error cargando historial general.', error);
+            return [];
+        }
     },
 
-    async createTask(payload) {
-        const { data, error } = await supabaseClient
-            .from('tasks')
-            .insert(payload)
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        return data;
+    async restoreTaskVersion(taskId, snapshot) {
+        if (!supabaseClient || !taskId || !snapshot) return { cloudSaved: false };
+        try {
+            const payload = { name:snapshot.name??'', requester:snapshot.requester??'', assignee:snapshot.assignee??'No asignado', status:snapshot.status??'En cola', dateReceived:snapshot.dateReceived??'', dateDelivered:snapshot.dateDelivered??'', isStarred:Boolean(snapshot.isStarred), notes:snapshot.notes??'' };
+            const { data, error } = await supabaseClient.from('tasks').update(payload).eq('id',taskId).select('id').single();
+            if(error) throw error;
+            return { cloudSaved:Boolean(data) };
+        } catch(error) { console.error('Supabase: no se pudo restaurar la versión.',error); return {cloudSaved:false,error}; }
     },
 
-    async updateTask(id, payload) {
-        const { data, error } = await supabaseClient
-            .from('tasks')
-            .update(payload)
-            .eq('id', id)
-            .select()
-            .single();
+    async getNotes() {
+        if (!supabaseClient) return [];
 
-        if (error) throw error;
+        try {
+            const { data, error } = await supabaseClient
+                .from('notes')
+                .select('*')
+                .order('created_at', { ascending: true });
 
-        return data;
+            if (error) {
+                console.error('Supabase: no se pudieron cargar las notas.', error);
+                return [];
+            }
+
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error('Supabase: error cargando notas.', error);
+            return [];
+        }
     },
 
-    async deleteTask(id) {
-        const { error } = await supabaseClient
-            .from('tasks')
-            .delete()
-            .eq('id', id);
+    async saveNote(note) {
+        if (!supabaseClient) return { cloudSaved: false };
 
-        if (error) throw error;
+        try {
+            const { data, error } = await supabaseClient
+                .from('notes')
+                .insert([note])
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Supabase: no se pudo guardar la nota.', error);
+                return { cloudSaved: false, error };
+            }
+
+            return { cloudSaved: true, data };
+        } catch (error) {
+            console.error('Supabase: error guardando nota.', error);
+            return { cloudSaved: false, error };
+        }
     },
 
-    async createRequester(name) {
-        const { data, error } = await supabaseClient
-            .from('requesters')
-            .insert({
-                name
-            })
-            .select()
-            .single();
+    async getMembers() {
+        if (!supabaseClient) return [];
 
-        if (error) throw error;
+        try {
+            const { data, error } = await supabaseClient
+                .from('members')
+                .select('name')
+                .order('name', { ascending: true });
 
-        return data;
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los miembros.', error);
+                return [];
+            }
+
+            return (data || []).map(item => normalizeText(item.name)).filter(Boolean);
+        } catch (error) {
+            console.error('Supabase: error cargando miembros.', error);
+            return [];
+        }
     },
 
-    async deleteRequester(id) {
-        const { error } = await supabaseClient
-            .from('requesters')
-            .delete()
-            .eq('id', id);
+    async addMember(name) {
+        if (!supabaseClient) return true;
 
-        if (error) throw error;
+        try {
+            const { error } = await supabaseClient
+                .from('members')
+                .upsert([{ name }]);
+
+            if (error) {
+                console.error('Supabase: no se pudo añadir el miembro.', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Supabase: error añadiendo miembro.', error);
+            return false;
+        }
     },
 
-    async updateProfile(userId, payload) {
-        const { data, error } = await supabaseClient
-            .from('profiles')
-            .update(payload)
-            .eq('id', userId)
-            .select()
-            .single();
+    async removeMember(name) {
+        if (!supabaseClient) return true;
 
-        if (error) throw error;
+        try {
+            const { error } = await supabaseClient
+                .from('members')
+                .delete()
+                .eq('name', name);
 
-        return data;
+            if (error) {
+                console.error('Supabase: no se pudo eliminar el miembro.', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Supabase: error eliminando miembro.', error);
+            return false;
+        }
     },
 
-    async restoreTaskVersion(taskId, version) {
-        if (!version) {
-            throw new Error('No existe una versión anterior para restaurar.');
+
+    async getRequesters() {
+        if (!supabaseClient) return [];
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('requesters')
+                .select('name')
+                .order('name', { ascending: true });
+
+            if (error) {
+                console.error('Supabase: no se pudieron cargar los solicitantes.', error);
+                return [];
+            }
+
+            return (data || []).map(item => normalizeText(item.name)).filter(Boolean);
+        } catch (error) {
+            console.error('Supabase: error cargando solicitantes.', error);
+            return [];
+        }
+    },
+
+    async addRequester(name) {
+        if (!supabaseClient) return true;
+
+        try {
+            const { error } = await supabaseClient
+                .from('requesters')
+                .upsert([{ name }]);
+
+            if (error) {
+                console.error('Supabase: no se pudo añadir el solicitante.', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Supabase: error añadiendo solicitante.', error);
+            return false;
+        }
+    },
+
+    async removeRequester(name) {
+        if (!supabaseClient) return true;
+
+        try {
+            const { error } = await supabaseClient
+                .from('requesters')
+                .delete()
+                .eq('name', name);
+
+            if (error) {
+                console.error('Supabase: no se pudo eliminar el solicitante.', error);
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Supabase: error eliminando solicitante.', error);
+            return false;
+        }
+    },
+
+};
+
+const AuthService = {
+    usernameToEmail: (username) => {
+        const cleanUsername = normalizeUsername(username);
+        if (!cleanUsername) return '';
+        return `${cleanUsername}@designhub.local`;
+    },
+
+    login: async (username, password) => {
+        if (!supabaseClient) {
+            console.error('Supabase Auth no está disponible.');
+            UI.showToast('No fue posible conectar con el servicio de autenticación.', 'error');
+            return false;
         }
 
-        const payload = normalizeTaskPayload(version);
+        const userClean = normalizeUsername(username);
+        const passClean = String(password ?? '');
+        if (!userClean || !passClean) return false;
 
-        delete payload.id;
-        delete payload.created_at;
-        delete payload.updated_at;
+        try {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: AuthService.usernameToEmail(userClean),
+                password: passClean
+            });
 
-        return this.updateTask(taskId, payload);
+            if (error || !data?.user) {
+                const message = error?.message || 'Supabase no devolvió un usuario autenticado.';
+                console.error('Inicio de sesión rechazado:', error);
+                const loginError = document.getElementById('loginError');
+                if (loginError) {
+                    loginError.textContent = `No fue posible iniciar sesión: ${message}`;
+                    loginError.style.display = 'block';
+                }
+                return false;
+            }
+       const profile = await DataService.getProfileByAuthId(data.user.id);
+
+            if (!profile) {
+                const message = 'La autenticación funcionó, pero no existe un perfil válido para este usuario en public.profiles.';
+                console.error(message, { authUserId: data.user.id });
+                const loginError = document.getElementById('loginError');
+                if (loginError) {
+                    loginError.textContent = message;
+                    loginError.style.display = 'block';
+                }
+                await supabaseClient.auth.signOut();
+                return false;
+            }
+
+            const sessionUser = {
+                id: data.user.id,
+                username: profile.username || userClean,
+                name: profile.name || userClean,
+                role: profile.role,
+                avatar: profile.avatar || '',
+                theme: profile.theme || '#4f46e5'
+            };
+
+            UI.updateConnectionStatus(true);
+            return true;
+        } catch (error) {
+            console.error('Error durante la autenticación con Supabase:', error);
+            UI.showToast('No fue posible iniciar sesión. Inténtalo nuevamente.', 'error');
+            return false;
+        }
+    },
+
+    getUser: async () => {
+        if (!supabaseClient) return null;
+
+        try {
+            const { data, error } = await supabaseClient.auth.getUser();
+
+            if (error || !data?.user) {
+                return null;
+            }
+
+            const authUser = data.user;
+            let username = normalizeUsername(authUser.user_metadata?.username || '');
+            if (!username && authUser.email) username = normalizeUsername(authUser.email.split('@')[0]);
+            if (!username) return null;
+
+            const profile = await DataService.getProfileByAuthId(authUser.id);
+            if (!profile) {
+                console.error(`No existe un perfil de Supabase para el usuario "${username}".`);
+                await supabaseClient.auth.signOut();
+                return null;
+            }
+
+            const sessionUser = {
+                id: authUser.id,
+                username: profile.username || username,
+                name: profile.name || username,
+                role: profile.role,
+                avatar: profile.avatar || '',
+                theme: profile.theme || '#4f46e5'
+            };
+
+            return sessionUser;
+        } catch (error) {
+            console.error('No fue posible validar la sesión:', error);
+            return null;
+        }
+    },
+
+    logout: async () => {
+        try {
+            if (supabaseClient) {
+                const { error } = await supabaseClient.auth.signOut();
+                if (error) console.error('Error cerrando sesión en Supabase:', error);
+            }
+        } catch (error) {
+            console.error('Error inesperado cerrando sesión:', error);
+        } finally {
+            window.location.reload();
+        }
     }
 };
 
-/* ============================================================
-   NORMALIZACIÓN
-   ============================================================ */
 
-const normalizeTask = (task) => ({
-    ...task,
+/* =========================================
+   UI COMPONENT: CUSTOM DROPDOWNS + ACCESIBILIDAD
+   ========================================= */
+function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
+    if (!instance) return;
 
-    id: task.id,
+    const source = instance.input;
+    const baseId = source?.id || `${prefix}-${createId()}`;
+    const baseName = source?.name || baseId;
+    const altInput = instance.altInput;
 
-    title:
-        task.title ??
-        task.name ??
-        'Sin título',
+    if (altInput) {
+        altInput.id = `${baseId}-display`;
+        altInput.name = `${baseName}-display`;
 
-    requester:
-        task.requester ??
-        task.requester_id ??
-        task.requesterId ??
-        '',
-
-    assigned:
-        task.assigned ??
-        task.assigned_to ??
-        task.assignedTo ??
-        '',
-
-    status:
-        task.status ||
-        'En cola',
-
-    dateReceived:
-        task.dateReceived ??
-        task.date_received ??
-        null,
-
-    dateDue:
-        task.dateDue ??
-        task.date_due ??
-        null,
-
-    dateDelivered:
-        task.dateDelivered ??
-        task.date_delivered ??
-        null,
-
-    notes:
-        task.notes ??
-        '',
-
-    isStarred:
-        Boolean(
-            task.isStarred ??
-            task.is_starred ??
-            false
-        )
-});
-
-const normalizeTaskPayload = (task) => ({
-    title: String(task.title || '').trim(),
-
-    requester: task.requester || null,
-
-    assigned: task.assigned || null,
-
-    status: task.status || 'En cola',
-
-    dateReceived: task.dateReceived || null,
-
-    dateDue: task.dateDue || null,
-
-    dateDelivered:
-        task.status === 'Entregado'
-            ? (task.dateDelivered || new Date().toISOString())
-            : null,
-
-    notes: String(task.notes || ''),
-
-    isStarred: Boolean(task.isStarred)
-});
-
-/* ============================================================
-   CARGA PRINCIPAL
-   ============================================================ */
-
-async function loadData() {
-    setConnectionStatus('loading');
-
-    try {
-        const [
-            members,
-            requesters,
-            tasks,
-            notes
-        ] = await Promise.all([
-            DataService.getMembers(),
-            DataService.getRequesters(),
-            DataService.getTasks(),
-            DataService.getNotes()
-        ]);
-
-        App.members = members || [];
-        App.requesters = requesters || [];
-        App.tasks = (tasks || []).map(normalizeTask);
-        App.notes = notes || [];
-
-        renderAll();
-
-        setConnectionStatus('connected');
-
-        if (App.currentView === 'change-history') {
-            await loadChangeHistory();
-        }
-
-    } catch (error) {
-        setConnectionStatus('error');
-        handleSupabaseError(
-            error,
-            'No fue posible cargar los datos del workspace.'
-        );
-    }
-}
-
-/* ============================================================
-   ESTADO DE CONEXIÓN
-   ============================================================ */
-
-function setConnectionStatus(state) {
-    const wrapper = $('#connectionStatus');
-    const text = $('#statusText');
-
-    if (!wrapper || !text) return;
-
-    wrapper.classList.remove(
-        'status-loading',
-        'status-connected',
-        'status-error'
-    );
-
-    if (state === 'connected') {
-        wrapper.classList.add('status-connected');
-        text.textContent = 'Sincronizado';
-        return;
-    }
-
-    if (state === 'error') {
-        wrapper.classList.add('status-error');
-        text.textContent = 'Error de conexión';
-        return;
-    }
-
-    wrapper.classList.add('status-loading');
-    text.textContent = 'Sincronizando...';
-}
-
-/* ============================================================
-   RENDER GENERAL
-   ============================================================ */
-
-function renderAll() {
-    updateCurrentUserUI();
-    renderSidebar();
-    renderTaskBoard();
-    renderSummary();
-    renderWorkload();
-    renderRequesterOptions();
-    renderAssignedOptions();
-    renderMembers();
-    renderRequesters();
-
-    if (App.currentView === 'history') {
-        renderHistory();
-    }
-
-    if (App.currentView === 'change-history') {
-        renderChangeHistory();
-    }
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-}
-
-/* ============================================================
-   USUARIO
-   ============================================================ */
-
-function updateCurrentUserUI() {
-    const nameElement = $('#currentUserName');
-    const avatar = $('#userAvatar');
-
-    const name = getCurrentUserName();
-
-    if (nameElement) {
-        nameElement.textContent = name;
-    }
-
-    if (avatar) {
-        const avatarUrl =
-            App.profile?.avatar_url ||
-            App.profile?.avatarUrl ||
-            '';
-
-        if (avatarUrl) {
-            avatar.src = avatarUrl;
-            avatar.alt = `Avatar de ${name}`;
-        } else {
-            avatar.src =
-                `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-                    <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96">
-                        <rect width="96" height="96" rx="48" fill="${App.profile?.color || '#4f46e5'}"/>
-                        <text x="48" y="58" text-anchor="middle"
-                              font-family="Montserrat, sans-serif"
-                              font-size="32"
-                              font-weight="700"
-                              fill="#ffffff">${getInitials(name)}</text>
-                    </svg>
-                `)}`;
-
-            avatar.alt = `Iniciales de ${name}`;
+        // Flatpickr oculta el input original y crea un campo visible alternativo.
+        // No manipulamos <label for> aquí: el campo visible recibe su propia
+        // etiqueta accesible para que la asociación no dependa del timing de Flatpickr.
+        const sourceAriaLabel = source?.getAttribute('aria-label');
+        if (sourceAriaLabel) {
+            altInput.setAttribute('aria-label', sourceAriaLabel);
+        } else if (!altInput.getAttribute('aria-label')) {
+            altInput.setAttribute('aria-label', baseName);
         }
     }
 
-    $$('.admin-only').forEach(element => {
-        element.style.display = isAdmin() ? '' : 'none';
+    const calendar = instance.calendarContainer;
+    if (!calendar) return;
+
+    calendar.querySelectorAll('input, select, textarea').forEach((field, index) => {
+        if (!field.id) field.id = `${baseId}-calendar-field-${index + 1}`;
+        if (!field.name) field.name = `${baseName}-calendar-field-${index + 1}`;
     });
 }
 
-/* ============================================================
-   RESUMEN
-   ============================================================ */
+function buildCustomSelects(container = document) {
+    container.querySelectorAll('.select-wrapper').forEach(w => {
+        const select = w.querySelector('select');
+        if (select) { w.parentNode.insertBefore(select, w); select.style.display = ''; }
+        w.remove();
+    });
 
-function renderSummary() {
-    const activeTasks =
-        App.tasks.filter(task => task.status !== 'Entregado');
-
-    const course =
-        App.tasks.filter(task => task.status === 'En curso');
-
-    const queue =
-        App.tasks.filter(task => task.status === 'En cola');
-
-    const overdue =
-        App.tasks.filter(task => isOverdue(task));
-
-    const starred =
-        activeTasks.filter(task => task.isStarred);
-
-    setText('#summaryTotal', activeTasks.length);
-    setText('#summaryCourse', course.length);
-    setText('#summaryQueue', queue.length);
-    setText('#summaryOverdue', overdue.length);
-    setText('#summaryStarred', starred.length);
-}
-
-function setText(selector, value) {
-    const element = $(selector);
-
-    if (element) {
-        element.textContent = String(value);
-    }
-}
-
-/* ============================================================
-   SIDEBAR
-   ============================================================ */
-
-function renderSidebar() {
-    const list = $('#sidebarList');
-
-    if (!list) return;
-
-    const currentUserId = App.currentUser?.id;
-
-    const myTasks = App.tasks
-        .filter(task =>
-            String(task.assigned) === String(currentUserId)
-        )
-        .filter(task => task.status !== 'Entregado')
-        .sort(sortTasks);
-
-    const badge = document.querySelector(
-        '.sidebar-card:first-child .badge-count'
-    );
-
-    if (badge) {
-        badge.textContent = myTasks.length;
-    }
-
-    if (!myTasks.length) {
-        list.innerHTML = `
-            <li class="request-list-empty">
-                <i data-lucide="check-check" aria-hidden="true"></i>
-                <span>No tienes tareas activas.</span>
-            </li>
-        `;
-
-        if (window.lucide) {
-            window.lucide.createIcons();
-        }
-
-        return;
-    }
-
-    list.innerHTML = myTasks.map(task => {
-        const statusClass = statusClassName(task.status);
-
-        return `
-            <li class="request-list-item">
-                <button
-                    type="button"
-                    class="sidebar-task-button"
-                    data-task-focus="${escapeHTML(task.id)}"
-                    aria-label="Abrir solicitud ${escapeHTML(task.title)}"
-                >
-                    <span class="sidebar-task-main">
-                        <strong>${escapeHTML(task.title)}</strong>
-                        <small>${escapeHTML(getRequesterName(task.requester))}</small>
-                    </span>
-                    <span class="status-pill ${statusClass}">
-                        ${escapeHTML(task.status)}
-                    </span>
-                </button>
-            </li>
-        `;
-    }).join('');
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-}
-
-/* ============================================================
-   TABLERO
-   ============================================================ */
-
-function getFilteredTasks() {
-    const search = normalizeText(App.filters.search);
-    const status = App.filters.status;
-
-    return App.tasks
-        .filter(task => {
-            if (task.status === 'Entregado') {
-                return false;
+    container.querySelectorAll('select.native-select-hidden').forEach(select => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'select-wrapper';
+        select.parentNode.insertBefore(wrapper, select);
+        wrapper.appendChild(select);
+        
+        const trigger = document.createElement('div');
+        trigger.setAttribute('tabindex', '0'); 
+        trigger.setAttribute('role', 'button');
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        
+        const classNames = Array.from(select.classList).filter(c => c !== 'native-select-hidden').join(' ');
+        trigger.className = `select-trigger ${classNames}`;
+        
+        const safeText = escapeHTML(select.options[select.selectedIndex]?.text || '');
+        trigger.innerHTML = `<span>${safeText}</span> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        
+        const applyColor = (color) => {
+            if (color && color !== '#94a3b8') {
+                trigger.style.color = color;
+                trigger.style.backgroundColor = color + '20';
+                trigger.style.borderColor = color + '40';
+            } else {
+                trigger.style.color = 'var(--text-muted)';
+                trigger.style.backgroundColor = 'var(--bg-subtle)';
+                trigger.style.borderColor = 'var(--border-light)';
             }
-
-            if (status !== 'Todos' && task.status !== status) {
-                return false;
-            }
-
-            if (!search) return true;
-
-            const searchable = [
-                task.title,
-                getRequesterName(task.requester),
-                getMemberName(task.assigned),
-                task.notes
-            ]
-                .map(normalizeText)
-                .join(' ');
-
-            return searchable.includes(search);
-        })
-        .sort(sortTasks);
-}
-
-function renderTaskBoard() {
-    const board = $('#taskBoard');
-    const empty = $('#emptyBoard');
-
-    if (!board) return;
-
-    const tasks = getFilteredTasks();
-
-    if (!tasks.length) {
-        board.innerHTML = '';
-
-        if (empty) {
-            empty.style.display = '';
-        }
-
-        return;
-    }
-
-    if (empty) {
-        empty.style.display = 'none';
-    }
-
-    board.innerHTML = tasks
-        .map(renderTaskCard)
-        .join('');
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-}
-
-function renderTaskCard(task) {
-    const assignedName = getMemberName(task.assigned);
-    const requesterName = getRequesterName(task.requester);
-    const overdue = isOverdue(task);
-
-    const statusClass = statusClassName(task.status);
-
-    const starClass = task.isStarred
-        ? 'task-star-active'
-        : '';
-
-    const deliveryText =
-        task.status === 'Entregado'
-            ? formatDate(task.dateDelivered)
-            : formatDate(task.dateDue);
-
-    return `
-        <article
-            class="task-card ${overdue ? 'task-card-overdue' : ''}"
-            data-task-id="${escapeHTML(task.id)}"
-        >
-            <div class="task-card-top">
-                <div class="task-card-title-wrap">
-                    <button
-                        type="button"
-                        class="task-star-button ${starClass}"
-                        data-action="toggle-star"
-                        data-task-id="${escapeHTML(task.id)}"
-                        aria-label="${task.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}"
-                        aria-pressed="${task.isStarred ? 'true' : 'false'}"
-                        title="${task.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}"
-                    >
-                        <i data-lucide="star" aria-hidden="true"></i>
-                    </button>
-
-                    <h3>${escapeHTML(task.title)}</h3>
-                </div>
-
-                <span class="status-pill ${statusClass}">
-                    ${escapeHTML(task.status)}
-                </span>
-            </div>
-
-            <div class="task-card-meta">
-                <div>
-                    <span class="meta-label">Solicitante</span>
-                    <strong>${escapeHTML(requesterName)}</strong>
-                </div>
-
-                <div>
-                    <span class="meta-label">Responsable</span>
-                    <strong>${escapeHTML(assignedName)}</strong>
-                </div>
-
-                <div>
-                    <span class="meta-label">
-                        ${task.status === 'Entregado' ? 'Entregada' : 'Entrega'}
-                    </span>
-                    <strong>${escapeHTML(deliveryText)}</strong>
-                </div>
-            </div>
-
-            ${
-                task.notes
-                    ? `
-                    <div class="task-notes-preview">
-                        <i data-lucide="file-text" aria-hidden="true"></i>
-                        <span>${escapeHTML(task.notes)}</span>
-                    </div>
-                    `
-                    : ''
-            }
-
-            ${
-                overdue
-                    ? `
-                    <div class="overdue-alert">
-                        <i data-lucide="triangle-alert" aria-hidden="true"></i>
-                        <span>Solicitud vencida</span>
-                    </div>
-                    `
-                    : ''
-            }
-
-            <div class="task-card-actions">
-                <button
-                    type="button"
-                    class="btn btn-secondary"
-                    data-action="edit-task"
-                    data-task-id="${escapeHTML(task.id)}"
-                >
-                    <i data-lucide="pencil" aria-hidden="true"></i>
-                    Editar
-                </button>
-
-                ${
-                    task.status !== 'Entregado'
-                        ? `
-                        <button
-                            type="button"
-                            class="btn btn-primary"
-                            data-action="advance-task"
-                            data-task-id="${escapeHTML(task.id)}"
-                        >
-                            <i data-lucide="arrow-right" aria-hidden="true"></i>
-                            ${task.status === 'En cola' ? 'Iniciar' : 'Entregar'}
-                        </button>
-                        `
-                        : ''
-                }
-
-                ${
-                    isAdmin()
-                        ? `
-                        <button
-                            type="button"
-                            class="btn btn-danger-outline"
-                            data-action="delete-task"
-                            data-task-id="${escapeHTML(task.id)}"
-                        >
-                            <i data-lucide="trash-2" aria-hidden="true"></i>
-                            Eliminar
-                        </button>
-                        `
-                        : ''
-                }
-            </div>
-        </article>
-    `;
-}
-
-function statusClassName(status) {
-    if (status === 'En curso') return 'status-course';
-    if (status === 'Entregado') return 'status-delivered';
-
-    return 'status-queue';
-}
-
-/* ============================================================
-   CARGA DE TRABAJO
-   ============================================================ */
-
-function renderWorkload() {
-    const container = $('#workloadContainer');
-
-    if (!container) return;
-
-    const activeTasks =
-        App.tasks.filter(task => task.status !== 'Entregado');
-
-    if (!App.members.length) {
-        container.innerHTML = `
-            <div class="workload-empty">
-                No hay integrantes registrados.
-            </div>
-        `;
-
-        return;
-    }
-
-    const counts = App.members.map(member => {
-        const total =
-            activeTasks.filter(task =>
-                String(task.assigned) === String(member.id)
-            ).length;
-
-        return {
-            member,
-            total
         };
-    });
 
-    const max =
-        Math.max(
-            ...counts.map(item => item.total),
-            1
-        );
+        applyColor(select.getAttribute('data-color'));
 
-    container.innerHTML = counts.map(item => {
-        const percentage =
-            Math.round((item.total / max) * 100);
+        const optionsDiv = document.createElement('div');
+        optionsDiv.className = 'select-options';
+        optionsDiv.setAttribute('role', 'listbox');
 
-        return `
-            <button
-                type="button"
-                class="workload-row"
-                data-workload-user="${escapeHTML(item.member.id)}"
-                aria-label="Filtrar tareas de ${escapeHTML(item.member.name)}"
-            >
-                <span class="workload-row-header">
-                    <span>${escapeHTML(item.member.name)}</span>
-                    <strong>${item.total}</strong>
-                </span>
+        Array.from(select.options).forEach(opt => {
+            const item = document.createElement('div');
+            item.className = `select-option ${opt.selected ? 'selected' : ''}`;
+            item.textContent = opt.text; 
+            item.setAttribute('role', 'option');
+            item.setAttribute('tabindex', '-1');
+            
+            const handleSelect = (e) => {
+                e.stopPropagation();
+                select.value = opt.value;
+                trigger.querySelector('span').textContent = opt.text;
+                
+                if (select.classList.contains('inline-assignee')) {
+                    const newColor = App.getColor(opt.value);
+                    select.setAttribute('data-color', newColor);
+                    applyColor(newColor);
+                }
 
-                <span class="workload-bar">
-                    <span
-                        class="workload-bar-fill"
-                        style="width:${percentage}%"
-                    ></span>
-                </span>
-            </button>
-        `;
-    }).join('');
-}
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                optionsDiv.classList.remove('open');
+                trigger.classList.remove('active');
+                Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
+                item.classList.add('selected');
+                trigger.focus();
+            };
 
-/* ============================================================
-   OPCIONES SELECT
-   ============================================================ */
-
-function renderRequesterOptions() {
-    const selects = [
-        $('#taskRequester'),
-        $('#editRequesterSelect')
-    ];
-
-    selects.forEach(select => {
-        if (!select) return;
-
-        const currentValue = select.value;
-
-        select.innerHTML = `
-            <option value="">Selecciona un solicitante</option>
-            ${App.requesters.map(requester => `
-                <option value="${escapeHTML(requester.id)}">
-                    ${escapeHTML(requester.name)}
-                </option>
-            `).join('')}
-        `;
-
-        if (currentValue) {
-            select.value = currentValue;
-        }
-    });
-}
-
-function renderAssignedOptions() {
-    const selects = [
-        $('#taskAssigned'),
-        $('#editAssignedSelect')
-    ];
-
-    selects.forEach(select => {
-        if (!select) return;
-
-        const currentValue = select.value;
-
-        select.innerHTML = `
-            <option value="">Selecciona responsable</option>
-            ${App.members.map(member => `
-                <option value="${escapeHTML(member.id)}">
-                    ${escapeHTML(member.name)}
-                </option>
-            `).join('')}
-        `;
-
-        if (currentValue) {
-            select.value = currentValue;
-        }
-    });
-}
-
-/* ============================================================
-   TAREAS
-   ============================================================ */
-
-async function toggleStar(taskId) {
-    const task = App.tasks.find(
-        item => String(item.id) === String(taskId)
-    );
-
-    if (!task) return;
-
-    try {
-        await DataService.updateTask(task.id, {
-            isStarred: !task.isStarred
+            item.addEventListener('click', handleSelect);
+            item.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(e); }
+            });
+            optionsDiv.appendChild(item);
         });
 
-        task.isStarred = !task.isStarred;
-
-        renderAll();
-
-        showToast(
-            task.isStarred
-                ? 'Solicitud marcada como prioridad.'
-                : 'Prioridad retirada.',
-            'success'
-        );
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible actualizar la prioridad.'
-        );
-    }
-}
-
-async function advanceTask(taskId) {
-    const task = App.tasks.find(
-        item => String(item.id) === String(taskId)
-    );
-
-    if (!task) return;
-
-    let status;
-    let dateDelivered = task.dateDelivered;
-
-    if (task.status === 'En cola') {
-        status = 'En curso';
-    } else if (task.status === 'En curso') {
-        status = 'Entregado';
-        dateDelivered = new Date().toISOString();
-    } else {
-        return;
-    }
-
-    try {
-        const updated = await DataService.updateTask(
-            task.id,
-            {
-                status,
-                dateDelivered
+        const toggleDropdown = (e) => {
+            e.stopPropagation();
+            const isOpen = optionsDiv.classList.contains('open');
+            document.querySelectorAll('.select-options').forEach(o => o.classList.remove('open'));
+            document.querySelectorAll('.select-trigger').forEach(t => t.classList.remove('active'));
+            
+            if (!isOpen) { 
+                const rect = trigger.getBoundingClientRect();
+                if (window.innerHeight - rect.bottom < 200) {
+                    optionsDiv.style.top = 'auto'; optionsDiv.style.bottom = 'calc(100% + 6px)';
+                } else {
+                    optionsDiv.style.top = 'calc(100% + 6px)'; optionsDiv.style.bottom = 'auto';
+                }
+                optionsDiv.classList.add('open'); trigger.classList.add('active'); 
+                const firstOpt = optionsDiv.querySelector('.select-option');
+                if (firstOpt) firstOpt.focus();
             }
-        );
+        };
 
-        Object.assign(task, normalizeTask(updated));
+        trigger.addEventListener('click', toggleDropdown);
+        trigger.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDropdown(e); }
+        });
 
-        renderAll();
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(optionsDiv);
+    });
+    lucide.createIcons();
+}
 
-        showToast(
-            status === 'Entregado'
-                ? 'Solicitud entregada.'
-                : 'Solicitud iniciada.',
-            'success'
-        );
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible actualizar el estado.'
-        );
+function updateCustomSelectUI(selectElement, value) {
+    selectElement.value = value;
+    const wrapper = selectElement.closest('.select-wrapper');
+    if (wrapper) {
+        const triggerSpan = wrapper.querySelector('.select-trigger span');
+        const option = Array.from(selectElement.options).find(o => o.value === value);
+        if (triggerSpan && option) triggerSpan.textContent = option.text;
+        wrapper.querySelectorAll('.select-option').forEach(opt => {
+            opt.classList.toggle('selected', opt.textContent === option?.text);
+        });
     }
 }
 
-async function deleteTask(taskId) {
-    if (!isAdmin()) {
-        showToast(
-            'Solo un administrador puede eliminar solicitudes.',
-            'warning'
+/* =========================================
+   CONTROLADOR DE LA APP
+   ========================================= */
+const App = {
+    user: null,
+    originalTasks: [], 
+    tasks: [],         
+    members: [],
+    requesters: [],
+    usersList: [],
+    notes: [],
+    filterDates: [],
+    quickFilter: 'all',
+    fpInstances: [],
+    hasUnsavedChanges: false,
+    selectedTaskId: null,
+    currentView: 'board',
+    changeHistory: [],
+    changeHistoryFilters: { search: '', from: '', to: '', user: 'Todos', operation: 'Todos' },
+    historyFilters: {
+        month: '',
+        requester: 'Todos',
+        assignee: 'Todos',
+        status: 'Todos',
+        search: ''
+    },
+    cropperInstance: null,
+
+    async init() {
+        clearLegacyLocalData();
+        this.user = await AuthService.getUser();
+        
+        if (!this.user) {
+            this.showLogin();
+            return; 
+        }
+
+        document.getElementById('authOverlay').style.display = 'none';
+        document.getElementById('appContainer').style.display = 'flex';
+        document.getElementById('currentUserName').textContent = normalizeText(this.user.name);
+        document.getElementById('btnLogout').addEventListener('click', AuthService.logout);
+
+        this.updateAvatarUI();
+
+        if (this.user.role === 'editor') {
+            document.querySelectorAll('.admin-only').forEach(el => el.remove());
+        }
+
+        await this.loadData();
+        this.changeHistory = await DataService.getChangeHistory();
+        this.setupPlugins();
+        this.setupKeyboardShortcuts();
+        this.setupEventListeners();
+        this.setupHistoryView();
+        this.setupChangeHistoryView();
+        this.setupNotesPanel();
+        this.renderAll();
+        this.applyViewFromHash();
+        
+        this.setupCrossTabSync();
+        this.setupRealtimeSubscription();
+
+        NotificationService.checkStartupAlerts(this.tasks, this.user.name);
+    },
+
+    showLogin() {
+        document.getElementById('authOverlay').style.display = 'flex';
+        document.getElementById('appContainer').style.display = 'none';
+        
+        const togglePwdBtn = document.getElementById('togglePasswordBtn');
+        const pwdInput = document.getElementById('passwordInput');
+        if (togglePwdBtn && pwdInput) {
+            togglePwdBtn.addEventListener('click', (e) => {
+                e.preventDefault(); 
+                const isPassword = pwdInput.type === 'password';
+                pwdInput.type = isPassword ? 'text' : 'password';
+                togglePwdBtn.innerHTML = `<i data-lucide="${isPassword ? 'eye-off' : 'eye'}"></i>`;
+                lucide.createIcons();
+            });
+        }
+
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm && !loginForm.dataset.bound) {
+            loginForm.dataset.bound = 'true';
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const user = document.getElementById('usernameInput').value;
+                const pass = document.getElementById('passwordInput').value;
+                const loginError = document.getElementById('loginError');
+                const submitBtn = loginForm.querySelector('button[type="submit"]');
+                if (loginError) {
+                    loginError.textContent = '';
+                    loginError.style.display = 'none';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.setAttribute('aria-busy', 'true');
+                    submitBtn.dataset.originalText = submitBtn.textContent;
+                    submitBtn.textContent = 'Verificando…';
+                }
+                try {
+                    if (await AuthService.login(user, pass)) {
+                        window.location.reload();
+                    }
+                } catch (err) {
+                    console.error('Error inesperado al iniciar sesión:', err);
+                    if (loginError) {
+                        loginError.textContent = `Error al iniciar sesión: ${err?.message || err}`;
+                        loginError.style.display = 'block';
+                    }
+                } finally {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.removeAttribute('aria-busy');
+                        submitBtn.textContent = submitBtn.dataset.originalText || 'Ingresar al workspace';
+                    }
+                }
+            });
+        }
+    },
+
+    setupCrossTabSync() {
+        // La sincronización entre pestañas se realiza mediante Supabase Realtime.
+    },
+
+    setupRealtimeSubscription() {
+        if (!supabaseClient) return;
+
+        supabaseClient
+            .channel('design-hub-tasks')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
+                await this.loadData();
+                this.changeHistory = await DataService.getChangeHistory();
+                if (this.currentView === 'board') this.renderBoard();
+                if (this.currentView === 'history') this.renderHistory();
+                if (this.currentView === 'change-history') this.renderChangeHistory();
+            })
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime: no fue posible suscribirse a tareas.');
+                }
+            });
+
+        supabaseClient
+            .channel('design-hub-notes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async () => {
+                const panel = document.getElementById('notesPanel');
+                if (panel && !panel.classList.contains('open')) {
+                    document.getElementById('btnToggleNotes')
+                        ?.querySelector('.notification-badge')?.classList.add('active');
+                }
+                this.notes = await DataService.getNotes();
+                this.renderNotes();
+            })
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime: no fue posible suscribirse a notas.');
+                }
+            });
+
+        /*
+         * PERFIL COMPARTIDO:
+         * avatar + color viven en public.profiles. Cuando un compañero
+         * los cambia, todos los clientes vuelven a leer los perfiles y
+         * Carga de Trabajo se actualiza sin cerrar sesión ni recargar.
+         */
+        supabaseClient
+            .channel('design-hub-profiles')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async () => {
+                this.usersList = await DataService.getUsers();
+
+                // Actualiza el usuario actual por si cambió desde otra pestaña.
+                if (this.user?.id) {
+                    const updatedMe = this.usersList.find(
+                        u => String(u.id) === String(this.user.id)
+                    );
+                    if (updatedMe) {
+                        this.user.avatar = updatedMe.avatar || '';
+                        this.user.theme = updatedMe.theme || '#4f46e5';
+                    }
+                }
+
+                this.updateAvatarUI();
+                this.renderAll();
+            })
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime: no fue posible suscribirse a perfiles.');
+                }
+            });
+    },
+
+    updateAvatarUI() {
+        const avatarEl = document.getElementById('userAvatar');
+        const previewEl = document.getElementById('previewAvatar');
+        const sendBtn = document.getElementById('btnSendNote');
+        
+        const themeColor = this.user.theme || '#4f46e5';
+        let avatarUrl = sanitizeAvatarUrl(this.user.avatar);
+        
+        if (!avatarUrl) {
+            avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.user.name)}&background=${themeColor.replace('#', '')}20&color=${themeColor.replace('#', '')}&font-size=0.33&bold=true`;
+        }
+        
+        if(avatarEl) avatarEl.src = avatarUrl;
+        if(previewEl) previewEl.src = avatarUrl;
+        if(sendBtn) sendBtn.style.backgroundColor = themeColor; 
+    },
+
+    async loadData() {
+        this.originalTasks = await DataService.getTasks();
+        this.tasks = JSON.parse(JSON.stringify(this.originalTasks));
+        // Migración retroactiva: Si alguna tarea antigua no tiene el flag booleano, se lo asignamos
+        this.tasks.forEach(t => { if (typeof t.isStarred === 'undefined') t.isStarred = false; });
+
+        this.members = await DataService.getMembers();
+        this.requesters = await DataService.getRequesters();
+        this.usersList = await DataService.getUsers();
+        this.notes = await DataService.getNotes();
+    },
+
+    setupPlugins() {
+        flatpickr(".date-range-picker", {
+            mode: "range", locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'filter-date');
+            },
+            onChange: (dates) => { this.filterDates = dates; this.renderBoard(); }
+        });
+        
+        flatpickr(".modal-date", { 
+            locale: "es", dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", disableMobile: "true",
+            appendTo: document.body,
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'modal-date');
+            }
+        });
+    },
+
+    markAsUnsaved() {
+        this.hasUnsavedChanges = true;
+        const bar = document.getElementById('unsavedChangesBar');
+        if (!bar) return;
+        bar.classList.add('active');
+        bar.setAttribute('aria-hidden', 'false');
+        bar.removeAttribute('inert');
+    },
+
+    async saveChanges() {
+        const result = await DataService.saveTasks(this.tasks, this.originalTasks);
+
+        if (!result.cloudSaved) {
+            const detail = result.error?.message ? `: ${result.error.message}` : '';
+            UI.showToast(`No se pudieron guardar los cambios${detail}`, 'error', 7000);
+            return;
+        }
+
+        const freshTasks = await DataService.getTasks();
+        this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
+        this.tasks = JSON.parse(JSON.stringify(freshTasks));
+        this.hasUnsavedChanges = false;
+        const bar = document.getElementById('unsavedChangesBar');
+        if (bar) {
+            bar.classList.remove('active');
+            bar.setAttribute('aria-hidden', 'true');
+            bar.setAttribute('inert', '');
+        }
+        UI.showToast("Cambios guardados con éxito", "success");
+        this.renderAll();
+    },
+
+    undoChanges() {
+        this.tasks = JSON.parse(JSON.stringify(this.originalTasks));
+        this.hasUnsavedChanges = false;
+        const bar = document.getElementById('unsavedChangesBar');
+        if (bar) {
+            bar.classList.remove('active');
+            bar.setAttribute('aria-hidden', 'true');
+            bar.setAttribute('inert', '');
+        }
+        UI.showToast("Cambios revertidos", "info");
+        this.renderBoard();
+    },
+
+    toggleTaskStar(taskId) {
+        const task = this.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.isStarred = !task.isStarred;
+            this.markAsUnsaved();
+            this.renderBoard();
+        }
+    },
+
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+                const search = document.getElementById('taskSearch');
+                if (!search) return;
+                event.preventDefault();
+                search.focus();
+                search.select();
+            }
+
+            if (event.key === 'Escape' && document.activeElement?.id === 'taskSearch') {
+                document.activeElement.blur();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            const card = event.target.closest?.('[data-summary].is-interactive');
+            if (!card || !['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            card.click();
+        });
+    },
+
+    setupEventListeners() {
+        document.getElementById('btnSave').addEventListener('click', () => this.saveChanges());
+        document.getElementById('btnUndo').addEventListener('click', () => this.undoChanges());
+
+        const mTask = document.getElementById('modalTask');
+        document.getElementById('btnNewTask').addEventListener('click', () => {
+            const form = document.getElementById('taskForm');
+            if (form) form.reset();
+
+            const requesterSelect = document.getElementById('requesterSelect');
+            const assigneeSelect = document.getElementById('assignee');
+            const statusSelect = document.getElementById('status');
+
+            if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
+            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
+            if (statusSelect) updateCustomSelectUI(statusSelect, 'En cola');
+
+            const taskNotes = document.getElementById('taskNotes');
+            if (taskNotes) taskNotes.value = '';
+
+            const dateDelivered = document.getElementById('dateDelivered');
+            if (dateDelivered?._flatpickr) dateDelivered._flatpickr.clear();
+
+            const d = new Date();
+            const todayLocal = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            
+            const dateRecInput = document.getElementById('dateReceived');
+            if(dateRecInput._flatpickr) dateRecInput._flatpickr.setDate(todayLocal);
+            else dateRecInput.value = todayLocal;
+            
+            mTask.classList.add('active');
+        });
+        
+        this.setupProfileListeners();
+        this.setupAdminListeners();
+        this.setupDynamicEventDelegation();
+
+        document.getElementById('btnBackToBoard')?.addEventListener('click', () => {
+            this.showView('board');
+        });
+
+        document.getElementById('btnOpenChangeHistory')?.addEventListener('click', () => {
+            this.showView('change-history');
+        });
+        document.getElementById('btnBackFromChangeHistory')?.addEventListener('click', () => {
+            this.showView('board');
+        });
+
+        document.getElementById('btnOpenHistoryBottom')?.addEventListener('click', () => {
+            this.showView('history');
+        });
+
+        document.querySelectorAll('.close-modal').forEach(b => {
+            if(b.id !== 'closeProfileModalBtn') {
+                b.addEventListener('click', e => e.target.closest('.modal-overlay').classList.remove('active'));
+            }
+        });
+        
+        ['filterAssignee', 'filterRequester', 'filterStatus', 'filterSort', 'filterCompletion'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.addEventListener('change', () => this.renderBoard());
+        });
+
+        const taskSearch = document.getElementById('taskSearch');
+        if (taskSearch) {
+            let searchTimer = null;
+            taskSearch.addEventListener('input', () => {
+                window.clearTimeout(searchTimer);
+                searchTimer = window.setTimeout(() => this.renderBoard(), 120);
+            });
+        }
+
+        document.getElementById('clearFilters').addEventListener('click', () => {
+            ['filterAssignee', 'filterRequester', 'filterStatus'].forEach(id => document.getElementById(id).value = 'Todos');
+            const taskSearch = document.getElementById('taskSearch');
+            if (taskSearch) taskSearch.value = '';
+            const filterCompletion = document.getElementById('filterCompletion');
+            if (filterCompletion) filterCompletion.value = 'Pendientes';
+            document.getElementById('filterSort').value = 'received_asc';
+            this.filterDates = [];
+            this.quickFilter = 'all';
+            document.querySelectorAll('.quick-filter').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.quickFilter === 'all');
+            });
+            const fpInput = document.getElementById('filterDate');
+            if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
+            this.renderBoard();
+            buildCustomSelects(document.querySelector('.inline-filters-bar')); 
+            UI.showToast("Filtros limpiados", "info");
+        });
+
+        const setupCharacterCounter = (inputId, counterId) => {
+            const input = document.getElementById(inputId);
+            const counter = document.getElementById(counterId);
+            if (!input || !counter) return;
+
+            const update = () => {
+                counter.textContent = `${input.value.length}/${input.maxLength}`;
+            };
+
+            input.addEventListener('input', update);
+            update();
+        };
+
+        setupCharacterCounter('taskName', 'taskNameCount');
+        setupCharacterCounter('taskNotes', 'taskNotesCount');
+
+        const taskNameInput = document.getElementById('taskName');
+        const taskForm = document.getElementById('taskForm');
+
+        taskNameInput?.addEventListener('input', () => {
+            const value = taskNameInput.value.trim();
+            taskNameInput.setCustomValidity(
+                value.length < 3 ? 'Escribe un título de al menos 3 caracteres.' : ''
+            );
+        });
+
+        document.getElementById('dateDelivered')?.addEventListener('change', () => {
+            const received = normalizeText(document.getElementById('dateReceived')?.value);
+            const delivered = normalizeText(document.getElementById('dateDelivered')?.value);
+            const input = document.getElementById('dateDelivered');
+
+            if (received && delivered && new Date(delivered) < new Date(received)) {
+                input.setCustomValidity('La fecha de entrega no puede ser anterior a la fecha de solicitud.');
+            } else {
+                input.setCustomValidity('');
+            }
+        });
+
+        taskForm?.addEventListener('submit', (e) => {
+            const name = document.getElementById('taskName');
+            const received = normalizeText(document.getElementById('dateReceived')?.value);
+            const delivered = normalizeText(document.getElementById('dateDelivered')?.value);
+
+            if (name) {
+                const value = name.value.trim();
+                name.setCustomValidity(
+                    value.length < 3 ? 'Escribe un título de al menos 3 caracteres.' : ''
+                );
+            }
+
+            const deliveryInput = document.getElementById('dateDelivered');
+            if (deliveryInput) {
+                deliveryInput.setCustomValidity(
+                    received && delivered && new Date(delivered) < new Date(received)
+                        ? 'La fecha de entrega no puede ser anterior a la fecha de solicitud.'
+                        : ''
+                );
+            }
+
+            if (!taskForm.checkValidity()) {
+                e.preventDefault();
+                taskForm.reportValidity();
+            }
+        }, true);
+
+        document.getElementById('taskForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const taskNameRaw = document.getElementById('taskName').value.trim();
+            const requesterRaw = document.getElementById('requesterSelect').value;
+            
+            const isDuplicate = this.tasks.some(t => 
+                t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
+                t.requester === requesterRaw
+            );
+
+            if (isDuplicate) {
+                UI.showToast("Ya existe una tarea idéntica para este solicitante.", "error");
+                return;
+            }
+            
+            let dateReceivedValue = normalizeText(document.getElementById('dateReceived').value);
+            if (!dateReceivedValue) {
+                const d = new Date();
+                dateReceivedValue = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            }
+            
+            const dateDelivered = normalizeText(document.getElementById('dateDelivered').value);
+            
+            if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedValue)) {
+                UI.showToast("La entrega no puede ser anterior a la solicitud.", "error"); 
+                return;
+            }
+
+            this.tasks.push({
+                id: createId(),
+                name: taskNameRaw,
+                requester: requesterRaw,
+                assignee: normalizeText(document.getElementById('assignee').value),
+                status: normalizeText(document.getElementById('status').value),
+                dateReceived: dateReceivedValue, 
+                dateDelivered: dateDelivered,
+                isStarred: false,
+                notes: normalizeText(document.getElementById('taskNotes')?.value)
+
+            });
+            
+            this.markAsUnsaved(); 
+            e.target.reset();
+            const newRequesterSelect = document.getElementById('requesterSelect');
+            const newAssigneeSelect = document.getElementById('assignee');
+            const newStatusSelect = document.getElementById('status');
+            if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
+            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, 'No asignado');
+            if (newStatusSelect) updateCustomSelectUI(newStatusSelect, 'En cola');
+            document.getElementById('taskNotes')?.setAttribute('value', '');
+            const newDateDelivered = document.getElementById('dateDelivered');
+            if (newDateDelivered?._flatpickr) newDateDelivered._flatpickr.clear();
+            document.getElementById('modalTask').classList.remove('active');
+            UI.showToast("Solicitud añadida", "success");
+            this.renderBoard();
+        });
+
+        document.getElementById('editTaskForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editTaskId').value;
+            const task = this.tasks.find(t => t.id === id);
+            
+            if (task) {
+                const newRecDate = normalizeText(document.getElementById('editDateReceived').value);
+                
+                if (task.dateDelivered && new Date(task.dateDelivered) < new Date(newRecDate)) {
+                    UI.showToast("La solicitud no puede superar la entrega.", "error"); 
+                    return;
+                }
+
+                task.name = normalizeText(document.getElementById('editTaskName').value);
+                task.requester = normalizeText(document.getElementById('editRequesterSelect').value);
+                task.dateReceived = newRecDate;
+                task.notes = normalizeText(document.getElementById('editTaskNotes')?.value);
+                
+                this.markAsUnsaved();
+                document.getElementById('modalEditTask').classList.remove('active');
+                UI.showToast("Solicitud editada", "success");
+                this.renderBoard();
+            }
+        });
+    },
+
+
+    setupDynamicEventDelegation() {
+        /*
+         * Los elementos de tareas, miembros y solicitantes se generan
+         * dinámicamente. En lugar de insertar JavaScript dentro del HTML
+         * (onclick/onchange/onkeydown), centralizamos sus eventos aquí.
+         */
+        document.addEventListener('click', async (event) => {
+            const quickFilter = event.target.closest('[data-quick-filter]');
+            if (quickFilter) {
+                this.quickFilter = quickFilter.dataset.quickFilter || 'all';
+                document.querySelectorAll('.quick-filter').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
+                });
+                this.renderBoard();
+                return;
+            }
+
+            const summaryCard = event.target.closest('[data-summary]');
+            if (summaryCard && summaryCard.classList.contains('is-interactive')) {
+                const map = { total: 'all', course: 'course', queue: 'queue', overdue: 'overdue', starred: 'starred' };
+                this.quickFilter = map[summaryCard.dataset.summary] || 'all';
+                document.querySelectorAll('.quick-filter').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
+                });
+                this.renderBoard();
+                return;
+            }
+
+            const target = event.target.closest('[data-action]');
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const taskId = target.dataset.taskId;
+
+            switch (action) {
+                case 'remove-member': {
+                    const index = Number(target.dataset.index);
+                    if (!Number.isInteger(index) || index < 0 || index >= this.members.length) return;
+                    if (!confirm('¿Quitar del equipo?')) return;
+
+                    const removedName = this.members[index];
+                    const removed = await DataService.removeMember(removedName);
+                    if (!removed) {
+                        UI.showToast('No fue posible eliminar el colaborador.', 'error');
+                        return;
+                    }
+
+                    this.members.splice(index, 1);
+                    this.usersList = await DataService.getUsers();
+                    this.renderAll();
+                    UI.showToast('Colaborador eliminado', 'success');
+                    break;
+                }
+
+                case 'remove-requester': {
+                    const index = Number(target.dataset.index);
+                    if (!Number.isInteger(index) || index < 0 || index >= this.requesters.length) return;
+                    if (!confirm('¿Eliminar solicitante?')) return;
+
+                    const removedName = this.requesters[index];
+                    const removed = await DataService.removeRequester(removedName);
+                    if (!removed) {
+                        UI.showToast('No fue posible eliminar el solicitante.', 'error');
+                        return;
+                    }
+
+                    this.requesters.splice(index, 1);
+                    this.renderAll();
+                    UI.showToast('Solicitante eliminado', 'success');
+                    break;
+                }
+
+                case 'toggle-star':
+                    if (taskId) {
+                        this.toggleTaskStar(taskId);
+                    }
+                    break;
+
+                case 'toggle-status':
+                    if (taskId) {
+                        this.toggleTaskStatus(taskId);
+                    }
+                    break;
+
+                case 'view-task-notes':
+                    if (taskId) this.openTaskNotes(taskId);
+                    break;
+
+                case 'edit-task':
+                    if (taskId) {
+                        this.openEditModal(taskId);
+                    }
+                    break;
+
+                case 'delete-task':
+                    if (!taskId) return;
+
+                    if (confirm('¿Eliminar?')) {
+                        this.tasks = this.tasks.filter(
+                            task => task.id !== taskId
+                        );
+
+                        this.markAsUnsaved();
+                        this.renderBoard();
+
+                        UI.showToast(
+                            'Tarea eliminada',
+                            'success'
+                        );
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+        });
+
+        document.addEventListener('change', (event) => {
+            const target = event.target.closest('[data-action]');
+
+            if (!target) return;
+
+            const action = target.dataset.action;
+            const taskId = target.dataset.taskId;
+
+            if (!taskId) return;
+
+            switch (action) {
+                case 'toggle-completed': {
+                    const completed = Boolean(target.checked);
+
+                    this.updateTask(
+                        taskId,
+                        'status',
+                        completed ? 'Entregado' : 'En curso',
+                        true
+                    );
+
+                    /*
+                     * Al marcarla, la tarea deja de estar en Pendientes y
+                     * aparece inmediatamente en Realizadas. Al desmarcarla,
+                     * vuelve a Pendientes.
+                     */
+                    if (completed) {
+                        UI.showToast('Tarea enviada a Realizadas', 'success');
+                    } else {
+                        UI.showToast('Tarea devuelta a Pendientes', 'info');
+                    }
+                    break;
+                }
+
+                case 'change-assignee':
+                    this.updateTask(
+                        taskId,
+                        'assignee',
+                        target.value,
+                        false
+                    );
+                    break;
+
+                default:
+                    break;
+            }
+        });
+    },
+
+    setupNotesPanel() {
+        const btnToggle = document.getElementById('btnToggleNotes');
+        const panel = document.getElementById('notesPanel');
+        const overlay = document.getElementById('notesPanelOverlay');
+        const btnClose = document.getElementById('btnCloseNotes');
+        const form = document.getElementById('noteForm');
+
+        if (!btnToggle.querySelector('.notification-badge')) {
+            btnToggle.insertAdjacentHTML('beforeend', '<div class="notification-badge"></div>');
+        }
+
+        const openPanel = () => {
+            panel.classList.add('open');
+            overlay.classList.add('active');
+            btnToggle.querySelector('.notification-badge').classList.remove('active');
+            this.renderNotes();
+        };
+
+        const closePanel = () => {
+            panel.classList.remove('open');
+            overlay.classList.remove('active');
+            const picker = document.getElementById('emojiPickerWrapper');
+            if(picker) picker.style.display = 'none';
+        };
+
+        btnToggle.addEventListener('click', openPanel);
+        btnClose.addEventListener('click', closePanel);
+        overlay.addEventListener('click', closePanel);
+
+        const emojiBtn = document.getElementById('btnToggleEmoji');
+        const pickerWrapper = document.getElementById('emojiPickerWrapper');
+        const picker = document.querySelector('emoji-picker');
+        const input = document.getElementById('noteInput');
+
+        if(emojiBtn && pickerWrapper) {
+            emojiBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                pickerWrapper.style.display = pickerWrapper.style.display === 'none' ? 'block' : 'none';
+            });
+        }
+
+        if (picker) {
+            picker.addEventListener('emoji-click', event => {
+                const unicode = event?.detail?.unicode;
+                if (!unicode || !input) return;
+                input.value += unicode;
+                input.focus();
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if(pickerWrapper && pickerWrapper.style.display === 'block') {
+                if(!pickerWrapper.contains(e.target) && !emojiBtn.contains(e.target)) {
+                    pickerWrapper.style.display = 'none';
+                }
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if(!text) return;
+
+            const newNote = {
+                id: createId(),
+                author: this.user.name,
+                content: text, 
+                created_at: new Date().toISOString()
+     };
+
+            const result = await DataService.saveNote(newNote);
+
+            if (!result.cloudSaved) {
+                UI.showToast("No se pudo guardar la nota en la nube.", "error");
+                return;
+            }
+
+            this.notes.push(result.data || newNote);
+            input.value = '';
+            if(pickerWrapper) pickerWrapper.style.display = 'none';
+            this.renderNotes();
+        });
+    },
+
+    renderNotes() {
+        const container = document.getElementById('notesList');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        if (this.notes.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:20px;">No hay notas del equipo aún.</p>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        this.notes.forEach(n => {
+            const dateObj = new Date(n.created_at);
+            const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
+            const isMine = n.author === this.user.name;
+            const authorColor = this.getColor(n.author);
+
+            const message = document.createElement('div');
+            message.className = `chat-msg ${isMine ? 'mine' : 'other'}`;
+
+            const meta = document.createElement('div');
+            meta.className = 'chat-meta';
+            const author = document.createElement('span');
+            author.textContent = isMine ? 'Tú' : normalizeText(n.author);
+            author.style.color = isMine ? 'var(--text-muted)' : authorColor;
+            author.style.fontWeight = '700';
+            const time = document.createElement('span');
+            time.textContent = dateStr;
+            meta.append(author, time);
+
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${isMine ? '' : 'chat-bubble-other'}`;
+            bubble.textContent = normalizeText(n.content);
+            if (isMine) {
+                bubble.style.backgroundColor = 'var(--primary-cold)';
+                bubble.style.color = '#ffffff';
+            } else {
+                bubble.style.borderLeftColor = authorColor;
+            }
+            message.append(meta, bubble);
+            fragment.appendChild(message);
+        });
+        container.replaceChildren(fragment);
+        
+        container.scrollTop = container.scrollHeight;
+    },
+
+    openEditModal(taskId) {
+        const task = this.tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        document.getElementById('editTaskId').value = task.id;
+        document.getElementById('editTaskName').value = task.name;
+        const editNotes = document.getElementById('editTaskNotes');
+        if (editNotes) editNotes.value = task.notes || '';
+        
+        const reqSelect = document.getElementById('editRequesterSelect');
+        updateCustomSelectUI(reqSelect, task.requester);
+
+        const recInput = document.getElementById('editDateReceived');
+        if(recInput._flatpickr) {
+            recInput._flatpickr.setDate(task.dateReceived || '');
+        } else {
+            recInput.value = task.dateReceived || '';
+        }
+
+        document.getElementById('modalEditTask').classList.add('active');
+    },
+
+    toggleTaskStatus(taskId) {
+        const task = this.tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const newStatus = task.status === 'En curso' ? 'En cola' : 'En curso';
+        task.status = newStatus;
+        
+        const element = document.getElementById(`status-switch-${taskId}`);
+        if (element) {
+            const isCurso = newStatus === 'En curso';
+            element.className = `status-switch ${isCurso ? 'curso' : 'cola'}`;
+            element.setAttribute('aria-checked', isCurso ? 'true' : 'false');
+            element.innerHTML = `
+                <div class="switch-track"><div class="switch-thumb"></div></div>
+                <span class="switch-label">${newStatus}</span>
+            `;
+        }
+
+        this.markAsUnsaved();
+        this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
+    },
+
+    setupProfileListeners() {
+        const mProfile = document.getElementById('modalProfile');
+        const fileInput = document.getElementById('avatarFileInput');
+        const urlInput = document.getElementById('avatarUrlInput');
+        const swatches = document.querySelectorAll('.color-swatch');
+        const cropperWrapper = document.getElementById('cropperWrapper');
+        const cropperImage = document.getElementById('cropperImage');
+        const avatarPreviewContainer = document.getElementById('avatarPreviewContainer');
+        const urlDivider = document.getElementById('urlDivider');
+        const urlFieldGroup = document.getElementById('urlFieldGroup');
+        const btnCancelCrop = document.getElementById('btnCancelCrop');
+        const btnRemoveAvatar = document.getElementById('btnRemoveAvatar');
+
+        let selectedTheme = this.user.theme || '#4f46e5';
+
+        swatches.forEach(swatch => {
+            swatch.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (swatch.classList.contains('disabled')) {
+                    UI.showToast("Este color ya está en uso", "error");
+                    return;
+                }
+
+                swatches.forEach(s => s.classList.remove('active'));
+                swatch.classList.add('active');
+                selectedTheme = swatch.getAttribute('data-color') || selectedTheme;
+            });
+        });
+
+        const checkTakenColors = () => {
+            const takenColors = this.usersList
+                .filter(u => u.username !== this.user.username)
+                .map(u => u.theme);
+
+            swatches.forEach(swatch => {
+                const c = swatch.getAttribute('data-color');
+                const taken = takenColors.includes(c);
+
+                swatch.classList.toggle('disabled', taken);
+                swatch.title = taken ? 'Color en uso por otro compañero' : '';
+            });
+        };
+
+        const resetProfileModal = () => {
+            if (this.cropperInstance) {
+                this.cropperInstance.destroy();
+                this.cropperInstance = null;
+            }
+            fileInput.value = '';
+            cropperWrapper.style.display = 'none';
+            btnCancelCrop.style.display = 'none';
+            avatarPreviewContainer.style.display = 'block';
+            urlDivider.style.display = 'block';
+            urlFieldGroup.style.display = 'block';
+            document.getElementById('btnSaveProfile').textContent = 'Guardar Cambios';
+            this.updateAvatarUI();
+        };
+
+        const saveAndClose = async (avatarData) => {
+            const avatar = sanitizeAvatarUrl(avatarData);
+            const theme = normalizeText(selectedTheme) || '#4f46e5';
+
+            if (!supabaseClient || !this.user.id) {
+                UI.showToast('No se pudo identificar tu perfil en Supabase.', 'error');
+                return;
+            }
+
+            const saved = await DataService.updateProfile(this.user.id, { avatar, theme });
+            if (!saved) {
+                UI.showToast('No fue posible guardar el perfil en la nube.', 'error');
+                return;
+            }
+
+            this.user.avatar = avatar;
+            this.user.theme = theme;
+            UI.showToast('Perfil actualizado', 'success');
+            this.usersList = await DataService.getUsers();
+            this.updateAvatarUI();
+            resetProfileModal();
+            mProfile.classList.remove('active');
+            this.renderAll(); 
+            this.renderNotes();
+        };
+
+        document.getElementById('userProfileBtn').addEventListener('click', () => {
+            resetProfileModal();
+            urlInput.value = this.user.avatar && this.user.avatar.startsWith('http') ? this.user.avatar : '';
+            selectedTheme = this.user.theme || '#4f46e5';
+            
+            checkTakenColors();
+            
+            swatches.forEach(s => s.classList.remove('active'));
+            const activeSwatch = document.querySelector(`.color-swatch[data-color="${selectedTheme}"]`);
+            if(activeSwatch) activeSwatch.classList.add('active');
+            mProfile.classList.add('active');
+        });
+
+        document.getElementById('closeProfileModalBtn').addEventListener('click', () => {
+            resetProfileModal();
+            mProfile.classList.remove('active');
+        });
+
+        btnCancelCrop.addEventListener('click', resetProfileModal);
+
+        btnRemoveAvatar.addEventListener('click', () => {
+            if (confirm('¿Seguro que deseas eliminar tu foto y volver a tus iniciales?')) saveAndClose("");
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    cropperImage.src = event.target.result;
+                    avatarPreviewContainer.style.display = 'none';
+                    urlDivider.style.display = 'none';
+                    urlFieldGroup.style.display = 'none';
+                    cropperWrapper.style.display = 'block';
+                    btnCancelCrop.style.display = 'flex';
+                    document.getElementById('btnSaveProfile').textContent = 'Confirmar y Guardar';
+
+                    if (this.cropperInstance) this.cropperInstance.destroy();
+                    this.cropperInstance = new Cropper(cropperImage, {
+                        aspectRatio: 1, viewMode: 1, background: false, autoCropArea: 1,
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('profileForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (this.cropperInstance) {
+                const canvas = this.cropperInstance.getCroppedCanvas({ width: 256, height: 256 });
+                saveAndClose(canvas.toDataURL('image/webp', 0.5));
+            } else if (urlInput.value.trim() !== '') {
+                saveAndClose(sanitizeAvatarUrl(urlInput.value));
+            } else {
+                saveAndClose(this.user.avatar || ""); 
+            }
+        });
+    },
+
+    setupAdminListeners() {
+        if (this.user.role !== 'admin') return;
+
+        document.getElementById('btnManageTeam').addEventListener('click', () => document.getElementById('modalTeam').classList.add('active'));
+        document.getElementById('btnManageReq').addEventListener('click', () => document.getElementById('modalRequesters').classList.add('active'));
+        
+        document.getElementById('addMemberForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('newMemberInput');
+            const name = normalizeText(input.value);
+            if (name && !this.members.some(m => m.toLowerCase() === name.toLowerCase())) {
+                const saved = await DataService.addMember(name);
+                if (!saved) {
+                    UI.showToast("No fue posible guardar el colaborador en la nube.", "error");
+                    return;
+                }
+                this.members.push(name);
+                this.usersList = await DataService.getUsers();
+                input.value = ''; 
+                this.renderAll();
+                UI.showToast("Colaborador añadido", "success");
+            }
+        });
+
+        document.getElementById('addRequesterForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('newRequesterInput');
+            const name = normalizeText(input.value);
+            if (name && !this.requesters.some(r => r.toLowerCase() === name.toLowerCase())) {
+                const saved = await DataService.addRequester(name);
+                if (!saved) {
+                    UI.showToast("No fue posible guardar el solicitante en la nube.", "error");
+                    return;
+                }
+                this.requesters.push(name);
+                input.value = ''; 
+                this.renderAll();
+                UI.showToast("Solicitante añadido", "success");
+            }
+        });
+        
+    },
+
+    updateDashboardSummary() {
+        const active = this.tasks.filter(task => task.status !== 'Entregado');
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        const values = {
+            summaryTotal: active.length,
+            summaryCourse: active.filter(task => task.status === 'En curso').length,
+            summaryQueue: active.filter(task => task.status === 'En cola').length,
+            summaryOverdue: active.filter(task => task.dateDelivered && task.dateDelivered < todayStr).length,
+            summaryStarred: active.filter(task => task.isStarred).length
+        };
+
+        Object.entries(values).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = String(value);
+        });
+    },
+
+    setupHistoryView() {
+        const search = document.getElementById('historySearch');
+        const month = document.getElementById('historyMonth');
+        const requester = document.getElementById('historyRequester');
+        const assignee = document.getElementById('historyAssignee');
+        const status = document.getElementById('historyStatus');
+        const clear = document.getElementById('clearHistoryFilters');
+
+        if (search) {
+            let timer = null;
+            search.addEventListener('input', () => {
+                window.clearTimeout(timer);
+                timer = window.setTimeout(() => {
+                    this.historyFilters.search = normalizeText(search.value).toLowerCase();
+                    this.renderHistory();
+                }, 100);
+            });
+        }
+
+        month?.addEventListener('change', () => {
+            this.historyFilters.month = month.value;
+            this.renderHistory();
+        });
+
+        requester?.addEventListener('change', () => {
+            this.historyFilters.requester = requester.value;
+            this.renderHistory();
+        });
+
+        assignee?.addEventListener('change', () => {
+            this.historyFilters.assignee = assignee.value;
+            this.renderHistory();
+        });
+
+        status?.addEventListener('change', () => {
+            this.historyFilters.status = status.value;
+            this.renderHistory();
+        });
+
+        clear?.addEventListener('click', () => {
+            this.historyFilters = {
+                month: '',
+                requester: 'Todos',
+                assignee: 'Todos',
+                status: 'Todos',
+                search: ''
+            };
+
+            if (search) search.value = '';
+            if (month) month.value = '';
+            if (requester) requester.value = 'Todos';
+            if (assignee) assignee.value = 'Todos';
+            if (status) status.value = 'Todos';
+
+            this.renderHistory();
+        });
+
+        window.addEventListener('hashchange', () => this.applyViewFromHash());
+    },
+
+    setupChangeHistoryView() {
+        const search = document.getElementById('changeHistorySearch');
+        const from = document.getElementById('changeHistoryFrom');
+        const to = document.getElementById('changeHistoryTo');
+        const user = document.getElementById('changeHistoryUser');
+        const operation = document.getElementById('changeHistoryOperation');
+        const clear = document.getElementById('clearChangeHistoryFilters');
+
+        search?.addEventListener('input', () => { this.changeHistoryFilters.search = normalizeText(search.value).toLowerCase(); this.renderChangeHistory(); });
+        from?.addEventListener('change', () => { this.changeHistoryFilters.from = from.value; this.renderChangeHistory(); });
+        to?.addEventListener('change', () => { this.changeHistoryFilters.to = to.value; this.renderChangeHistory(); });
+        user?.addEventListener('change', () => { this.changeHistoryFilters.user = user.value; this.renderChangeHistory(); });
+        operation?.addEventListener('change', () => { this.changeHistoryFilters.operation = operation.value; this.renderChangeHistory(); });
+        clear?.addEventListener('click', () => {
+            this.changeHistoryFilters = { search: '', from: '', to: '', user: 'Todos', operation: 'Todos' };
+            if (search) search.value = '';
+            if (from) from.value = '';
+            if (to) to.value = '';
+            if (user) user.value = 'Todos';
+            if (operation) operation.value = 'Todos';
+            this.renderChangeHistory();
+        });
+    },
+
+    async loadChangeHistory() {
+        this.changeHistory = await DataService.getChangeHistory();
+        this.renderChangeHistory();
+    },
+
+    renderChangeHistory() {
+        const body = document.getElementById('changeHistoryTableBody');
+        const empty = document.getElementById('changeHistoryEmpty');
+
+        if (!body || !empty) return;
+
+        const filters = this.changeHistoryFilters || {
+            search: '',
+            from: '',
+            to: '',
+            user: 'Todos',
+            operation: 'Todos'
+        };
+
+        const tasks = Array.isArray(this.tasks) ? this.tasks : [];
+        const users = Array.isArray(this.usersList) ? this.usersList : [];
+
+        const taskMap = new Map(
+            tasks.map(task => [String(task.id), task])
         );
 
-        return;
-    }
-
-    const task = App.tasks.find(
-        item => String(item.id) === String(taskId)
-    );
-
-    if (!task) return;
-
-    const confirmed = window.confirm(
-        `¿Eliminar la solicitud "${task.title}"?\n\nEsta acción quedará registrada en el historial de cambios.`
-    );
-
-    if (!confirmed) return;
-
-    try {
-        await DataService.deleteTask(task.id);
-
-        App.tasks = App.tasks.filter(
-            item => String(item.id) !== String(task.id)
+        const userMap = new Map(
+            users.map(user => [
+                String(user.id),
+                normalizeText(user.name || user.username || 'Usuario')
+            ])
         );
 
-        renderAll();
+        const labels = {
+            name: 'Solicitud',
+            requester: 'Solicitante',
+            assignee: 'Responsable',
+            status: 'Estado',
+            dateReceived: 'Recepción',
+            dateDelivered: 'Entrega',
+            isStarred: 'Prioridad',
+            notes: 'Notas'
+        };
 
-        showToast(
-            'Solicitud eliminada correctamente.',
-            'success'
-        );
+        const display = (field, value) => {
+            if (field === 'isStarred') return value ? 'Prioritaria' : 'Normal';
+            if (value === null || value === undefined || value === '') return 'Vacío';
+            return String(value);
+        };
 
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible eliminar la solicitud.'
-        );
-    }
-}
+        const changedFields = entry => {
+            const before = entry.before_data || {};
+            const after = entry.after_data || {};
+            return Object.keys(labels).filter(field =>
+                String(before[field] ?? '') !== String(after[field] ?? '')
+            );
+        };
 
-/* ============================================================
-   MODAL NUEVA TAREA
-   ============================================================ */
+        const rows = (this.changeHistory || []).filter(entry => {
+            const task = taskMap.get(String(entry.task_id));
+            const username =
+                userMap.get(String(entry.changed_by)) || 'Usuario';
+            const before = entry.before_data || {};
+            const after = entry.after_data || {};
+            const fields = changedFields(entry);
 
-async function handleNewTaskSubmit(event) {
-    event.preventDefault();
+            const summary = fields.map(field =>
+                `${labels[field]} ${display(field, before[field])} ${display(field, after[field])}`
+            ).join(' ');
 
-    const form = event.currentTarget;
+            const haystack = [
+                task?.name,
+                task?.requester,
+                task?.assignee,
+                username,
+                entry.operation,
+                summary
+            ].map(normalizeText).join(' ').toLowerCase();
 
-    const title = $('#taskTitle')?.value.trim();
-    const requester = $('#taskRequester')?.value;
-    const assigned = $('#taskAssigned')?.value;
-    const dateReceived = $('#taskDateReceived')?.value;
-    const dateDue = $('#taskDateDue')?.value;
-    const notes = $('#taskNotes')?.value.trim();
+            const date = normalizeText(entry.created_at).slice(0, 10);
 
-    if (!title || !requester || !assigned || !dateReceived || !dateDue) {
-        showToast(
-            'Completa los campos obligatorios.',
-            'warning'
-        );
+            if (filters.search && !haystack.includes(filters.search)) return false;
+            if (filters.user !== 'Todos' && username !== filters.user) return false;
+            if (filters.operation !== 'Todos' && entry.operation !== filters.operation) return false;
+            if (filters.from && date < filters.from) return false;
+            if (filters.to && date > filters.to) return false;
 
-        return;
-    }
+            return true;
+        });
 
-    const payload = {
-        title,
-        requester,
-        assigned,
-        status: 'En cola',
-        dateReceived: parseDateInput(dateReceived),
-        dateDue: parseDateInput(dateDue),
-        dateDelivered: null,
-        notes,
-        isStarred: false
-    };
+        const userSelect = document.getElementById('changeHistoryUser');
 
-    try {
-        const created = await DataService.createTask(payload);
-
-        App.tasks.push(normalizeTask(created));
-
-        closeModal('#modalNewTask');
-
-        form.reset();
-
-        renderAll();
-
-        showToast(
-            'Solicitud creada correctamente.',
-            'success'
-        );
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible crear la solicitud.'
-        );
-    }
-}
-
-/* ============================================================
-   MODAL EDITAR
-   ============================================================ */
-
-function openEditTask(taskId) {
-    const task = App.tasks.find(
-        item => String(item.id) === String(taskId)
-    );
-
-    if (!task) return;
-
-    App.editingTaskId = task.id;
-
-    setValue('#editTaskId', task.id);
-    setValue('#editTaskTitle', task.title);
-    setValue('#editRequesterSelect', task.requester);
-    setValue('#editAssignedSelect', task.assigned);
-    setValue('#editStatusSelect', task.status);
-    setValue('#editDateReceived', formatDateForInput(task.dateReceived));
-    setValue('#editDateDue', formatDateForInput(task.dateDue));
-    setValue('#editTaskNotes', task.notes);
-
-    openModal('#modalEditTask');
-}
-
-async function handleEditTaskSubmit(event) {
-    event.preventDefault();
-
-    const taskId = App.editingTaskId;
-
-    if (!taskId) return;
-
-    const task = App.tasks.find(
-        item => String(item.id) === String(taskId)
-    );
-
-    if (!task) return;
-
-    const title = $('#editTaskTitle')?.value.trim();
-    const requester = $('#editRequesterSelect')?.value;
-    const assigned = $('#editAssignedSelect')?.value;
-    const status = $('#editStatusSelect')?.value;
-    const dateReceived = $('#editDateReceived')?.value;
-    const dateDue = $('#editDateDue')?.value;
-    const notes = $('#editTaskNotes')?.value.trim();
-
-    if (!title || !requester || !assigned || !status || !dateReceived || !dateDue) {
-        showToast(
-            'Completa los campos obligatorios.',
-            'warning'
-        );
-
-        return;
-    }
-
-    const payload = {
-        title,
-        requester,
-        assigned,
-        status,
-        dateReceived: parseDateInput(dateReceived),
-        dateDue: parseDateInput(dateDue),
-        dateDelivered:
-            status === 'Entregado'
-                ? (
-                    task.dateDelivered ||
-                    new Date().toISOString()
+        if (userSelect && userSelect.options.length <= 1) {
+            [...new Set(
+                (this.changeHistory || []).map(entry =>
+                    userMap.get(String(entry.changed_by)) || 'Usuario'
                 )
-                : null,
-        notes,
-        isStarred: task.isStarred
-    };
+            )]
+                .sort((a, b) => a.localeCompare(b, 'es'))
+                .forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    userSelect.appendChild(option);
+                });
+        }
 
-    try {
-        const updated =
-            await DataService.updateTask(task.id, payload);
+        body.replaceChildren();
 
-        Object.assign(
-            task,
-            normalizeTask(updated)
+        const count = document.getElementById('changeHistoryCount');
+        const result = document.getElementById('changeHistoryResult');
+
+        if (count) count.textContent = String(rows.length);
+        if (result) {
+            result.textContent =
+                `${rows.length} cambio${rows.length === 1 ? '' : 's'}`;
+        }
+
+        empty.hidden = rows.length !== 0;
+
+        if (!rows.length) return;
+
+        const fragment = document.createDocumentFragment();
+
+        rows.forEach((entry, index) => {
+            const task = taskMap.get(String(entry.task_id));
+            const username =
+                userMap.get(String(entry.changed_by)) || 'Usuario';
+
+            const before = entry.before_data || {};
+            const after = entry.after_data || {};
+            const fields = changedFields(entry);
+
+            const item = document.createElement('article');
+            item.className = 'change-history-item';
+            item.setAttribute('role', 'listitem');
+            item.dataset.historyId = String(entry.id);
+            item.style.animationDelay =
+                `${Math.min(index, 8) * 18}ms`;
+
+            const main = document.createElement('div');
+            main.className = 'change-history-main';
+
+            const date = document.createElement('time');
+            date.className = 'change-history-date';
+            date.dateTime = entry.created_at;
+
+            const parsedDate = new Date(entry.created_at);
+            date.textContent = Number.isNaN(parsedDate.getTime())
+                ? 'Fecha no disponible'
+                : parsedDate.toLocaleString('es-CO', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
+                });
+
+            const title = document.createElement('div');
+            title.className = 'change-history-title';
+            title.textContent =
+                task?.name || `Solicitud #${entry.task_id}`;
+
+            const meta = document.createElement('div');
+            meta.className = 'change-history-meta';
+
+            const operation = document.createElement('span');
+            operation.className =
+                `change-history-operation ${String(entry.operation || '').toLowerCase()}`;
+            operation.textContent =
+                entry.operation === 'INSERT'
+                    ? 'Creación'
+                    : entry.operation === 'DELETE'
+                        ? 'Eliminación'
+                        : 'Modificación';
+
+            const user = document.createElement('span');
+            user.className = 'change-history-user';
+            user.textContent = username;
+
+            meta.append(operation, user);
+
+            const detail = document.createElement('div');
+            detail.className = 'change-history-detail';
+
+            if (entry.operation === 'INSERT') {
+                detail.textContent = 'Se creó la solicitud.';
+            } else if (entry.operation === 'DELETE') {
+                detail.textContent = 'Se eliminó la solicitud.';
+            } else if (!fields.length) {
+                detail.textContent = 'Cambio registrado.';
+            } else {
+                detail.textContent = fields.slice(0, 2).map(field =>
+                    `${labels[field]}: ${display(field, before[field])} → ${display(field, after[field])}`
+                ).join(' · ');
+
+                if (fields.length > 2) {
+                    detail.textContent +=
+                        ` · +${fields.length - 2} cambio${fields.length - 2 === 1 ? '' : 's'}`;
+                }
+            }
+
+            main.append(date, title, meta, detail);
+
+            const actions = document.createElement('div');
+            actions.className = 'change-history-action';
+
+            if (
+                entry.operation === 'UPDATE' &&
+                task &&
+                typeof DataService.restoreTaskVersion === 'function'
+            ) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className =
+                    'btn-text change-history-restore';
+                button.textContent = 'Restaurar';
+                button.setAttribute(
+                    'aria-label',
+                    `Restaurar versión del ${date.textContent}`
+                );
+
+                button.addEventListener('click', async () => {
+                    const confirmed = confirm(
+                        `¿Restaurar la solicitud a la versión del ${date.textContent}? El cambio actual quedará registrado.`
+                    );
+
+                    if (!confirmed) return;
+
+                    button.disabled = true;
+
+                    try {
+                        const restoreResult =
+                            await DataService.restoreTaskVersion(
+                                entry.task_id,
+                                entry.before_data
+                            );
+
+                        if (!restoreResult?.cloudSaved) {
+                            button.disabled = false;
+                            UI.showToast(
+                                'No se pudo restaurar la versión.',
+                                'error'
+                            );
+                            return;
+                        }
+
+                        await this.loadData();
+                        await this.loadChangeHistory();
+
+                        UI.showToast(
+                            'Versión restaurada correctamente.',
+                            'success'
+                        );
+                    } catch (error) {
+                        console.error('Error al restaurar versión:', error);
+                        button.disabled = false;
+                        UI.showToast(
+                            'No se pudo restaurar la versión.',
+                            'error'
+                        );
+                    }
+                });
+
+                actions.appendChild(button);
+            }
+
+            item.append(main, actions);
+            fragment.appendChild(item);
+        });
+
+        body.appendChild(fragment);
+    },
+
+    showView(view) {
+        const isRequestHistory = view === 'history';
+        const isChangeHistory = view === 'change-history';
+        const secondary = isRequestHistory || isChangeHistory;
+        document.querySelector('.layout-grid')?.toggleAttribute('hidden', secondary);
+        document.querySelector('.dashboard-summary')?.toggleAttribute('hidden', secondary);
+        const requestHistory = document.getElementById('historyView');
+        const changeHistory = document.getElementById('changeHistoryView');
+        if (requestHistory) requestHistory.hidden = !isRequestHistory;
+        if (changeHistory) changeHistory.hidden = !isChangeHistory;
+        this.currentView = isRequestHistory ? 'history' : isChangeHistory ? 'change-history' : 'board';
+
+        const targetHash = isRequestHistory ? '#solicitudes-realizadas' : isChangeHistory ? '#historial-cambios' : '';
+        if (targetHash) window.history.pushState(null,'',targetHash);
+        else if (window.location.hash) window.history.pushState(null,'',window.location.pathname+window.location.search);
+
+        if (isRequestHistory) this.renderHistory();
+        if (isChangeHistory) this.renderChangeHistory();
+        if (!secondary) this.renderBoard();
+
+        requestAnimationFrame(() => { if(window.lucide) lucide.createIcons({attrs:{'aria-hidden':'true'}}); });
+    },
+
+    applyViewFromHash() {
+        const hash=window.location.hash;
+        if(hash==='#solicitudes-realizadas') this.showView('history');
+        else if(hash==='#historial-cambios') this.showView('change-history');
+        else this.showView('board');
+    },
+
+    renderHistory() {
+        const body = document.getElementById('historyTableBody');
+        if (!body) return;
+
+        const filters = this.historyFilters;
+        const dateValue = (value) => {
+            if (!value) return Number.POSITIVE_INFINITY;
+            const parsed = new Date(`${value}T12:00:00`).getTime();
+            return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
+        };
+
+        const monthOf = (value) => normalizeText(value).slice(0, 7);
+
+        const allTasks = Array.isArray(this.tasks) ? this.tasks : [];
+
+        const filtered = allTasks
+            .filter(task => {
+                if (filters.month && monthOf(task.dateReceived) !== filters.month) return false;
+                if (filters.requester !== 'Todos' && normalizeText(task.requester) !== filters.requester) return false;
+                if (filters.assignee !== 'Todos' && normalizeText(task.assignee) !== filters.assignee) return false;
+                if (filters.status !== 'Todos' && normalizeText(task.status) !== filters.status) return false;
+
+                if (filters.search) {
+                    const haystack = [
+                        task.name,
+                        task.requester,
+                        task.assignee,
+                        task.status,
+                        task.notes
+                    ].map(normalizeText).join(' ').toLowerCase();
+
+                    if (!haystack.includes(filters.search)) return false;
+                }
+
+                return true;
+            })
+            .sort((a, b) => {
+                const received = dateValue(b.dateReceived) - dateValue(a.dateReceived);
+                if (received !== 0) return received;
+                return String(b.id).localeCompare(String(a.id));
+            });
+
+        const thisMonth = (() => {
+            const now = new Date();
+            const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            return allTasks.filter(task => monthOf(task.dateReceived) === month).length;
+        })();
+
+        document.getElementById('historyCount').textContent = String(filtered.length);
+        document.getElementById('historyStatTotal').textContent = String(filtered.length);
+        document.getElementById('historyStatMonth').textContent =
+            String(filtered.filter(task => monthOf(task.dateReceived) === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).length);
+        document.getElementById('historyStatCourse').textContent =
+            String(filtered.filter(task => normalizeText(task.status) === 'En curso').length);
+        document.getElementById('historyStatDone').textContent =
+            String(filtered.filter(task => normalizeText(task.status) === 'Entregado').length);
+
+        const filterResult = document.getElementById('historyFilterResult');
+        if (filterResult) {
+            filterResult.textContent = `${filtered.length} resultado${filtered.length === 1 ? '' : 's'}`;
+        }
+
+        this.renderHistoryAnalytics(filtered);
+
+        if (!filtered.length) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 6;
+            cell.className = 'history-empty';
+            cell.textContent = 'No hay solicitudes que coincidan con los filtros.';
+            row.appendChild(cell);
+            body.replaceChildren(row);
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+
+        filtered.forEach(task => {
+            const row = document.createElement('tr');
+
+            const requestCell = document.createElement('td');
+            requestCell.className = 'history-request-cell';
+
+            const title = document.createElement('strong');
+            title.textContent = normalizeText(task.name);
+            title.title = normalizeText(task.name);
+
+            if (task.isStarred) {
+                const star = document.createElement('span');
+                star.className = 'history-star';
+                star.textContent = '★';
+                star.setAttribute('aria-label', 'Prioridad');
+                requestCell.append(star);
+            }
+
+            requestCell.appendChild(title);
+
+            const requesterCell = document.createElement('td');
+            requesterCell.textContent = normalizeText(task.requester) || 'No indicado';
+
+            const assigneeCell = document.createElement('td');
+            assigneeCell.textContent = normalizeText(task.assignee) || 'No asignado';
+
+            const receivedCell = document.createElement('td');
+            receivedCell.textContent = task.dateReceived
+                ? task.dateReceived.split('-').reverse().join('/')
+                : '—';
+
+            const deliveryCell = document.createElement('td');
+            deliveryCell.textContent = task.dateDelivered
+                ? task.dateDelivered.split('-').reverse().join('/')
+                : '—';
+
+            const statusCell = document.createElement('td');
+            const status = normalizeText(task.status) || 'Sin estado';
+            statusCell.innerHTML = `<span class="history-status ${status === 'En curso' ? 'course' : status === 'Entregado' ? 'done' : 'queue'}">${escapeHTML(status)}</span>`;
+
+            row.append(
+                requestCell,
+                requesterCell,
+                assigneeCell,
+                receivedCell,
+                deliveryCell,
+                statusCell
+            );
+
+            fragment.appendChild(row);
+        });
+
+        body.replaceChildren(fragment);
+    },
+
+    renderHistoryAnalytics(tasks) {
+        const monthly = document.getElementById('historyMonthlyChart');
+        const monthlySummary = document.getElementById('historyMonthlySummary');
+        const requester = document.getElementById('historyRequesterChart');
+        const assignee = document.getElementById('historyAssigneeChart');
+        const status = document.getElementById('historyStatusChart');
+        if (!monthly || !requester || !assignee || !status) return;
+
+        const labelMonth = (value) => {
+            if (!value || !/^\d{4}-\d{2}/.test(value)) return 'Sin fecha';
+            const [year, month] = value.slice(0, 7).split('-');
+            const date = new Date(Number(year), Number(month) - 1, 1);
+            return date.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') + ' ' + year.slice(2);
+        };
+
+        const countBy = (items, getter) => {
+            const map = new Map();
+            items.forEach(item => {
+                const key = normalizeText(getter(item)) || 'Sin asignar';
+                map.set(key, (map.get(key) || 0) + 1);
+            });
+            return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+        };
+
+        const renderBars = (container, entries, emptyText) => {
+            container.replaceChildren();
+
+            if (!entries.length) {
+                const empty = document.createElement('div');
+                empty.className = 'history-chart-empty';
+                empty.textContent = emptyText;
+                container.appendChild(empty);
+                return;
+            }
+
+            const max = Math.max(...entries.map(([, value]) => value), 1);
+            entries.slice(0, 6).forEach(([label, value]) => {
+                const row = document.createElement('div');
+                row.className = 'history-bar-row';
+
+                const top = document.createElement('div');
+                top.className = 'history-bar-top';
+
+                const name = document.createElement('span');
+                name.className = 'history-bar-label';
+                name.textContent = label;
+
+                const number = document.createElement('strong');
+                number.textContent = String(value);
+
+                const track = document.createElement('div');
+                track.className = 'history-bar-track';
+
+                const fill = document.createElement('span');
+                fill.className = 'history-bar-fill';
+                fill.style.width = `${Math.max(5, Math.round((value / max) * 100))}%`;
+                fill.setAttribute('aria-hidden', 'true');
+
+                top.append(name, number);
+                track.appendChild(fill);
+                row.append(top, track);
+                container.appendChild(row);
+            });
+        };
+
+        const monthlyMap = new Map();
+        tasks.forEach(task => {
+            const key = normalizeText(task.dateReceived).slice(0, 7) || 'Sin fecha';
+            monthlyMap.set(key, (monthlyMap.get(key) || 0) + 1);
+        });
+
+        const monthlyEntries = [...monthlyMap.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .slice(-8);
+
+        monthly.replaceChildren();
+        if (monthlySummary) monthlySummary.textContent = '';
+
+        if (!monthlyEntries.length) {
+            const empty = document.createElement('div');
+            empty.className = 'history-chart-empty';
+            empty.textContent = 'Sin datos para mostrar.';
+            monthly.appendChild(empty);
+        } else {
+            const max = Math.max(...monthlyEntries.map(([, value]) => value), 1);
+
+            if (monthlySummary) {
+                monthlySummary.textContent = monthlyEntries
+                    .map(([key, value]) => `${labelMonth(key)}: ${value} solicitud${value === 1 ? '' : 'es'}`)
+                    .join(' · ');
+            }
+
+            monthlyEntries.forEach(([key, value]) => {
+                const item = document.createElement('div');
+                item.className = 'history-month';
+
+                const barWrap = document.createElement('div');
+                barWrap.className = 'history-month-bar-wrap';
+                barWrap.title = `${labelMonth(key)}: ${value} solicitud${value === 1 ? '' : 'es'}`;
+
+                const bar = document.createElement('span');
+                bar.className = 'history-month-bar';
+                bar.style.height = `${Math.max(8, Math.round((value / max) * 100))}%`;
+
+                const valueLabel = document.createElement('strong');
+                valueLabel.textContent = String(value);
+
+                const label = document.createElement('span');
+                label.className = 'history-month-label';
+                label.textContent = labelMonth(key);
+
+                barWrap.append(bar, valueLabel);
+                item.append(barWrap, label);
+                monthly.appendChild(item);
+            });
+        }
+
+        renderBars(
+            requester,
+            countBy(tasks, task => task.requester),
+            'Sin solicitudes'
         );
 
-        closeModal('#modalEditTask');
-
-        App.editingTaskId = null;
-
-        renderAll();
-
-        showToast(
-            'Solicitud actualizada correctamente.',
-            'success'
+        renderBars(
+            assignee,
+            countBy(tasks, task => task.assignee),
+            'Sin asignaciones'
         );
 
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible actualizar la solicitud.'
+        renderBars(
+            status,
+            countBy(tasks, task => task.status),
+            'Sin estados'
         );
-    }
-}
+    },
 
-/* ============================================================
-   FECHAS
-   ============================================================ */
+    renderAll() {
+        this.renderDropdowns();
+        this.refreshHistoryFilters();
+        this.renderTags();
+        this.renderBoard();
+        this.renderHistory();
+    },
 
-function parseDateInput(value) {
-    if (!value) return null;
+    renderDropdowns() {
+        const buildOptions = (select, options, placeholder, emptyOption = false) => {
+            if (!select) return;
+            const fragment = document.createDocumentFragment();
 
-    const parts = value.split('/');
+            if (placeholder) {
+                const option = document.createElement('option');
+                option.value = emptyOption ? '' : 'Todos';
+                option.textContent = placeholder;
+                if (emptyOption) option.disabled = true;
+                option.selected = true;
+                fragment.appendChild(option);
+            }
 
-    if (parts.length === 3) {
-        const [day, month, year] = parts;
+            options.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                fragment.appendChild(option);
+            });
 
-        const date = new Date(
-            Number(year),
-            Number(month) - 1,
-            Number(day),
-            12,
-            0,
+            select.replaceChildren(fragment);
+        };
+
+        ['assignee', 'filterAssignee'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            const options = ['No asignado', ...this.members];
+            buildOptions(
+                el,
+                options,
+                id === 'filterAssignee' ? 'Asignación: Todos' : null
+            );
+        });
+
+        ['requesterSelect', 'filterRequester', 'editRequesterSelect'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            buildOptions(
+                el,
+                this.requesters,
+                id === 'filterRequester' ? 'Solicitante: Todos' : 'Seleccionar solicitante...',
+                id !== 'filterRequester'
+            );
+        });
+
+        buildCustomSelects(document.querySelector('.inline-filters-bar'));
+        buildCustomSelects(document.querySelector('#taskForm'));
+        buildCustomSelects(document.querySelector('#editTaskForm'));
+    },
+
+    refreshHistoryFilters() {
+        const requester = document.getElementById('historyRequester');
+        const assignee = document.getElementById('historyAssignee');
+        if (!requester || !assignee) return;
+
+        const currentRequester = this.historyFilters.requester;
+        const currentAssignee = this.historyFilters.assignee;
+
+        const unique = values => [...new Set(
+            values.map(normalizeText).filter(Boolean)
+        )].sort((a, b) => a.localeCompare(b, 'es'));
+
+        const fill = (select, values, current) => {
+            const fragment = document.createDocumentFragment();
+            const all = document.createElement('option');
+            all.value = 'Todos';
+            all.textContent = 'Todos';
+            fragment.appendChild(all);
+
+            values.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                fragment.appendChild(option);
+            });
+
+            select.replaceChildren(fragment);
+            select.value = values.includes(current) ? current : 'Todos';
+        };
+
+        fill(requester, unique(this.tasks.map(task => task.requester)), currentRequester);
+        fill(assignee, unique(this.tasks.map(task => task.assignee)), currentAssignee);
+
+        this.historyFilters.requester = requester.value;
+        this.historyFilters.assignee = assignee.value;
+    },
+
+    renderTags() {
+        if (this.user.role !== 'admin') return;
+
+        const mList = document.getElementById('membersList');
+        const rList = document.getElementById('requestersList');
+        if (!mList || !rList) return;
+
+        const membersFragment = document.createDocumentFragment();
+
+        this.members.forEach((member, index) => {
+            const safeName = normalizeText(member);
+            const color = this.getColor(member);
+
+            const chip = document.createElement('div');
+            chip.className = 'member-chip';
+            chip.style.color = color;
+            chip.style.backgroundColor = `${color}20`;
+            chip.style.borderColor = `${color}40`;
+
+            const name = document.createElement('span');
+            name.textContent = safeName;
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'remove-member';
+            button.setAttribute('aria-label', `Eliminar ${safeName}`);
+            button.dataset.action = 'remove-member';
+            button.dataset.index = String(index);
+
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'x');
+
+            button.appendChild(icon);
+            chip.append(name, button);
+            membersFragment.appendChild(chip);
+        });
+
+        const requestersFragment = document.createDocumentFragment();
+
+        this.requesters.forEach((requester, index) => {
+            const safeName = normalizeText(requester);
+
+            const chip = document.createElement('div');
+            chip.className = 'member-chip';
+
+            const name = document.createElement('span');
+            name.textContent = safeName;
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'remove-member';
+            button.setAttribute('aria-label', `Eliminar ${safeName}`);
+            button.dataset.action = 'remove-requester';
+            button.dataset.index = String(index);
+
+            const icon = document.createElement('i');
+            icon.setAttribute('data-lucide', 'x');
+
+            button.appendChild(icon);
+            chip.append(name, button);
+            requestersFragment.appendChild(chip);
+        });
+
+        mList.replaceChildren(membersFragment);
+        rList.replaceChildren(requestersFragment);
+
+        lucide.createIcons();
+    },
+
+    getColor(name) {
+        if (!name || name === 'No asignado') return '#94a3b8';
+        const userClean = name.toLowerCase().trim();
+        const dbUser = this.usersList.find(u => 
+            u && (
+                (u.name && u.name.toLowerCase().trim() === userClean) || 
+                (u.username && u.username.toLowerCase().trim() === userClean)
+            )
+        );
+        if (dbUser && dbUser.theme) return dbUser.theme;
+
+        const allColors = ['#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488', '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c', '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'];
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        return allColors[Math.abs(hash) % allColors.length];
+    },
+
+    updateTask(id, field, value, shouldRender = false) {
+        const t = this.tasks.find(x => String(x.id) === String(id));
+        if (t) {
+            t[field] = field === 'isStarred' ? Boolean(value) : normalizeText(value);
+            this.selectedTaskId = String(id);
+            this.markAsUnsaved();
+            this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
+            if (shouldRender) this.renderBoard();
+        }
+    },
+
+    openTaskNotes(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task) return;
+
+        document.getElementById('taskNotesViewer')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'taskNotesViewer';
+        overlay.className = 'task-notes-viewer-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'taskNotesViewerTitle');
+
+        const card = document.createElement('div');
+        card.className = 'task-notes-viewer-card';
+
+        const header = document.createElement('div');
+        header.className = 'task-notes-viewer-header';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'task-notes-viewer-title-wrap';
+
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'message-square-text');
+
+        const title = document.createElement('h2');
+        title.id = 'taskNotesViewerTitle';
+        title.textContent = 'Notas de la solicitud';
+
+        titleWrap.append(icon, title);
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-icon task-notes-viewer-close';
+        close.setAttribute('aria-label', 'Cerrar notas');
+        const closeIcon = document.createElement('i');
+        closeIcon.setAttribute('data-lucide', 'x');
+        close.appendChild(closeIcon);
+
+        header.append(titleWrap, close);
+
+        const taskName = document.createElement('div');
+        taskName.className = 'task-notes-viewer-task-name';
+        taskName.textContent = normalizeText(task.name);
+
+        const meta = document.createElement('div');
+        meta.className = 'task-notes-viewer-meta';
+        meta.textContent = `Solicitante: ${normalizeText(task.requester || 'No indicado')}`;
+
+        const body = document.createElement('div');
+        body.className = 'task-notes-viewer-body';
+
+        const noteText = document.createElement('p');
+        noteText.className = 'task-notes-viewer-text';
+
+        const notes = normalizeText(task.notes);
+        noteText.textContent = notes || 'Esta solicitud no tiene notas todavía.';
+        if (!notes) body.classList.add('is-empty');
+
+        body.appendChild(noteText);
+        card.append(header, taskName, meta, body);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        lucide.createIcons();
+
+        const closeViewer = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', onKeyDown);
+        };
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') closeViewer();
+        };
+
+        close.addEventListener('click', closeViewer);
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) closeViewer();
+        });
+        document.addEventListener('keydown', onKeyDown);
+
+        requestAnimationFrame(() => overlay.classList.add('active'));
+    },
+
+    selectTask(taskId, render = false) {
+        const id = taskId == null ? null : String(taskId);
+        if (id && !this.tasks.some(t => String(t.id) === id)) return;
+        this.selectedTaskId = id;
+
+        document.querySelectorAll('.task-table tr[data-task-row]').forEach(row => {
+            row.classList.toggle('task-selected', row.dataset.taskRow === id);
+        });
+        document.querySelectorAll('.request-item[data-task-row]').forEach(item => {
+            item.classList.toggle('task-selected', item.dataset.taskRow === id);
+        });
+
+        if (render) this.renderBoard();
+    },
+
+    renderBoard() {
+        this.updateDashboardSummary();
+
+        const sList = document.getElementById('sidebarList');
+        const tBody = document.getElementById('tablePrioridades');
+        
+        const d = new Date();
+        const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        
+        if (this.fpInstances) {
+            const instances = Array.isArray(this.fpInstances) ? this.fpInstances : [this.fpInstances];
+            instances.forEach(fp => { if (fp && typeof fp.destroy === 'function') fp.destroy(); });
+        }
+        this.fpInstances = [];
+
+        sList.innerHTML = ''; tBody.innerHTML = '';
+
+        const fAssignee = document.getElementById('filterAssignee').value;
+        const fRequester = document.getElementById('filterRequester').value;
+        const fStatus = document.getElementById('filterStatus').value;
+        const fSearch = normalizeText(document.getElementById('taskSearch')?.value || '').toLowerCase();
+        const fCompletion = document.getElementById('filterCompletion')?.value || 'Pendientes';
+        const fSortEl = document.getElementById('filterSort');
+        const fSort = fSortEl ? fSortEl.value : 'received_asc';
+        const sortModifier = fSort === 'desc' ? -1 : 1;
+
+        /*
+         * Importante: los filtros generales NO deben eliminar las tareas
+         * completadas antes de construir la sección "Realizadas".
+         * Antes, el filtro "Pendientes" hacía que "completadas" quedara
+         * siempre vacío; por eso una tarea marcada parecía desaparecer.
+         */
+        const dateValue = (value) => {
+            if (!value) return Number.POSITIVE_INFINITY;
+            const time = new Date(`${value}T12:00:00`).getTime();
+            return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+        };
+
+        const matchesCommonFilters = (t) => {
+            const mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
+            const mReq = fRequester === 'Todos' || t.requester === fRequester;
+            const mStat = fStatus === 'Todos' || t.status === fStatus;
+            const mSearch = !fSearch ||
+                normalizeText(t.name).toLowerCase().includes(fSearch) ||
+                normalizeText(t.requester).toLowerCase().includes(fSearch) ||
+                normalizeText(t.assignee).toLowerCase().includes(fSearch) ||
+                normalizeText(t.notes).toLowerCase().includes(fSearch);
+
+            let mQuick = true;
+            if (this.quickFilter === 'starred') {
+                mQuick = !!t.isStarred;
+            } else if (this.quickFilter === 'mine') {
+                mQuick = !!this.user && t.assignee === this.user.name;
+            } else if (this.quickFilter === 'unassigned') {
+                mQuick = !t.assignee || t.assignee === 'No asignado';
+            } else if (this.quickFilter === 'overdue') {
+                mQuick = t.status !== 'Entregado' && !!t.dateDelivered && dateValue(t.dateDelivered) < Date.now();
+            } else if (this.quickFilter === 'today') {
+                mQuick = t.status !== 'Entregado' && t.dateDelivered === todayStr;
+            } else if (this.quickFilter === 'course') {
+                mQuick = t.status === 'En curso';
+            } else if (this.quickFilter === 'queue') {
+                mQuick = t.status === 'En cola';
+            }
+
+            let mDate = true;
+            if (this.filterDates.length > 0) {
+                if (!t.dateDelivered) {
+                    mDate = false;
+                } else {
+                    const start = new Date(this.filterDates[0]);
+                    start.setHours(0, 0, 0, 0);
+                    const end = this.filterDates.length > 1
+                        ? new Date(this.filterDates[1])
+                        : new Date(this.filterDates[0]);
+                    end.setHours(23, 59, 59, 999);
+                    const taskDate = new Date(t.dateDelivered + 'T12:00:00');
+                    mDate = taskDate >= start && taskDate <= end;
+                }
+            }
+
+            return mAsig && mReq && mStat && mSearch && mQuick && mDate;
+        };
+
+        const filtered = this.tasks.filter(matchesCommonFilters);
+        // ORDEN POR DEFECTO: fecha de solicitud (recepción),
+        // de la más antigua a la más reciente.
+        // Las estrellas solo toman prioridad en órdenes alternativos.
+        const sortTasks = (a, b) => {
+            // Regla por defecto: ⭐ prioridad primero y, dentro de cada grupo,
+            // fecha de solicitud (recepción) de más antigua a más reciente.
+            if (a.isStarred && !b.isStarred) return -1;
+            if (!a.isStarred && b.isStarred) return 1;
+
+            const receivedA = dateValue(a.dateReceived);
+            const receivedB = dateValue(b.dateReceived);
+            const deliveryA = dateValue(a.dateDelivered);
+            const deliveryB = dateValue(b.dateDelivered);
+
+            if (fSort === 'received_asc' || fSort === 'received_desc') {
+                const diff = receivedA - receivedB;
+                if (diff !== 0) return fSort === 'received_desc' ? -diff : diff;
+            } else {
+                const diff = deliveryA - deliveryB;
+                if (diff !== 0) return fSort === 'desc' ? -diff : diff;
+            }
+
+            // Desempate estable y determinista.
+            const fallback = receivedA - receivedB;
+            if (fallback !== 0) return fallback;
+            return String(a.id).localeCompare(String(b.id));
+        };
+
+        const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
+        const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
+        const boardTasks = fCompletion === 'Realizadas'
+            ? completadas
+            : fCompletion === 'Todas'
+                ? [...activas, ...completadas].sort(sortTasks)
+                : activas;
+        const activeFragment = document.createDocumentFragment();
+        const sidebarFragment = document.createDocumentFragment();
+
+        document.getElementById('countPrioridades').textContent = boardTasks.length;
+        const boardHistoryCount = document.getElementById('boardHistoryCount');
+        if (boardHistoryCount) boardHistoryCount.textContent = completadas.length;
+
+        this.renderWorkloadChart(activas);
+
+        const myTasks = this.tasks.filter(t => t.status !== 'Entregado' && t.assignee === this.user.name).sort(sortTasks);
+        const myTasksBadge = document.querySelector('.sidebar-card:first-child .badge-count');
+        if (myTasksBadge) myTasksBadge.textContent = String(myTasks.length);
+        
+        myTasks.forEach(t => {
+            const li = document.createElement('li');
+            // Añadir clase de estrella para estilar en el CSS
+            li.className = `request-item ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`;
+            li.tabIndex = 0; 
+            li.id = `li-${t.id}`;
+            li.dataset.taskRow = String(t.id);
+            
+            // Prevent Event Bubbling
+            const handleExpand = (e) => {
+                if(e.target.closest('input, button')) return;
+                document.querySelectorAll('.request-item.expanded').forEach(el => { if(el !== li) el.classList.remove('expanded'); });
+                const exp = li.classList.toggle('expanded');
+                document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
+            };
+
+            li.addEventListener('click', (e) => {
+                if (e.target.closest('input, button')) return;
+                this.selectTask(t.id);
+                handleExpand(e);
+            });
+
+            li.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this.selectTask(t.id);
+                    handleExpand(e);
+                }
+            });
+            
+            const colorHex = this.getColor(t.assignee);
+            
+            let dateClass = '';
+            let dateAlertIcon = '';
+            let overDueBadge = '';
+
+            if (t.dateDelivered) {
+                if (t.dateDelivered < todayStr) {
+                    dateClass = 'text-danger';
+                    dateAlertIcon = '<i data-lucide="alert-triangle" class="text-danger" style="width:14px;height:14px;margin-right:2px;"></i>';
+                    overDueBadge = '<span class="time-alert-badge danger">¡Vencida!</span>';
+                } else if (t.dateDelivered === todayStr) {
+                    dateClass = 'text-warning';
+                    dateAlertIcon = '<i data-lucide="clock" class="text-warning" style="width:14px;height:14px;margin-right:2px;"></i>';
+                    overDueBadge = '<span class="time-alert-badge warning">Para Hoy</span>';
+                }
+            }
+            
+            li.innerHTML = `
+                <div class="req-header">
+                    <span class="req-name">
+                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
+                            <i data-lucide="star" style="width: 14px; height: 14px;"></i>
+                        </button>
+                        <span class="req-name-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
+                    </span>
+                    <div class="req-dates">
+                        <span style="white-space: nowrap;">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                            <span class="${dateClass}" style="display:flex; align-items:center; white-space:nowrap;">E: <strong style="display:inline-flex; align-items:center; margin-left:4px;">${dateAlertIcon}${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
+                            ${overDueBadge}
+                        </div>
+                    </div>
+                </div>
+                <div class="req-extra-info">
+                    <div class="req-detail-row"><span>Solicitante:</span><strong>${escapeHTML(t.requester)}</strong></div>
+                    <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(t.assignee)}</span></div>
+                </div>
+            `;
+            sidebarFragment.appendChild(li);
+        });
+        if(myTasks.length === 0) {
+            const empty = document.createElement('li');
+            empty.className = 'request-item';
+            empty.style.cssText = 'color:var(--text-muted); text-align:center; padding:20px 10px; border:none; box-shadow:none; cursor:default;';
+            empty.textContent = 'No tienes tareas asignadas';
+            sidebarFragment.appendChild(empty);
+        }
+        sList.replaceChildren(sidebarFragment);
+
+        let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
+        
+        boardTasks.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.id = `tr-${t.id}`;
+            tr.className = `${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
+            tr.dataset.taskRow = String(t.id);
+            
+            const colorHex = this.getColor(t.assignee);
+            const isCurso = t.status === 'En curso';
+            
+            tr.addEventListener('click', (e) => {
+                // Ignore clicks on buttons to prevent bubbling collision
+                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
+                    return;
+                }
+                this.selectTask(t.id);
+                document.querySelectorAll('.task-table tr').forEach(r => {
+                    if(r !== tr) r.classList.remove('expanded-row');
+                });
+                tr.classList.toggle('expanded-row');
+            });
+            
+            let dateDeliveredVal = t.dateDelivered || '';
+            let dateClass = '';
+            if (t.dateDelivered) {
+                if (t.dateDelivered < todayStr) dateClass = 'text-danger';
+                else if (t.dateDelivered === todayStr) dateClass = 'text-warning';
+            }
+            
+            tr.innerHTML = `
+                <td style="text-align:center;" data-label="Completada"><input type="checkbox" id="complete-task-${escapeHTML(t.id)}" name="complete-task-${escapeHTML(t.id)}" class="custom-checkbox" aria-label="Marcar como entregado" data-action="toggle-completed" data-task-id="${escapeHTML(t.id)}"></td>
+                <td data-label="Solicitud">
+                    <div class="req-title-cell">
+                        <strong>
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
+                                <i data-lucide="star"></i>
+                            </button>
+                            <span class="req-title-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
+                        </strong>
+                        <span>${escapeHTML(t.requester)}</span>
+                    </div>
+                </td>
+                <td data-label="Asignación">
+                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
+                        ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
+                    </select>
+                </td>
+                <td class="date-info" data-label="Fechas (Rec - Ent)">
+                    <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
+                    <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
+                </td>
+                <td data-label="Estado">
+                    <button type="button" id="status-switch-${t.id}"
+                            class="status-switch ${isCurso ? 'curso' : 'cola'}"
+                            aria-label="Cambiar estado de ${escapeHTML(t.name)}. Estado actual: ${escapeHTML(t.status)}"
+                            data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
+                        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                        <span class="switch-label">${escapeHTML(t.status)}</span>
+                    </button>
+                </td>
+                <td style="text-align:center;" data-label="Acciones">
+                    <div class="action-buttons">
+                        <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
+                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
+                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
+                    </div>
+                </td>
+            `;
+            activeFragment.appendChild(tr);
+        });
+        if(activas.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 6;
+            cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
+            cell.textContent = 'No hay tareas pendientes.';
+            row.appendChild(cell);
+            activeFragment.appendChild(row);
+        }
+        tBody.replaceChildren(activeFragment);
+
+        buildCustomSelects(tBody);
+        
+        this.fpInstances = flatpickr(".inline-date-picker", {
+            locale: "es",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            altInputClass: "inline-date-picker-alt",
+            disableMobile: "true",
+            appendTo: document.body,
+            onReady: (selectedDates, dateStr, instance) => {
+                ensureFlatpickrFormFieldIds(instance, 'inline-date');
+            },
+            onChange: (selectedDates, dateStr, instance) => {
+                if(selectedDates.length === 0) return;
+                const id = instance.element.getAttribute('data-id');
+                const dateReceived = instance.element.getAttribute('data-received');
+                
+                if (dateReceived && new Date(dateStr) < new Date(dateReceived)) {
+                    UI.showToast("La fecha de entrega no puede ser anterior a la recepción.", "error");
+                    const task = this.tasks.find(x => x.id === id);
+                    const oldDate = task ? task.dateDelivered : '';
+                    instance.setDate(oldDate);
+                    return;
+                }
+                
+                this.updateTask(id, 'dateDelivered', dateStr, false);
+            }
+        });
+
+        lucide.createIcons();
+    },
+
+    renderWorkloadChart(activasTasks) {
+        const wContainer = document.getElementById('workloadContainer');
+        if (!wContainer) return;
+
+        const workload = Object.fromEntries(this.members.map(member => [member, 0]));
+        workload['No asignado'] = 0;
+
+        activasTasks.forEach(task => {
+            const assignee = task.assignee || 'No asignado';
+            workload[assignee] = (workload[assignee] || 0) + 1;
+        });
+
+        const sortedWorkload = Object.entries(workload)
+            .sort((a, b) => b[1] - a[1]);
+
+        const maxTasks = sortedWorkload.reduce(
+            (max, [, count]) => Math.max(max, count),
             0
         );
 
-        if (!Number.isNaN(date.getTime())) {
-            return date.toISOString();
-        }
-    }
-
-    const fallback = new Date(value);
-
-    return Number.isNaN(fallback.getTime())
-        ? null
-        : fallback.toISOString();
-}
-
-function formatDateForInput(value) {
-    if (!value) return '';
-
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) return '';
-
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-
-    return `${day}/${month}/${year}`;
-}
-
-function setValue(selector, value) {
-    const element = $(selector);
-
-    if (element) {
-        element.value = value ?? '';
-    }
-}
-
-/* ============================================================
-   HISTORIAL DE SOLICITUDES REALIZADAS
-   ============================================================ */
-
-function getHistoryTasks() {
-    const filters = App.historyFilters;
-
-    const search = normalizeText(filters.search);
-
-    return App.tasks
-        .filter(task => {
-            if (task.status !== 'Entregado') {
-                return false;
-            }
-
-            if (
-                filters.status !== 'Todos' &&
-                task.status !== filters.status
-            ) {
-                return false;
-            }
-
-            if (search) {
-                const searchable = [
-                    task.title,
-                    getRequesterName(task.requester),
-                    getMemberName(task.assigned),
-                    task.notes
-                ]
-                    .map(normalizeText)
-                    .join(' ');
-
-                if (!searchable.includes(search)) {
-                    return false;
-                }
-            }
-
-            if (filters.from) {
-                const from =
-                    dateValue(parseDateInput(filters.from));
-
-                const delivered =
-                    dateValue(task.dateDelivered);
-
-                if (delivered < from) {
-                    return false;
-                }
-            }
-
-            if (filters.to) {
-                const toDate =
-                    new Date(parseDateInput(filters.to));
-
-                if (!Number.isNaN(toDate.getTime())) {
-                    toDate.setHours(23, 59, 59, 999);
-                }
-
-                const delivered =
-                    dateValue(toDate);
-
-                if (
-                    dateValue(task.dateDelivered) >
-                    delivered
-                ) {
-                    return false;
-                }
-            }
-
-            return true;
-        })
-        .sort((a, b) =>
-            dateValue(b.dateDelivered) -
-            dateValue(a.dateDelivered)
-        );
-}
-
-function renderHistory() {
-    const tasks = getHistoryTasks();
-
-    renderHistoryStats(tasks);
-    renderHistoryMonthly(tasks);
-    renderHistoryTable(tasks);
-
-    const countText =
-        `${tasks.length} ${
-            tasks.length === 1
-                ? 'solicitud'
-                : 'solicitudes'
-        }`;
-
-    setText('#historyResult', countText);
-}
-
-function renderHistoryTable(tasks) {
-    const tbody = $('#historyTableBody');
-    const empty = $('#historyEmpty');
-
-    if (!tbody) return;
-
-    if (!tasks.length) {
-        tbody.innerHTML = '';
-
-        if (empty) {
-            empty.style.display = '';
-        }
-
-        return;
-    }
-
-    if (empty) {
-        empty.style.display = 'none';
-    }
-
-    tbody.innerHTML = tasks.map(task => `
-        <tr>
-            <td>
-                <strong>${escapeHTML(task.title)}</strong>
-            </td>
-            <td>${escapeHTML(getRequesterName(task.requester))}</td>
-            <td>${escapeHTML(getMemberName(task.assigned))}</td>
-            <td>${escapeHTML(formatDate(task.dateReceived))}</td>
-            <td>${escapeHTML(formatDate(task.dateDelivered))}</td>
-            <td>
-                <span class="status-pill status-delivered">
-                    Entregado
-                </span>
-            </td>
-        </tr>
-    `).join('');
-}
-
-function renderHistoryStats(tasks) {
-    const total = tasks.length;
-
-    const delivered = tasks.filter(
-        task => task.status === 'Entregado'
-    ).length;
-
-    const durations = tasks
-        .map(task => {
-            if (!task.dateReceived || !task.dateDelivered) {
-                return null;
-            }
-
-            const received =
-                dateValue(task.dateReceived);
-
-            const deliveredDate =
-                dateValue(task.dateDelivered);
-
-            if (
-                received === Number.MAX_SAFE_INTEGER ||
-                deliveredDate === Number.MAX_SAFE_INTEGER
-            ) {
-                return null;
-            }
-
-            const diff =
-                deliveredDate - received;
-
-            return diff >= 0
-                ? diff
-                : null;
-        })
-        .filter(value => value !== null);
-
-    let averageText = '—';
-
-    if (durations.length) {
-        const average =
-            durations.reduce(
-                (sum, value) => sum + value,
-                0
-            ) / durations.length;
-
-        const days =
-            Math.round(
-                average / (1000 * 60 * 60 * 24)
-            );
-
-        averageText =
-            `${days} ${days === 1 ? 'día' : 'días'}`;
-    }
-
-    const counts = new Map();
-
-    tasks.forEach(task => {
-        const name = getMemberName(task.assigned);
-
-        counts.set(
-            name,
-            (counts.get(name) || 0) + 1
-        );
-    });
-
-    let topUser = '—';
-
-    if (counts.size) {
-        topUser =
-            [...counts.entries()]
-                .sort((a, b) => b[1] - a[1])[0][0];
-    }
-
-    setText('#historyStatTotal', total);
-    setText('#historyStatDelivered', delivered);
-    setText('#historyStatAverage', averageText);
-    setText('#historyStatTopUser', topUser);
-}
-
-function renderHistoryMonthly(tasks) {
-    const chart = $('#historyMonthlyChart');
-    const summary = $('#historyMonthlySummary');
-
-    if (!chart) return;
-
-    const months = new Map();
-
-    tasks.forEach(task => {
-        if (!task.dateDelivered) return;
-
-        const date = new Date(task.dateDelivered);
-
-        if (Number.isNaN(date.getTime())) return;
-
-        const key =
-            `${date.getFullYear()}-${String(
-                date.getMonth() + 1
-            ).padStart(2, '0')}`;
-
-        months.set(
-            key,
-            (months.get(key) || 0) + 1
-        );
-    });
-
-    const entries =
-        [...months.entries()]
-            .sort((a, b) => a[0].localeCompare(b[0]));
-
-    if (!entries.length) {
-        chart.innerHTML = `
-            <div class="history-chart-empty">
-                No hay datos para mostrar.
-            </div>
-        `;
-
-        if (summary) {
-            summary.textContent = 'Sin datos';
-        }
-
-        return;
-    }
-
-    const max =
-        Math.max(
-            ...entries.map(item => item[1]),
-            1
-        );
-
-    chart.innerHTML = entries.map(([key, total]) => {
-        const [year, month] = key.split('-');
-
-        const date =
-            new Date(
-                Number(year),
-                Number(month) - 1,
-                1
-            );
-
-        const label =
-            new Intl.DateTimeFormat(
-                'es-CO',
-                { month: 'short', year: 'numeric' }
-            ).format(date);
-
-        const percentage =
-            Math.round((total / max) * 100);
-
-        return `
-            <div class="history-month">
-                <div class="history-month-label">
-                    <span>${escapeHTML(label)}</span>
-                    <strong>${total}</strong>
-                </div>
-
-                <div class="history-month-bar">
-                    <span
-                        style="width:${percentage}%"
-                    ></span>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    if (summary) {
-        const total =
-            entries.reduce(
-                (sum, [, value]) => sum + value,
-                0
-            );
-
-        summary.textContent =
-            `${total} ${
-                total === 1
-                    ? 'entrega'
-                    : 'entregas'
-            } registradas`;
-    }
-}
-
-/* ============================================================
-   HISTORIAL GENERAL DE CAMBIOS
-   ============================================================ */
-
-async function loadChangeHistory() {
-    try {
-        App.changeHistory =
-            await DataService.getChangeHistory();
-
-        populateChangeHistoryUsers();
-
-        renderChangeHistory();
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible cargar el historial de cambios.'
-        );
-    }
-}
-
-function populateChangeHistoryUsers() {
-    const select = $('#changeHistoryUser');
-
-    if (!select) return;
-
-    const current =
-        App.changeHistoryFilters.user;
-
-    const userIds =
-        [...new Set(
-            App.changeHistory
-                .map(entry => entry.changed_by)
-                .filter(Boolean)
-        )];
-
-    const users =
-        userIds.map(id => ({
-            id,
-            name: getMemberName(id)
-        }));
-
-    select.innerHTML = `
-        <option value="Todos">Todos</option>
-        ${users
-            .sort((a, b) =>
-                a.name.localeCompare(
-                    b.name,
-                    'es',
-                    { sensitivity: 'base' }
-                )
-            )
-            .map(user => `
-                <option value="${escapeHTML(user.id)}">
-                    ${escapeHTML(user.name)}
-                </option>
-            `)
-            .join('')}
-    `;
-
-    if (
-        current === 'Todos' ||
-        users.some(user =>
-            String(user.id) === String(current)
-        )
-    ) {
-        select.value = current;
-    } else {
-        select.value = 'Todos';
-        App.changeHistoryFilters.user = 'Todos';
-    }
-}
-
-function getFilteredChangeHistory() {
-    const filters =
-        App.changeHistoryFilters;
-
-    const search =
-        normalizeText(filters.search);
-
-    return App.changeHistory.filter(entry => {
-        if (
-            filters.operation !== 'Todos' &&
-            entry.operation !== filters.operation
-        ) {
-            return false;
-        }
-
-        if (
-            filters.user !== 'Todos' &&
-            String(entry.changed_by) !== String(filters.user)
-        ) {
-            return false;
-        }
-
-        const created =
-            dateValue(entry.created_at);
-
-        if (filters.from) {
-            const from =
-                dateValue(
-                    parseDateInput(filters.from)
-                );
-
-            if (created < from) {
-                return false;
-            }
-        }
-
-        if (filters.to) {
-            const parsed =
-                parseDateInput(filters.to);
-
-            if (parsed) {
-                const to =
-                    new Date(parsed);
-
-                to.setHours(23, 59, 59, 999);
-
-                if (
-                    created >
-                    to.getTime()
-                ) {
-                    return false;
-                }
-            }
-        }
-
-        if (!search) {
-            return true;
-        }
-
-        const task =
-            App.tasks.find(
-                item =>
-                    String(item.id) ===
-                    String(entry.task_id)
-            );
-
-        const userName =
-            getMemberName(entry.changed_by);
-
-        const searchable = [
-            task?.title || '',
-            userName,
-            entry.operation,
-            describeChange(entry)
-        ]
-            .map(normalizeText)
-            .join(' ');
-
-        return searchable.includes(search);
-    });
-}
-
-function renderChangeHistory() {
-    const tbody = $('#changeHistoryTableBody');
-    const empty = $('#changeHistoryEmpty');
-
-    if (!tbody) return;
-
-    const entries =
-        getFilteredChangeHistory();
-
-    setText(
-        '#changeHistoryCount',
-        entries.length
-    );
-
-    setText(
-        '#changeHistoryResult',
-        `${entries.length} ${entries.length === 1 ? 'cambio' : 'cambios'}`
-    );
-
-    if (!entries.length) {
-        tbody.innerHTML = '';
-
-        if (empty) {
-            empty.style.display = '';
-        }
-
-        return;
-    }
-
-    if (empty) {
-        empty.style.display = 'none';
-    }
-
-    tbody.innerHTML =
-        entries.map(renderChangeHistoryRow).join('');
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-}
-
-function renderChangeHistoryRow(entry) {
-    const task =
-        App.tasks.find(
-            item =>
-                String(item.id) ===
-                String(entry.task_id)
-        );
-
-    const title =
-        task?.title ||
-        getHistoryTaskTitle(entry) ||
-        'Solicitud eliminada';
-
-    const userName =
-        getMemberName(entry.changed_by);
-
-    const operationLabel =
-        operationLabelFor(entry.operation);
-
-    const detail =
-        describeChange(entry);
-
-    const canRestore =
-        entry.operation === 'UPDATE' &&
-        Boolean(entry.before_data);
-
-    const operationClass =
-        entry.operation.toLowerCase();
-
-    const iconName =
-        entry.operation === 'INSERT'
-            ? 'plus'
-            : entry.operation === 'DELETE'
-                ? 'trash-2'
-                : 'pencil';
-
-    return `
-        <tr class="change-history-list-row">
-            <td colspan="6">
-                <article class="change-history-item">
-                    <div class="change-history-marker change-history-marker-${escapeHTML(operationClass)}" aria-hidden="true">
-                        <i data-lucide="${iconName}"></i>
-                    </div>
-
-                    <div class="change-history-main">
-                        <div class="change-history-heading">
-                            <time class="change-history-date" datetime="${escapeHTML(entry.created_at || '')}">
-                                ${escapeHTML(formatDateTime(entry.created_at))}
-                            </time>
-                            <span class="change-history-operation ${escapeHTML(operationClass)}">
-                                ${escapeHTML(operationLabel)}
-                            </span>
-                        </div>
-
-                        <h3 class="change-history-task">
-                            ${escapeHTML(title)}
-                        </h3>
-
-                        <div class="change-history-meta">
-                            <span class="change-history-user">
-                                <i data-lucide="user-round" aria-hidden="true"></i>
-                                <strong>${escapeHTML(userName)}</strong>
-                            </span>
-                            <span class="change-history-detail">
-                                ${escapeHTML(detail)}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="change-history-actions">
-                        ${
-                            canRestore
-                                ? `
-                                <button
-                                    type="button"
-                                    class="btn btn-secondary btn-small change-history-restore"
-                                    data-action="restore-change"
-                                    data-history-id="${escapeHTML(entry.id)}"
-                                    aria-label="Restaurar ${escapeHTML(title)} al estado anterior a este cambio"
-                                >
-                                    <i data-lucide="undo-2" aria-hidden="true"></i>
-                                    Restaurar
-                                </button>
-                                `
-                                : ''
-                        }
-                    </div>
-                </article>
-            </td>
-        </tr>
-    `;
-}
-function operationLabelFor(operation) {
-    switch (operation) {
-        case 'INSERT':
-            return 'Creación';
-
-        case 'UPDATE':
-            return 'Edición';
-
-        case 'DELETE':
-            return 'Eliminación';
-
-        default:
-            return operation || 'Cambio';
-    }
-}
-
-function getHistoryTaskTitle(entry) {
-    const source =
-        entry.after_data ||
-        entry.before_data ||
-        {};
-
-    return (
-        source.title ||
-        source.name ||
-        ''
-    );
-}
-
-function describeChange(entry) {
-    if (entry.operation === 'INSERT') {
-        return 'Solicitud creada';
-    }
-
-    if (entry.operation === 'DELETE') {
-        return 'Solicitud eliminada';
-    }
-
-    if (entry.operation === 'UPDATE') {
-        const before =
-            entry.before_data || {};
-
-        const after =
-            entry.after_data || {};
-
-        const changes = [];
-
-        const fields = [
-            ['title', 'título'],
-            ['requester', 'solicitante'],
-            ['assigned', 'responsable'],
-            ['status', 'estado'],
-            ['dateReceived', 'fecha de recepción'],
-            ['dateDue', 'fecha de entrega'],
-            ['dateDelivered', 'fecha de entrega final'],
-            ['notes', 'notas'],
-            ['isStarred', 'prioridad']
-        ];
-
-        fields.forEach(([field, label]) => {
-            const beforeValue =
-                before[field] ??
-                before[toSnakeCase(field)];
-
-            const afterValue =
-                after[field] ??
-                after[toSnakeCase(field)];
-
-            if (
-                JSON.stringify(beforeValue) !==
-                JSON.stringify(afterValue)
-            ) {
-                changes.push(label);
-            }
-        });
-
-        if (!changes.length) {
-            return 'Solicitud modificada';
-        }
-
-        return `Cambió: ${changes.join(', ')}`;
-    }
-
-    return 'Cambio registrado';
-}
-
-function toSnakeCase(value) {
-    return String(value)
-        .replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-}
-
-async function restoreChange(historyId) {
-    const entry =
-        App.changeHistory.find(
-            item =>
-                String(item.id) ===
-                String(historyId)
-        );
-
-    if (!entry || !entry.before_data) {
-        showToast(
-            'No existe información suficiente para restaurar este cambio.',
-            'warning'
-        );
-
-        return;
-    }
-
-    const task =
-        App.tasks.find(
-            item =>
-                String(item.id) ===
-                String(entry.task_id)
-        );
-
-    const title =
-        task?.title ||
-        getHistoryTaskTitle(entry) ||
-        'esta solicitud';
-
-    const confirmed =
-        window.confirm(
-            `¿Restaurar "${title}" al estado anterior a este cambio?`
-        );
-
-    if (!confirmed) return;
-
-    try {
-        const restored =
-            await DataService.restoreTaskVersion(
-                entry.task_id,
-                entry.before_data
-            );
-
-        const index =
-            App.tasks.findIndex(
-                item =>
-                    String(item.id) ===
-                    String(entry.task_id)
-            );
-
-        if (index !== -1) {
-            App.tasks[index] =
-                normalizeTask(restored);
-        }
-
-        await loadChangeHistory();
-        renderAll();
-
-        showToast(
-            'La solicitud fue restaurada.',
-            'success'
-        );
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible restaurar la solicitud.'
-        );
-    }
-}
-
-/* ============================================================
-   MIEMBROS
-   ============================================================ */
-
-function renderMembers() {
-    const container = $('#membersList');
-
-    if (!container) return;
-
-    container.innerHTML =
-        App.members.map(member => `
-            <div class="member-tag">
-                <span
-                    class="member-avatar-small"
-                    style="background:${escapeHTML(member.color || '#4f46e5')}"
-                >
-                    ${escapeHTML(getInitials(member.name))}
-                </span>
-
-                <span class="member-tag-name">
-                    ${escapeHTML(member.name)}
-                </span>
-
-                ${
-                    isAdmin() &&
-                    String(member.id) !== String(App.currentUser?.id)
-                        ? `
-                        <button
-                            type="button"
-                            class="member-delete-button"
-                            data-member-id="${escapeHTML(member.id)}"
-                            aria-label="Eliminar ${escapeHTML(member.name)}"
-                            title="Eliminar integrante"
-                        >
-                            <i data-lucide="x" aria-hidden="true"></i>
-                        </button>
-                        `
-                        : ''
-                }
-            </div>
-        `).join('');
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-}
-
-/*
- * La creación de usuarios de Supabase Auth no debe hacerse
- * desde el navegador con service_role.
- *
- * El botón de administración se mantiene preparado para que
- * el backend / Edge Function de invitaciones gestione el alta.
- */
-async function handleAddMember(event) {
-    event.preventDefault();
-
-    const input = $('#newMemberInput');
-
-    if (!input) return;
-
-    const name = input.value.trim();
-
-    if (!name) {
-        showToast(
-            'Escribe el nombre del colaborador.',
-            'warning'
-        );
-
-        return;
-    }
-
-    showToast(
-        'La creación de usuarios debe realizarse mediante el flujo seguro de invitación de Supabase Auth.',
-        'info'
-    );
-}
-
-async function deleteMember(memberId) {
-    if (!isAdmin()) return;
-
-    const member =
-        getMemberById(memberId);
-
-    if (!member) return;
-
-    const confirmed =
-        window.confirm(
-            `¿Eliminar el perfil de ${member.name}?`
-        );
-
-    if (!confirmed) return;
-
-    try {
-        const { error } =
-            await supabaseClient
-                .from('profiles')
-                .delete()
-                .eq('id', member.id);
-
-        if (error) throw error;
-
-        App.members =
-            App.members.filter(
-                item =>
-                    String(item.id) !==
-                    String(member.id)
-            );
-
-        renderAll();
-
-        showToast(
-            'Perfil eliminado.',
-            'success'
-        );
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible eliminar el perfil.'
-        );
-    }
-}
-
-/* ============================================================
-   SOLICITANTES
-   ============================================================ */
-
-function renderRequesters() {
-    const container = $('#requestersList');
-
-    if (!container) return;
-
-    container.innerHTML =
-        App.requesters.map(requester => `
-            <div class="member-tag">
-                <span class="member-tag-name">
-                    ${escapeHTML(requester.name)}
-                </span>
-
-                ${
-                    isAdmin()
-                        ? `
-                        <button
-                            type="button"
-                            class="member-delete-button"
-                            data-requester-id="${escapeHTML(requester.id)}"
-                            aria-label="Eliminar ${escapeHTML(requester.name)}"
-                            title="Eliminar solicitante"
-                        >
-                            <i data-lucide="x" aria-hidden="true"></i>
-                        </button>
-                        `
-                        : ''
-                }
-            </div>
-        `).join('');
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-}
-
-async function handleAddRequester(event) {
-    event.preventDefault();
-
-    if (!isAdmin()) return;
-
-    const input = $('#newRequesterInput');
-
-    if (!input) return;
-
-    const name = input.value.trim();
-
-    if (!name) {
-        showToast(
-            'Escribe el nombre o área.',
-            'warning'
-        );
-
-        return;
-    }
-
-    const exists =
-        App.requesters.some(
-            requester =>
-                normalizeText(requester.name) ===
-                normalizeText(name)
-        );
-
-    if (exists) {
-        showToast(
-            'Ese solicitante ya existe.',
-            'warning'
-        );
-
-        return;
-    }
-
-    try {
-        const created =
-            await DataService.createRequester(name);
-
-        App.requesters.push(created);
-
-        input.value = '';
-
-        renderAll();
-
-        showToast(
-            'Solicitante añadido.',
-            'success'
-        );
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible añadir el solicitante.'
-        );
-    }
-}
-
-async function deleteRequester(requesterId) {
-    if (!isAdmin()) return;
-
-    const requester =
-        getRequesterById(requesterId);
-
-    if (!requester) return;
-
-    const used =
-        App.tasks.some(
-            task =>
-                String(task.requester) ===
-                String(requester.id)
-        );
-
-    if (used) {
-        showToast(
-            'No puedes eliminar un solicitante que está asociado a solicitudes existentes.',
-            'warning'
-        );
-
-        return;
-    }
-
-    const confirmed =
-        window.confirm(
-            `¿Eliminar "${requester.name}"?`
-        );
-
-    if (!confirmed) return;
-
-    try {
-        await DataService.deleteRequester(
-            requester.id
-        );
-
-        App.requesters =
-            App.requesters.filter(
-                item =>
-                    String(item.id) !==
-                    String(requester.id)
-            );
-
-        renderAll();
-
-        showToast(
-            'Solicitante eliminado.',
-            'success'
-        );
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible eliminar el solicitante.'
-        );
-    }
-}
-
-/* ============================================================
-   PERFIL
-   ============================================================ */
-
-function openProfileModal() {
-    const profile =
-        App.profile;
-
-    if (!profile) return;
-
-    setValue(
-        '#avatarUrlInput',
-        profile.avatar_url ||
-        profile.avatarUrl ||
-        ''
-    );
-
-    setProfileColor(
-        profile.color ||
-        '#4f46e5'
-    );
-
-    const preview =
-        $('#previewAvatar');
-
-    if (preview) {
-        const avatar =
-            profile.avatar_url ||
-            profile.avatarUrl ||
-            '';
-
-        preview.src =
-            avatar ||
-            `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-                <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">
-                    <rect width="120" height="120" rx="60" fill="${profile.color || '#4f46e5'}"/>
-                    <text x="60" y="73" text-anchor="middle"
-                          font-family="Montserrat, sans-serif"
-                          font-size="40"
-                          font-weight="700"
-                          fill="#fff">${getInitials(profile.name)}</text>
-                </svg>
-            `)}`;
-    }
-
-    openModal('#modalProfile');
-}
-
-function setProfileColor(color) {
-    $$('.color-swatch').forEach(swatch => {
-        const selected =
-            normalizeText(
-                swatch.dataset.color
-            ) === normalizeText(color);
-
-        swatch.classList.toggle(
-            'selected',
-            selected
-        );
-
-        swatch.setAttribute(
-            'aria-checked',
-            selected ? 'true' : 'false'
-        );
-    });
-}
-
-function getSelectedProfileColor() {
-    const selected =
-        document.querySelector(
-            '.color-swatch.selected'
-        );
-
-    return (
-        selected?.dataset.color ||
-        '#4f46e5'
-    );
-}
-
-async function handleProfileSubmit(event) {
-    event.preventDefault();
-
-    if (!App.currentUser) return;
-
-    const color =
-        getSelectedProfileColor();
-
-    const avatarUrl =
-        $('#avatarUrlInput')?.value.trim() ||
-        null;
-
-    try {
-        const updated =
-            await DataService.updateProfile(
-                App.currentUser.id,
-                {
-                    color,
-                    avatar_url: avatarUrl
-                }
-            );
-
-        App.profile = updated;
-
-        closeModal('#modalProfile');
-
-        renderAll();
-
-        showToast(
-            'Perfil actualizado.',
-            'success'
-        );
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible actualizar el perfil.'
-        );
-    }
-}
-
-/* ============================================================
-   CROP / AVATAR
-   ============================================================ */
-
-function handleAvatarFileChange(event) {
-    const file =
-        event.target.files?.[0];
-
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-        showToast(
-            'Selecciona una imagen válida.',
-            'warning'
-        );
-
-        return;
-    }
-
-    const reader =
-        new FileReader();
-
-    reader.onload = () => {
-        const image =
-            $('#cropperImage');
-
-        const wrapper =
-            $('#cropperWrapper');
-
-        if (!image || !wrapper) return;
-
-        image.src =
-            reader.result;
-
-        wrapper.style.display = '';
-
-        if (App.cropper) {
-            App.cropper.destroy();
-        }
-
-        App.cropper =
-            new Cropper(
-                image,
-                {
-                    aspectRatio: 1,
-                    viewMode: 1,
-                    autoCropArea: 1,
-                    responsive: true
-                }
-            );
-
-        $('#btnCancelCrop').style.display = '';
-        $('#fileFieldGroup').style.display = 'none';
-        $('#urlFieldGroup').style.display = 'none';
-        $('#urlDivider').style.display = 'none';
-    };
-
-    reader.readAsDataURL(file);
-}
-
-function cancelCrop() {
-    if (App.cropper) {
-        App.cropper.destroy();
-        App.cropper = null;
-    }
-
-    const wrapper =
-        $('#cropperWrapper');
-
-    if (wrapper) {
-        wrapper.style.display = 'none';
-    }
-
-    const input =
-        $('#avatarFileInput');
-
-    if (input) {
-        input.value = '';
-    }
-
-    $('#btnCancelCrop').style.display = '';
-    $('#fileFieldGroup').style.display = '';
-    $('#urlFieldGroup').style.display = '';
-    $('#urlDivider').style.display = '';
-}
-
-function removeAvatar() {
-    setValue('#avatarUrlInput', '');
-
-    const input =
-        $('#avatarFileInput');
-
-    if (input) {
-        input.value = '';
-    }
-
-    cancelCrop();
-
-    const preview =
-        $('#previewAvatar');
-
-    if (preview) {
-        preview.src =
-            `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-                <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120">
-                    <rect width="120" height="120" rx="60" fill="${App.profile?.color || '#4f46e5'}"/>
-                    <text x="60" y="73" text-anchor="middle"
-                          font-family="Montserrat, sans-serif"
-                          font-size="40"
-                          font-weight="700"
-                          fill="#fff">${getInitials(getCurrentUserName())}</text>
-                </svg>
-            `)}`;
-    }
-}
-
-/* ============================================================
-   NOTAS
-   ============================================================ */
-
-function renderNotes() {
-    /*
-     * El panel de notas se mantiene preparado para el contenido
-     * existente. La carga y escritura de notas no debe interferir
-     * con el estado de edición de tareas.
-     */
-}
-
-/* ============================================================
-   VISTAS
-   ============================================================ */
-
-function showView(view) {
-    const boardSection =
-        document.querySelector('.board-section');
-
-    const historyView =
-        $('#historyView');
-
-    const changeHistoryView =
-        $('#changeHistoryView');
-
-    if (boardSection && boardSection !== historyView && boardSection !== changeHistoryView) {
-        boardSection.style.display =
-            view === 'board'
-                ? ''
-                : 'none';
-    }
-
-    if (historyView) {
-        historyView.style.display =
-            view === 'history'
-                ? ''
-                : 'none';
-    }
-
-    if (changeHistoryView) {
-        changeHistoryView.style.display =
-            view === 'change-history'
-                ? ''
-                : 'none';
-    }
-
-    App.currentView = view;
-
-    if (view === 'history') {
-        window.location.hash =
-            'solicitudes-realizadas';
-
-        renderHistory();
-    } else if (view === 'change-history') {
-        window.location.hash =
-            'historial-cambios';
-
-        loadChangeHistory();
-    } else {
-        window.location.hash = '';
-
-        renderTaskBoard();
-    }
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
-}
-
-/* ============================================================
-   MODALES
-   ============================================================ */
-
-function openModal(selector) {
-    const modal = $(selector);
-
-    if (!modal) return;
-
-    modal.classList.add('is-open');
-
-    document.body.classList.add('modal-open');
-
-    const firstInput =
-        modal.querySelector(
-            'input:not([type="hidden"]), select, textarea, button'
-        );
-
-    window.setTimeout(() => {
-        firstInput?.focus();
-    }, 50);
-}
-
-function closeModal(selector) {
-    const modal = $(selector);
-
-    if (!modal) return;
-
-    modal.classList.remove('is-open');
-
-    if (!document.querySelector('.modal-overlay.is-open')) {
-        document.body.classList.remove('modal-open');
-    }
-}
-
-function closeAllModals() {
-    $$('.modal-overlay.is-open')
-        .forEach(modal =>
-            modal.classList.remove('is-open')
-        );
-
-    document.body.classList.remove('modal-open');
-}
-
-/* ============================================================
-   FLATPICKR
-   ============================================================ */
-
-function initDatePickers() {
-    if (typeof flatpickr === 'undefined') {
-        return;
-    }
-
-    const locale =
-        window.flatpickr?.l10ns?.es ||
-        undefined;
-
-    $$('.date-picker, .history-date-picker, .change-history-date-picker')
-        .forEach(input => {
-            if (input._flatpickr) return;
-
-            flatpickr(
-                input,
-                {
-                    locale,
-                    dateFormat: 'd/m/Y',
-                    allowInput: true,
-                    disableMobile: true
-                }
-            );
-        });
-}
-
-/* ============================================================
-   EVENTOS
-   ============================================================ */
-
-function bindEvents() {
-
-    $('#loginForm')?.addEventListener(
-        'submit',
-        handleLogin
-    );
-
-    $('#btnLogout')?.addEventListener(
-        'click',
-        handleLogout
-    );
-
-    $('#togglePasswordBtn')?.addEventListener(
-        'click',
-        togglePasswordVisibility
-    );
-
-    $('#btnNewTask')?.addEventListener(
-        'click',
-        () => openModal('#modalNewTask')
-    );
-
-    $('#newTaskForm')?.addEventListener(
-        'submit',
-        handleNewTaskSubmit
-    );
-
-    $('#editTaskForm')?.addEventListener(
-        'submit',
-        handleEditTaskSubmit
-    );
-
-    $('#btnManageTeam')?.addEventListener(
-        'click',
-        () => openModal('#modalTeam')
-    );
-
-    $('#btnManageReq')?.addEventListener(
-        'click',
-        () => openModal('#modalRequesters')
-    );
-
-    $('#addMemberForm')?.addEventListener(
-        'submit',
-        handleAddMember
-    );
-
-    $('#addRequesterForm')?.addEventListener(
-        'submit',
-        handleAddRequester
-    );
-
-    $('#userProfileBtn')?.addEventListener(
-        'click',
-        openProfileModal
-    );
-
-    $('#userProfileBtn')?.addEventListener(
-        'keydown',
-        event => {
-            if (
-                event.key === 'Enter' ||
-                event.key === ' '
-            ) {
-                event.preventDefault();
-                openProfileModal();
-            }
-        }
-    );
-
-    $('#profileForm')?.addEventListener(
-        'submit',
-        handleProfileSubmit
-    );
-
-    $('#avatarFileInput')?.addEventListener(
-        'change',
-        handleAvatarFileChange
-    );
-
-    $('#btnCancelCrop')?.addEventListener(
-        'click',
-        cancelCrop
-    );
-
-    $('#btnRemoveAvatar')?.addEventListener(
-        'click',
-        removeAvatar
-    );
-
-    $('#btnToggleNotes')?.addEventListener(
-        'click',
-        () => {
-            showToast(
-                'Panel de notas disponible en el workspace.',
-                'info'
-            );
-        }
-    );
-
-    $('#btnOpenHistoryBottom')?.addEventListener(
-        'click',
-        () => showView('history')
-    );
-
-    $('#btnBackToBoard')?.addEventListener(
-        'click',
-        () => showView('board')
-    );
-
-    $('#btnOpenChangeHistory')?.addEventListener(
-        'click',
-        () => showView('change-history')
-    );
-
-    $('#btnBackFromChangeHistory')?.addEventListener(
-        'click',
-        () => showView('board')
-    );
-
-    $('#taskSearch')?.addEventListener(
-        'input',
-        debounce(event => {
-            App.filters.search =
-                event.target.value;
-
-            renderTaskBoard();
-        })
-    );
-
-    $('#taskStatusFilter')?.addEventListener(
-        'change',
-        event => {
-            App.filters.status =
-                event.target.value;
-
-            renderTaskBoard();
-        }
-    );
-
-    $('#clearTaskFilters')?.addEventListener(
-        'click',
-        () => {
-            App.filters.search = '';
-            App.filters.status = 'Todos';
-
-            setValue('#taskSearch', '');
-            setValue('#taskStatusFilter', 'Todos');
-
-            renderTaskBoard();
-        }
-    );
-
-    $('#historySearch')?.addEventListener(
-        'input',
-        debounce(event => {
-            App.historyFilters.search =
-                event.target.value;
-
-            renderHistory();
-        })
-    );
-
-    $('#historyStatusFilter')?.addEventListener(
-        'change',
-        event => {
-            App.historyFilters.status =
-                event.target.value;
-
-            renderHistory();
-        }
-    );
-
-    $('#historyFrom')?.addEventListener(
-        'change',
-        event => {
-            App.historyFilters.from =
-                event.target.value;
-
-            renderHistory();
-        }
-    );
-
-    $('#historyTo')?.addEventListener(
-        'change',
-        event => {
-            App.historyFilters.to =
-                event.target.value;
-
-            renderHistory();
-        }
-    );
-
-    $('#clearHistoryFilters')?.addEventListener(
-        'click',
-        () => {
-            App.historyFilters = {
-                search: '',
-                status: 'Todos',
-                from: '',
-                to: ''
-            };
-
-            setValue('#historySearch', '');
-            setValue('#historyStatusFilter', 'Todos');
-            setValue('#historyFrom', '');
-            setValue('#historyTo', '');
-
-            renderHistory();
-        }
-    );
-
-    $('#changeHistorySearch')?.addEventListener(
-        'input',
-        debounce(event => {
-            App.changeHistoryFilters.search =
-                event.target.value;
-
-            renderChangeHistory();
-        })
-    );
-
-    $('#changeHistoryFrom')?.addEventListener(
-        'change',
-        event => {
-            App.changeHistoryFilters.from =
-                event.target.value;
-
-            renderChangeHistory();
-        }
-    );
-
-    $('#changeHistoryTo')?.addEventListener(
-        'change',
-        event => {
-            App.changeHistoryFilters.to =
-                event.target.value;
-
-            renderChangeHistory();
-        }
-    );
-
-    $('#changeHistoryUser')?.addEventListener(
-        'change',
-        event => {
-            App.changeHistoryFilters.user =
-                event.target.value;
-
-            renderChangeHistory();
-        }
-    );
-
-    $('#changeHistoryOperation')?.addEventListener(
-        'change',
-        event => {
-            App.changeHistoryFilters.operation =
-                event.target.value;
-
-            renderChangeHistory();
-        }
-    );
-
-    $('#clearChangeHistoryFilters')?.addEventListener(
-        'click',
-        () => {
-            App.changeHistoryFilters = {
-                search: '',
-                from: '',
-                to: '',
-                user: 'Todos',
-                operation: 'Todos'
-            };
-
-            setValue('#changeHistorySearch', '');
-            setValue('#changeHistoryFrom', '');
-            setValue('#changeHistoryTo', '');
-            setValue('#changeHistoryUser', 'Todos');
-            setValue('#changeHistoryOperation', 'Todos');
-
-            renderChangeHistory();
-        }
-    );
-
-    $$('.close-modal').forEach(button => {
-        button.addEventListener(
-            'click',
-            () => {
-                const modal =
-                    button.closest('.modal-overlay');
-
-                if (modal) {
-                    closeModal(`#${modal.id}`);
-                }
-            }
-        );
-    });
-
-    $$('.modal-overlay').forEach(modal => {
-        modal.addEventListener(
-            'mousedown',
-            event => {
-                if (event.target === modal) {
-                    closeModal(`#${modal.id}`);
-                }
-            }
-        );
-    });
-
-    $$('.color-swatch').forEach(swatch => {
-        swatch.addEventListener(
-            'click',
-            () => {
-                setProfileColor(
-                    swatch.dataset.color
-                );
-            }
-        );
-
-        swatch.addEventListener(
-            'keydown',
-            event => {
-                if (
-                    event.key === 'Enter' ||
-                    event.key === ' '
-                ) {
-                    event.preventDefault();
-
-                    setProfileColor(
-                        swatch.dataset.color
-                    );
-                }
-            }
-        );
-    });
-
-    document.addEventListener(
-        'click',
-        handleDelegatedClick
-    );
-
-    document.addEventListener(
-        'keydown',
-        handleGlobalKeydown
-    );
-
-    $$('.summary-card[data-summary]').forEach(card => {
-        const activate = () => {
-            const type =
-                card.dataset.summary;
-
-            applySummaryFilter(type);
+        const fragment = document.createDocumentFragment();
+
+        const findUser = (name) => {
+            if (!name || name === 'No asignado') return null;
+            const normalized = normalizeText(name).toLowerCase();
+            return this.usersList.find(user => {
+                const userName = normalizeText(user?.name).toLowerCase();
+                const username = normalizeText(user?.username).toLowerCase();
+                return userName === normalized || username === normalized;
+            }) || null;
         };
 
-        card.addEventListener(
-            'click',
-            activate
-        );
+        const createAvatar = (name, color) => {
+            const avatar = document.createElement('div');
+            avatar.className = 'workload-avatar';
+            avatar.setAttribute('aria-hidden', 'true');
+            avatar.style.setProperty('--avatar-color', sanitizeThemeColor(color, '#4f46e5'));
 
-        card.addEventListener(
-            'keydown',
-            event => {
-                if (
-                    event.key === 'Enter' ||
-                    event.key === ' '
-                ) {
-                    event.preventDefault();
-                    activate();
-                }
+            const user = findUser(name);
+            const avatarUrl = sanitizeAvatarUrl(user?.avatar);
+
+            if (avatarUrl) {
+                const image = document.createElement('img');
+                image.src = avatarUrl;
+                image.alt = '';
+                image.loading = 'lazy';
+                image.decoding = 'async';
+                image.addEventListener('error', () => {
+                    image.remove();
+                    avatar.textContent = getInitials(name);
+                    avatar.classList.add('workload-avatar-fallback');
+                }, { once: true });
+                avatar.appendChild(image);
+            } else if (name !== 'No asignado') {
+                avatar.textContent = getInitials(name);
+                avatar.classList.add('workload-avatar-fallback');
+            } else {
+                const icon = document.createElement('i');
+                icon.setAttribute('data-lucide', 'user-round');
+                avatar.appendChild(icon);
             }
-        );
-    });
-}
 
-/* ============================================================
-   CLICK DELEGADO
-   ============================================================ */
+            return avatar;
+        };
 
-async function handleDelegatedClick(event) {
+        sortedWorkload.forEach(([name, count]) => {
+            if (count === 0 && name === 'No asignado') return;
 
-    const actionElement =
-        event.target.closest('[data-action]');
+            const percentage = maxTasks === 0 ? 0 : (count / maxTasks) * 100;
+            const color = this.getColor(name);
 
-    if (actionElement) {
-        const action =
-            actionElement.dataset.action;
+            const item = document.createElement('div');
+            item.className = 'workload-item';
 
-        const taskId =
-            actionElement.dataset.taskId;
+            const header = document.createElement('div');
+            header.className = 'workload-header';
 
-        if (action === 'toggle-star') {
-            await toggleStar(taskId);
-            return;
-        }
+            const identity = document.createElement('div');
+            identity.className = 'workload-identity';
 
-        if (action === 'edit-task') {
-            openEditTask(taskId);
-            return;
-        }
+            identity.appendChild(createAvatar(name, color));
 
-        if (action === 'advance-task') {
-            await advanceTask(taskId);
-            return;
-        }
+            const nameEl = document.createElement('span');
+            nameEl.className = 'workload-name';
+            nameEl.textContent = normalizeText(name);
 
-        if (action === 'delete-task') {
-            await deleteTask(taskId);
-            return;
-        }
+            identity.appendChild(nameEl);
 
-        if (action === 'restore-change') {
-            await restoreChange(
-                actionElement.dataset.historyId
-            );
+            const countEl = document.createElement('span');
+            countEl.className = 'workload-count';
+            countEl.textContent = String(count);
 
-            return;
-        }
-    }
+            header.append(identity, countEl);
 
-    const taskFocus =
-        event.target.closest(
-            '[data-task-focus]'
-        );
+            const barBg = document.createElement('div');
+            barBg.className = 'workload-bar-bg';
 
-    if (taskFocus) {
-        const taskId =
-            taskFocus.dataset.taskFocus;
+            const barFill = document.createElement('div');
+            barFill.className = 'workload-bar-fill';
+            barFill.style.width = `${percentage}%`;
+            barFill.style.backgroundColor = color;
 
-        focusTask(taskId);
-
-        return;
-    }
-
-    const workload =
-        event.target.closest(
-            '[data-workload-user]'
-        );
-
-    if (workload) {
-        const userId =
-            workload.dataset.workloadUser;
-
-        App.filters.search = '';
-
-        const assigned =
-            getMemberName(userId);
-
-        App.filters.search = assigned;
-
-        setValue(
-            '#taskSearch',
-            assigned
-        );
-
-        renderTaskBoard();
-
-        showToast(
-            `Mostrando tareas de ${assigned}.`,
-            'info'
-        );
-    }
-
-    const memberDelete =
-        event.target.closest(
-            '[data-member-id]'
-        );
-
-    if (memberDelete) {
-        await deleteMember(
-            memberDelete.dataset.memberId
-        );
-
-        return;
-    }
-
-    const requesterDelete =
-        event.target.closest(
-            '[data-requester-id]'
-        );
-
-    if (requesterDelete) {
-        await deleteRequester(
-            requesterDelete.dataset.requesterId
-        );
-    }
-}
-
-/* ============================================================
-   FILTROS DEL RESUMEN
-   ============================================================ */
-
-function applySummaryFilter(type) {
-
-    switch (type) {
-
-        case 'total':
-            App.filters.status = 'Todos';
-            App.filters.search = '';
-            break;
-
-        case 'course':
-            App.filters.status = 'En curso';
-            App.filters.search = '';
-            break;
-
-        case 'queue':
-            App.filters.status = 'En cola';
-            App.filters.search = '';
-            break;
-
-        case 'overdue':
-            App.filters.status = 'Todos';
-            App.filters.search = '';
-
-            /*
-             * Se muestra un filtro temporal mediante
-             * la clase del tablero.
-             */
-            renderTaskBoard();
-
-            const overdueCards =
-                $$('.task-card');
-
-            overdueCards.forEach(card => {
-                const task =
-                    App.tasks.find(
-                        item =>
-                            String(item.id) ===
-                            String(card.dataset.taskId)
-                    );
-
-                card.style.display =
-                    isOverdue(task)
-                        ? ''
-                        : 'none';
-            });
-
-            return;
-
-        case 'starred':
-            App.filters.status = 'Todos';
-            App.filters.search = '';
-
-            renderTaskBoard();
-
-            $$('.task-card').forEach(card => {
-                const task =
-                    App.tasks.find(
-                        item =>
-                            String(item.id) ===
-                            String(card.dataset.taskId)
-                    );
-
-                card.style.display =
-                    task?.isStarred
-                        ? ''
-                        : 'none';
-            });
-
-            return;
-    }
-
-    setValue(
-        '#taskSearch',
-        App.filters.search
-    );
-
-    setValue(
-        '#taskStatusFilter',
-        App.filters.status
-    );
-
-    renderTaskBoard();
-}
-
-/* ============================================================
-   FOCUS DE TAREA
-   ============================================================ */
-
-function focusTask(taskId) {
-    showView('board');
-
-    window.setTimeout(() => {
-        const card =
-            document.querySelector(
-                `.task-card[data-task-id="${CSS.escape(String(taskId))}"]`
-            );
-
-        if (!card) {
-            showToast(
-                'La solicitud no está visible con los filtros actuales.',
-                'info'
-            );
-
-            return;
-        }
-
-        card.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
+            barBg.appendChild(barFill);
+            item.append(header, barBg);
+            fragment.appendChild(item);
         });
 
-        card.classList.add(
-            'task-card-focus'
-        );
-
-        window.setTimeout(() => {
-            card.classList.remove(
-                'task-card-focus'
-            );
-        }, 1800);
-    }, 100);
-}
-
-/* ============================================================
-   LOGIN
-   ============================================================ */
-
-async function handleLogin(event) {
-    event.preventDefault();
-
-    const username =
-        $('#usernameInput')?.value.trim();
-
-    const password =
-        $('#passwordInput')?.value;
-
-    const errorElement =
-        $('#loginError');
-
-    if (errorElement) {
-        errorElement.style.display = 'none';
-    }
-
-    if (!username || !password) {
-        if (errorElement) {
-            errorElement.textContent =
-                'Completa usuario y contraseña.';
-            errorElement.style.display = '';
+        if (maxTasks === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'workload-empty-state';
+            empty.textContent = 'No hay tareas activas';
+            fragment.appendChild(empty);
         }
 
-        return;
-    }
-
-    try {
-        const email =
-            username.includes('@')
-                ? username
-                : `${username}@designhub.local`;
-
-        const { data, error } =
-            await supabaseClient.auth.signInWithPassword({
-                email,
-                password
-            });
-
-        if (error) throw error;
-
-        App.currentUser =
-            data.user;
-
-        await initializeAuthenticatedApp();
-
-    } catch (error) {
-        console.error(error);
-
-        if (errorElement) {
-            errorElement.textContent =
-                'Usuario o contraseña incorrectos.';
-            errorElement.style.display = '';
-        }
-    }
-}
-
-async function handleLogout() {
-    try {
-        await supabaseClient.auth.signOut();
-
-        App.currentUser = null;
-        App.profile = null;
-
-        teardownRealtime();
-
-        $('#appContainer').style.display = 'none';
-        $('#authOverlay').style.display = '';
-
-        closeAllModals();
-
-        setValue('#passwordInput', '');
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible cerrar sesión.'
-        );
-    }
-}
-
-function togglePasswordVisibility() {
-    const input =
-        $('#passwordInput');
-
-    const button =
-        $('#togglePasswordBtn');
-
-    if (!input || !button) return;
-
-    const visible =
-        input.type === 'text';
-
-    input.type =
-        visible
-            ? 'password'
-            : 'text';
-
-    button.setAttribute(
-        'aria-label',
-        visible
-            ? 'Mostrar contraseña'
-            : 'Ocultar contraseña'
-    );
-
-    button.innerHTML =
-        `<i data-lucide="${visible ? 'eye' : 'eye-off'}"></i>`;
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-}
-
-/* ============================================================
-   INICIALIZACIÓN AUTENTICADA
-   ============================================================ */
-
-async function initializeAuthenticatedApp() {
-
-    try {
-        App.profile =
-            await DataService.getProfile(
-                App.currentUser.id
-            );
-
-        if (!App.profile) {
-            throw new Error(
-                'No se encontró el perfil del usuario.'
-            );
-        }
-
-        $('#authOverlay').style.display = 'none';
-        $('#appContainer').style.display = '';
-
-        await loadData();
-
-        setupRealtime();
-
-        if (window.location.hash === '#solicitudes-realizadas') {
-            showView('history');
-        } else if (window.location.hash === '#historial-cambios') {
-            showView('change-history');
-        } else {
-            showView('board');
-        }
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible iniciar el workspace.'
-        );
-    }
-}
-
-/* ============================================================
-   REALTIME
-   ============================================================ */
-
-function teardownRealtime() {
-    App.realtimeChannels.forEach(
-        channel => {
-            supabaseClient.removeChannel(
-                channel
-            );
-        }
-    );
-
-    App.realtimeChannels = [];
-}
-
-function setupRealtime() {
-    teardownRealtime();
-
-    const tasksChannel =
-        supabaseClient
-            .channel('design-hub-tasks')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'tasks'
-                },
-                payload => {
-                    handleRealtimeTaskChange(
-                        payload
-                    );
-                }
-            )
-            .subscribe();
-
-    const profilesChannel =
-        supabaseClient
-            .channel('design-hub-profiles')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'profiles'
-                },
-                payload => {
-                    handleRealtimeProfileChange(
-                        payload
-                    );
-                }
-            )
-            .subscribe();
-
-    const requestersChannel =
-        supabaseClient
-            .channel('design-hub-requesters')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'requesters'
-                },
-                async () => {
-                    try {
-                        App.requesters =
-                            await DataService.getRequesters();
-
-                        renderAll();
-
-                    } catch (error) {
-                        console.error(error);
-                    }
-                }
-            )
-            .subscribe();
-
-    const changeHistoryChannel =
-        supabaseClient
-            .channel('design-hub-change-history')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'task_change_history'
-                },
-                async () => {
-                    if (
-                        App.currentView ===
-                        'change-history'
-                    ) {
-                        await loadChangeHistory();
-                    }
-                }
-            )
-            .subscribe();
-
-    App.realtimeChannels.push(
-        tasksChannel,
-        profilesChannel,
-        requestersChannel,
-        changeHistoryChannel
-    );
-}
-
-function handleRealtimeTaskChange(payload) {
-    const eventType =
-        payload.eventType;
-
-    if (eventType === 'INSERT') {
-        const task =
-            normalizeTask(
-                payload.new
-            );
-
-        const exists =
-            App.tasks.some(
-                item =>
-                    String(item.id) ===
-                    String(task.id)
-            );
-
-        if (!exists) {
-            App.tasks.push(task);
-        }
-
-    } else if (eventType === 'UPDATE') {
-        const task =
-            normalizeTask(
-                payload.new
-            );
-
-        const index =
-            App.tasks.findIndex(
-                item =>
-                    String(item.id) ===
-                    String(task.id)
-            );
-
-        if (index === -1) {
-            App.tasks.push(task);
-        } else {
-            App.tasks[index] = task;
-        }
-
-    } else if (eventType === 'DELETE') {
-        const id =
-            payload.old?.id;
-
-        App.tasks =
-            App.tasks.filter(
-                item =>
-                    String(item.id) !==
-                    String(id)
-            );
-    }
-
-    renderAll();
-}
-
-function handleRealtimeProfileChange(payload) {
-    const profile =
-        payload.new ||
-        payload.old;
-
-    if (!profile?.id) return;
-
-    if (payload.eventType === 'DELETE') {
-        App.members =
-            App.members.filter(
-                member =>
-                    String(member.id) !==
-                    String(profile.id)
-            );
-    } else {
-        const index =
-            App.members.findIndex(
-                member =>
-                    String(member.id) ===
-                    String(profile.id)
-            );
-
-        if (index === -1) {
-            App.members.push(profile);
-        } else {
-            App.members[index] =
-                profile;
-        }
-
-        if (
-            String(profile.id) ===
-            String(App.currentUser?.id)
-        ) {
-            App.profile = profile;
-        }
-    }
-
-    renderAll();
-}
-
-/* ============================================================
-   ATAJOS Y TECLADO
-   ============================================================ */
-
-function handleGlobalKeydown(event) {
-
-    if (event.key === 'Escape') {
-        closeAllModals();
-        return;
-    }
-
-    const isSearchShortcut =
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === 'k';
-
-    if (isSearchShortcut) {
-        event.preventDefault();
-
-        const search =
-            App.currentView === 'board'
-                ? $('#taskSearch')
-                : App.currentView === 'history'
-                    ? $('#historySearch')
-                    : $('#changeHistorySearch');
-
-        search?.focus();
-    }
-}
-
-/* ============================================================
-   INICIALIZACIÓN
-   ============================================================ */
-
-async function init() {
-
-    if (App.initialized) return;
-
-    App.initialized = true;
-
-    bindEvents();
-
-    initDatePickers();
-
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-
-    try {
-        const {
-            data: {
-                session
-            }
-        } =
-            await supabaseClient.auth.getSession();
-
-        if (session?.user) {
-            App.currentUser =
-                session.user;
-
-            await initializeAuthenticatedApp();
-
-        } else {
-            $('#authOverlay').style.display = '';
-            $('#appContainer').style.display = 'none';
-        }
-
-    } catch (error) {
-        handleSupabaseError(
-            error,
-            'No fue posible inicializar la aplicación.'
-        );
-    }
-
-    supabaseClient.auth.onAuthStateChange(
-        async (_event, session) => {
-
-            if (session?.user) {
-
-                if (
-                    !App.currentUser ||
-                    String(App.currentUser.id) !==
-                    String(session.user.id)
-                ) {
-                    App.currentUser =
-                        session.user;
-
-                    await initializeAuthenticatedApp();
-                }
-
-            } else {
-
-                App.currentUser = null;
-                App.profile = null;
-
-                teardownRealtime();
-
-                $('#appContainer').style.display =
-                    'none';
-
-                $('#authOverlay').style.display =
-                    '';
-            }
-        }
-    );
-}
-
-document.addEventListener(
-    'DOMContentLoaded',
-    init
-);
+        wContainer.replaceChildren(fragment);
+        lucide.createIcons();
+    },
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try { await App.init(); } 
+    catch(e) { console.error("FATAL ERROR:", e); alert("Ocurrió un error. Por favor, limpia la caché del navegador."); }
+});
