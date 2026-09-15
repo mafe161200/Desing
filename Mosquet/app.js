@@ -10,7 +10,7 @@
    ============================================================ */
 
 const SUPABASE_URL = 'https://gbltrfqxohrmkopanghx.supabase.co';
-const SUPABASE_ANON_KEY = 'REEMPLAZAR_CON_TU_PUBLISHABLE_KEY';
+const SUPABASE_ANON_KEY = 'sb_publishable_6tEj9AVvkEbGzlfZMAeW_w_yE0nVnSU';
 
 const supabaseClient = window.supabase.createClient(
     SUPABASE_URL,
