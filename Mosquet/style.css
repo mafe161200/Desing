@@ -4521,7 +4521,7 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     text-align: left !important;
     vertical-align: middle;
     width: 250px !important;
-    padding-left: 12px !important;
+    padding-left: 0 !important;
     padding-right: 12px !important;
 }
 
