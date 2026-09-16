@@ -173,6 +173,7 @@
                             <button type="button" class="quick-filter" data-quick-filter="overdue"><i data-lucide="triangle-alert" aria-hidden="true"></i> Vencidas</button>
                             <button type="button" class="quick-filter" data-quick-filter="today">Hoy</button>
                             <button type="button" class="quick-filter" data-quick-filter="course">En curso</button>
+                            <button type="button" class="quick-filter" data-quick-filter="adjustment">Ajustes</button>
                             <button type="button" class="quick-filter" data-quick-filter="queue">En cola</button>
                         </div>
                         <div class="inline-filter-item">
@@ -196,6 +197,7 @@
                                 <option value="Todos">Estado: Todos</option>
                                 <option value="En cola">En cola</option>
                                 <option value="En curso">En curso</option>
+                                <option value="Ajuste solicitado">Ajuste solicitado</option>
                             </select>
                         </div>
                         <div class="inline-filter-item">
@@ -288,6 +290,10 @@
                         <span>Entregadas</span>
                         <strong id="historyStatDone">0</strong>
                     </article>
+                    <article class="history-stat">
+                        <span>Ajustes pendientes</span>
+                        <strong id="historyStatAdjustments">0</strong>
+                    </article>
                 </div>
 
                 <section class="history-filter-panel" aria-labelledby="historyFiltersTitle">
@@ -332,6 +338,7 @@
                             <option value="Todos">Todos</option>
                             <option value="En cola">En cola</option>
                             <option value="En curso">En curso</option>
+                            <option value="Ajuste solicitado">Ajuste solicitado</option>
                             <option value="Entregado">Entregado</option>
                         </select>
                     </label>
@@ -438,6 +445,7 @@
                                 <th>Fecha solicitud</th>
                                 <th>Entrega</th>
                                 <th>Estado</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="historyTableBody"></tbody>
@@ -572,6 +580,34 @@
                 <div class="form-actions">
                     <span class="form-required-note"><span class="required-mark" aria-hidden="true">*</span> Campo obligatorio</span>
                     <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Añadir Solicitud</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Devolver para ajuste -->
+    <div id="modalAdjustment" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAdjustmentTitle">
+        <div class="modal-content adjustment-modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalAdjustmentTitle"><i data-lucide="rotate-ccw" class="icon-primary"></i> Devolver para ajuste</h2>
+                    <p class="modal-subtitle">La solicitud volverá a gestión y se conservará el motivo del ajuste en sus notas.</p>
+                </div>
+                <button type="button" class="close-modal" aria-label="Cerrar devolución para ajuste"><i data-lucide="x"></i></button>
+            </div>
+            <form id="adjustmentForm" class="task-form">
+                <div class="adjustment-task-context">
+                    <span>Solicitud</span>
+                    <strong id="adjustmentTaskTitle"></strong>
+                </div>
+                <div class="field full-width">
+                    <label for="adjustmentReason">¿Qué ajuste solicitó el solicitante? <span class="required-mark" aria-hidden="true">*</span></label>
+                    <textarea id="adjustmentReason" name="adjustmentReason" class="custom-input task-notes-input" rows="5" maxlength="1000" required placeholder="Ej. Cambiar el título, actualizar la fecha y entregar una versión en formato vertical..." aria-describedby="adjustmentReasonHelp"></textarea>
+                    <div id="adjustmentReasonHelp" class="field-help"><span>Este motivo quedará registrado en las notas de la solicitud.</span><span id="adjustmentReasonCount">0/1000</span></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i data-lucide="rotate-ccw"></i> Devolver a gestión</button>
                 </div>
             </form>
         </div>

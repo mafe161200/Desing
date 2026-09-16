@@ -952,6 +952,8 @@ const App = {
     fpInstances: [],
     hasUnsavedChanges: false,
     selectedTaskId: null,
+    adjustmentTaskId: null,
+    lifecycleRuntime: new Map(),
     currentView: 'board',
     changeHistory: [],
     changeHistoryFilters: { search: '', from: '', to: '', user: 'Todos', operation: 'Todos' },
@@ -986,6 +988,7 @@ const App = {
 
         await this.loadData();
         this.changeHistory = await DataService.getChangeHistory();
+        this.rebuildLifecycleRuntime();
         this.setupPlugins();
         this.setupKeyboardShortcuts();
         this.setupEventListeners();
@@ -1333,8 +1336,24 @@ const App = {
 
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
-                b.addEventListener('click', e => e.target.closest('.modal-overlay').classList.remove('active'));
+                b.addEventListener('click', e => {
+                    const overlay = e.target.closest('.modal-overlay');
+                    overlay?.classList.remove('active');
+                    if (overlay?.id === 'modalAdjustment') this.adjustmentTaskId = null;
+                });
             }
+        });
+
+        const adjustmentForm = document.getElementById('adjustmentForm');
+        const adjustmentReason = document.getElementById('adjustmentReason');
+        const adjustmentCounter = document.getElementById('adjustmentReasonCount');
+        adjustmentReason?.addEventListener('input', () => {
+            adjustmentReason.setCustomValidity('');
+            if (adjustmentCounter) adjustmentCounter.textContent = `${adjustmentReason.value.length}/${adjustmentReason.maxLength}`;
+        });
+        adjustmentForm?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.confirmTaskAdjustment();
         });
         
         ['filterAssignee', 'filterRequester', 'filterStatus', 'filterSort', 'filterCompletion'].forEach(id => {
@@ -1534,7 +1553,7 @@ const App = {
 
             const summaryCard = event.target.closest('[data-summary]');
             if (summaryCard && summaryCard.classList.contains('is-interactive')) {
-                const map = { total: 'all', course: 'course', queue: 'queue', overdue: 'overdue', starred: 'starred' };
+                const map = { total: 'all', course: 'course', queue: 'queue', adjustment: 'adjustment', overdue: 'overdue', starred: 'starred' };
                 this.quickFilter = map[summaryCard.dataset.summary] || 'all';
                 document.querySelectorAll('.quick-filter').forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
@@ -1596,6 +1615,18 @@ const App = {
                 case 'set-status':
                     if (taskId) {
                         this.handleTaskStatusAction(taskId, target.dataset.status);
+                    }
+                    break;
+
+                case 'request-adjustment':
+                    if (taskId) {
+                        this.requestTaskAdjustment(taskId);
+                    }
+                    break;
+
+                case 'start-adjustment':
+                    if (taskId) {
+                        this.startTaskAdjustment(taskId);
                     }
                     break;
 
@@ -1811,11 +1842,52 @@ const App = {
         document.getElementById('modalEditTask').classList.add('active');
     },
 
+    rebuildLifecycleRuntime() {
+        this.lifecycleRuntime = new Map();
+        (Array.isArray(this.changeHistory) ? this.changeHistory : []).forEach(entry => {
+            const taskId = String(entry?.task_id || '');
+            if (!taskId) return;
+            const after = typeof entry.after_data === 'string' ? (() => { try { return JSON.parse(entry.after_data); } catch { return {}; } })() : (entry.after_data || {});
+            const before = typeof entry.before_data === 'string' ? (() => { try { return JSON.parse(entry.before_data); } catch { return {}; } })() : (entry.before_data || {});
+            const status = normalizeText(after?.status);
+            const previousStatus = normalizeText(before?.status);
+            const current = this.lifecycleRuntime.get(taskId) || { deliveries: 0, adjustments: 0 };
+            if (status === 'Entregado' && previousStatus !== 'Entregado') current.deliveries += 1;
+            if (status === 'Ajuste solicitado' && previousStatus !== 'Ajuste solicitado') current.adjustments += 1;
+            this.lifecycleRuntime.set(taskId, current);
+        });
+    },
+
+    getTaskLifecycle(task) {
+        const taskId = String(task?.id || '');
+        const runtime = this.lifecycleRuntime.get(taskId) || { deliveries: 0, adjustments: 0 };
+        return {
+            deliveries: Math.max(Number(task?.deliveryCount) || 0, runtime.deliveries || 0),
+            adjustments: Math.max(Number(task?.adjustmentCount) || 0, runtime.adjustments || 0),
+            lastDelivery: task?.dateDelivered || ''
+        };
+    },
+
+    getLatestAdjustmentReason(task) {
+        const notes = normalizeText(task?.notes);
+        const match = notes.match(/\[AJUSTE SOLICITADO — [^\]]+\]\s*([^\n]+)/i);
+        return match ? normalizeText(match[1]) : '';
+    },
+
+    recordLifecycleEvent(taskId, type) {
+        const id = String(taskId || '');
+        if (!id) return;
+        const current = this.lifecycleRuntime.get(id) || { deliveries: 0, adjustments: 0 };
+        if (type === 'delivery') current.deliveries += 1;
+        if (type === 'adjustment') current.adjustments += 1;
+        this.lifecycleRuntime.set(id, current);
+    },
+
     setTaskStatus(taskId, newStatus) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task) return;
 
-        const allowedStatuses = ['En cola', 'En curso', 'Entregado'];
+        const allowedStatuses = ['En cola', 'En curso', 'Ajuste solicitado', 'Entregado'];
         if (!allowedStatuses.includes(newStatus) || task.status === newStatus) return;
 
         task.status = newStatus;
@@ -1829,18 +1901,93 @@ const App = {
         if (!task) return;
 
         if (newStatus === 'Entregado') {
-            const confirmed = window.confirm('¿Confirmas que deseas finalizar esta tarea?');
+            const confirmed = window.confirm('¿Confirmas que deseas entregar esta tarea? Quedará en Solicitudes realizadas y podrá recibir ajustes posteriormente.');
             if (!confirmed) return;
+            const task = this.tasks.find(t => String(t.id) === String(taskId));
+            if (task) {
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                task.dateDelivered = today;
+                this.recordLifecycleEvent(taskId, 'delivery');
+            }
             this.setTaskStatus(taskId, 'Entregado');
-            UI.showToast('Tarea enviada a Realizadas', 'success');
+            UI.showToast('Tarea entregada y enviada a Solicitudes realizadas', 'success');
             return;
         }
 
         this.setTaskStatus(taskId, newStatus);
         UI.showToast(
-            newStatus === 'En curso' ? 'Tarea iniciada' : 'Tarea devuelta a En cola',
+            newStatus === 'En curso'
+                ? 'Tarea iniciada'
+                : newStatus === 'Ajuste solicitado'
+                    ? 'La tarea quedó marcada con ajuste solicitado'
+                    : 'Tarea devuelta a En cola',
             'info'
         );
+    },
+
+    requestTaskAdjustment(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task || task.status !== 'Entregado') return;
+
+        const modal = document.getElementById('modalAdjustment');
+        const title = document.getElementById('adjustmentTaskTitle');
+        const reason = document.getElementById('adjustmentReason');
+        const counter = document.getElementById('adjustmentReasonCount');
+        if (!modal || !reason) return;
+
+        this.adjustmentTaskId = String(taskId);
+        if (title) title.textContent = normalizeText(task.name);
+        reason.value = '';
+        if (counter) counter.textContent = `0/${reason.maxLength || 1000}`;
+        modal.classList.add('active');
+        requestAnimationFrame(() => reason.focus());
+    },
+
+    confirmTaskAdjustment() {
+        const taskId = this.adjustmentTaskId;
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        const reason = document.getElementById('adjustmentReason');
+        const modal = document.getElementById('modalAdjustment');
+        if (!task || task.status !== 'Entregado' || !reason || !modal) return;
+
+        const cleanReason = normalizeText(reason.value);
+        if (!cleanReason) {
+            reason.setCustomValidity('Describe el ajuste solicitado.');
+            reason.reportValidity();
+            return;
+        }
+        reason.setCustomValidity('');
+
+        const now = new Date();
+        const stamp = now.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+        const author = normalizeText(this.user?.name || this.user?.username || 'Usuario');
+        const adjustmentNote = `[AJUSTE SOLICITADO — ${stamp} — ${author}] ${cleanReason}`;
+        const previousNotes = normalizeText(task.notes);
+
+        task.status = 'Ajuste solicitado';
+        this.recordLifecycleEvent(taskId, 'adjustment');
+        task.notes = previousNotes
+            ? `${adjustmentNote}\n${previousNotes}`
+            : adjustmentNote;
+
+        this.selectedTaskId = String(taskId);
+        this.adjustmentTaskId = null;
+        modal.classList.remove('active');
+        this.markAsUnsaved();
+        this.renderBoard();
+        UI.showToast('Ajuste registrado. La tarea volvió a gestión como Ajuste solicitado.', 'success', 7000);
+    },
+
+    startTaskAdjustment(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task || task.status !== 'Ajuste solicitado') return;
+
+        task.status = 'En curso';
+        this.selectedTaskId = String(taskId);
+        this.markAsUnsaved();
+        this.renderBoard();
+        UI.showToast('Ajuste iniciado. Revisa las notas de la solicitud.', 'info');
     },
 
     setupProfileListeners() {
@@ -2446,7 +2593,8 @@ const App = {
 
         const monthOf = (value) => normalizeText(value).slice(0, 7);
 
-        const allTasks = Array.isArray(this.tasks) ? this.tasks : [];
+        const allTasks = (Array.isArray(this.tasks) ? this.tasks : [])
+            .filter(task => this.getTaskLifecycle(task).deliveries > 0);
 
         const filtered = allTasks
             .filter(task => {
@@ -2489,6 +2637,10 @@ const App = {
             String(filtered.filter(task => normalizeText(task.status) === 'En curso').length);
         document.getElementById('historyStatDone').textContent =
             String(filtered.filter(task => normalizeText(task.status) === 'Entregado').length);
+        const historyAdjustmentStat = document.getElementById('historyStatAdjustments');
+        if (historyAdjustmentStat) {
+            historyAdjustmentStat.textContent = String(filtered.filter(task => normalizeText(task.status) === 'Ajuste solicitado').length);
+        }
 
         const filterResult = document.getElementById('historyFilterResult');
         if (filterResult) {
@@ -2500,7 +2652,7 @@ const App = {
         if (!filtered.length) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
-            cell.colSpan = 5;
+            cell.colSpan = 7;
             cell.className = 'history-empty';
             cell.textContent = 'No hay solicitudes que coincidan con los filtros.';
             row.appendChild(cell);
@@ -2530,6 +2682,21 @@ const App = {
 
             requestCell.appendChild(title);
 
+            const lifecycle = this.getTaskLifecycle(task);
+            const lifecycleMeta = document.createElement('div');
+            lifecycleMeta.className = 'history-lifecycle-meta';
+            lifecycleMeta.textContent = `${lifecycle.deliveries} entrega${lifecycle.deliveries === 1 ? '' : 's'} · ${lifecycle.adjustments} ajuste${lifecycle.adjustments === 1 ? '' : 's'}`;
+            requestCell.appendChild(lifecycleMeta);
+            if (normalizeText(task.status) === 'Ajuste solicitado') {
+                const adjustmentReason = this.getLatestAdjustmentReason(task);
+                if (adjustmentReason) {
+                    const reasonEl = document.createElement('div');
+                    reasonEl.className = 'history-adjustment-reason';
+                    reasonEl.textContent = `Ajuste: ${adjustmentReason}`;
+                    requestCell.appendChild(reasonEl);
+                }
+            }
+
             const requesterCell = document.createElement('td');
             requesterCell.textContent = normalizeText(task.requester) || 'No indicado';
 
@@ -2543,12 +2710,36 @@ const App = {
 
             const deliveryCell = document.createElement('td');
             deliveryCell.textContent = task.dateDelivered
-                ? task.dateDelivered.split('-').reverse().join('/')
+                ? `${task.dateDelivered.split('-').reverse().join('/')} · #${Math.max(1, lifecycle.deliveries)}`
                 : '—';
 
             const statusCell = document.createElement('td');
             const status = normalizeText(task.status) || 'Sin estado';
-            statusCell.innerHTML = `<span class="history-status ${status === 'En curso' ? 'course' : status === 'Entregado' ? 'done' : 'queue'}">${escapeHTML(status)}</span>`;
+            statusCell.innerHTML = `<span class="history-status ${status === 'En curso' ? 'course' : status === 'Entregado' ? 'done' : status === 'Ajuste solicitado' ? 'adjustment' : 'queue'}">${escapeHTML(status)}</span>`;
+
+            const actionCell = document.createElement('td');
+            actionCell.className = 'history-actions-cell';
+            if (status === 'Entregado') {
+                const returnButton = document.createElement('button');
+                returnButton.type = 'button';
+                returnButton.className = 'btn-text history-return-button';
+                returnButton.textContent = 'Solicitar ajuste';
+                returnButton.title = 'Registrar el motivo y devolver la solicitud a gestión';
+                returnButton.setAttribute('aria-label', `Solicitar ajuste para ${normalizeText(task.name)}`);
+                returnButton.addEventListener('click', () => this.requestTaskAdjustment(task.id));
+                actionCell.appendChild(returnButton);
+            } else if (status === 'Ajuste solicitado') {
+                const startButton = document.createElement('button');
+                startButton.type = 'button';
+                startButton.className = 'btn-text history-start-adjustment-button';
+                startButton.textContent = 'Iniciar ajuste';
+                startButton.title = 'Pasar la solicitud a En curso';
+                startButton.setAttribute('aria-label', `Iniciar ajuste de ${normalizeText(task.name)}`);
+                startButton.addEventListener('click', () => this.startTaskAdjustment(task.id));
+                actionCell.appendChild(startButton);
+            } else {
+                actionCell.textContent = '—';
+            }
 
             row.append(
                 requestCell,
@@ -2556,7 +2747,8 @@ const App = {
                 assigneeCell,
                 receivedCell,
                 deliveryCell,
-                statusCell
+                statusCell,
+                actionCell
             );
 
             fragment.appendChild(row);
@@ -3053,6 +3245,8 @@ const App = {
                 mQuick = t.status !== 'Entregado' && t.dateDelivered === todayStr;
             } else if (this.quickFilter === 'course') {
                 mQuick = t.status === 'En curso';
+            } else if (this.quickFilter === 'adjustment') {
+                mQuick = t.status === 'Ajuste solicitado';
             } else if (this.quickFilter === 'queue') {
                 mQuick = t.status === 'En cola';
             }
@@ -3234,14 +3428,23 @@ const App = {
                 else if (t.dateDelivered === todayStr) dateClass = 'text-warning';
             }
             
-            const statusButtons = t.status === 'Entregado'
-                ? `<div class="status-control status-control-completed" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
-                    <span class="status-completed" role="status"><i data-lucide="check-circle-2" aria-hidden="true"></i><span>Realizada</span></span>
-                    <button type="button" class="status-option status-reopen" data-action="set-status" data-status="En curso" data-task-id="${escapeHTML(t.id)}" aria-pressed="false" title="Reabrir solicitud">
-                        <i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Reabrir</span>
+            let statusButtons;
+            if (t.status === 'Entregado') {
+                statusButtons = `<div class="status-control status-control-completed" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
+                    <span class="status-completed" role="status"><i data-lucide="check-circle-2" aria-hidden="true"></i><span>Entregada</span></span>
+                    <button type="button" class="status-option status-reopen" data-action="request-adjustment" data-task-id="${escapeHTML(t.id)}" aria-pressed="false" title="Registrar un ajuste solicitado por el solicitante">
+                        <i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Solicitar ajuste</span>
                     </button>
-                </div>`
-                : `<div class="status-control" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
+                </div>`;
+            } else if (t.status === 'Ajuste solicitado') {
+                statusButtons = `<div class="status-control status-control-adjustment" role="group" aria-label="Ajuste solicitado para ${escapeHTML(t.name)}">
+                    <span class="status-adjustment" role="status"><i data-lucide="message-square-warning" aria-hidden="true"></i><span>Ajuste solicitado</span></span>
+                    <button type="button" class="status-option status-start-adjustment" data-action="start-adjustment" data-task-id="${escapeHTML(t.id)}" title="Iniciar el trabajo sobre el ajuste solicitado">
+                        <i data-lucide="play" aria-hidden="true"></i><span>Iniciar ajuste</span>
+                    </button>
+                </div>`;
+            } else {
+                statusButtons = `<div class="status-control" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
                     <button type="button" class="status-option status-queue ${t.status === 'En cola' ? 'is-active' : ''}" data-action="set-status" data-status="En cola" data-task-id="${escapeHTML(t.id)}" aria-pressed="${t.status === 'En cola'}">
                         <i data-lucide="pause-circle" aria-hidden="true"></i><span>En cola</span>
                     </button>
@@ -3249,9 +3452,10 @@ const App = {
                         <i data-lucide="play-circle" aria-hidden="true"></i><span>En curso</span>
                     </button>
                     <button type="button" class="status-option status-done" data-action="set-status" data-status="Entregado" data-task-id="${escapeHTML(t.id)}" aria-pressed="false">
-                        <i data-lucide="check-circle-2" aria-hidden="true"></i><span>Finalizar</span>
+                        <i data-lucide="check-circle-2" aria-hidden="true"></i><span>Entregar</span>
                     </button>
                 </div>`;
+            }
 
             tr.innerHTML = `
                 <td data-label="Solicitud">
@@ -3263,6 +3467,7 @@ const App = {
                             <span class="req-title-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                         </strong>
                         <span>${escapeHTML(t.requester)}</span>
+                        ${(() => { const lc = this.getTaskLifecycle(t); return lc.deliveries || lc.adjustments ? `<span class="task-lifecycle-meta">${lc.deliveries} entrega${lc.deliveries === 1 ? '' : 's'} · ${lc.adjustments} ajuste${lc.adjustments === 1 ? '' : 's'}</span>` : ''; })()}
                     </div>
                 </td>
                 <td data-label="Asignación">
@@ -3454,5 +3659,5 @@ const App = {
 
 document.addEventListener('DOMContentLoaded', async () => {
     try { await App.init(); } 
-    catch(e) { console.error("FATAL ERROR:", e); alert("Ocurrió un error. Por favor, limpia la caché del navegador."); }
+    catch(e) { console.error("FATAL ERROR:", e); alert("No pudimos cargar Design Hub correctamente. Recarga la página. Si el problema continúa, informa al administrador."); }
 });

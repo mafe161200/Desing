@@ -2325,7 +2325,7 @@ main {
 
 .history-summary-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 10px;
     padding: 16px 24px;
 }
@@ -4151,4 +4151,206 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
         transition-duration: .01ms;
         scroll-behavior: auto;
     }
+}
+
+
+/* ========================================================================
+   DESIGN HUB V24.4 — FLUJO DE DEVOLUCIÓN PARA AJUSTES
+   ======================================================================== */
+.status-control-completed {
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+.status-control-completed .status-reopen {
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    font-size: .68rem;
+    white-space: nowrap;
+}
+.status-control-completed .status-reopen svg {
+    width: 13px;
+    height: 13px;
+}
+.history-actions-cell {
+    white-space: nowrap;
+    text-align: right;
+}
+.history-return-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-light);
+    border-radius: 7px;
+    background: var(--bg-subtle);
+    color: var(--primary-cold);
+    font-size: .68rem;
+    font-weight: 700;
+    line-height: 1.15;
+}
+.history-return-button:hover {
+    border-color: var(--primary-cold);
+    background: rgba(79,70,229,.08);
+}
+.history-return-button:focus-visible {
+    outline: 2px solid var(--primary-cold);
+    outline-offset: 2px;
+}
+@media (max-width: 768px) {
+    .status-control-completed .status-reopen {
+        flex: 1 1 auto;
+        justify-content: center;
+        white-space: normal;
+    }
+    .history-actions-cell {
+        text-align: left;
+    }
+    .history-return-button {
+        width: 100%;
+    }
+}
+
+
+/* ========================================================================
+   DESIGN HUB V24.4 — MODAL DE DEVOLUCIÓN PARA AJUSTES
+   ======================================================================== */
+.adjustment-modal {
+    width: min(620px, calc(100vw - 32px));
+}
+.adjustment-modal .modal-header {
+    align-items: flex-start;
+}
+.adjustment-modal .modal-subtitle {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: .78rem;
+    line-height: 1.45;
+}
+.adjustment-task-context {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 9px;
+    background: var(--bg-subtle);
+}
+.adjustment-task-context span {
+    color: var(--text-muted);
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+.adjustment-task-context strong {
+    color: var(--text-main);
+    font-size: .86rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.adjustment-modal #adjustmentReason {
+    min-height: 130px;
+    resize: vertical;
+}
+
+
+/* V24.4 — tabla de solicitudes realizadas con columna de devolución */
+.history-table th:nth-child(1), .history-table td:nth-child(1) { width: 30%; }
+.history-table th:nth-child(2), .history-table td:nth-child(2) { width: 13%; }
+.history-table th:nth-child(3), .history-table td:nth-child(3) { width: 13%; }
+.history-table th:nth-child(4), .history-table td:nth-child(4) { width: 11%; }
+.history-table th:nth-child(5), .history-table td:nth-child(5) { width: 11%; }
+.history-table th:nth-child(6), .history-table td:nth-child(6) { width: 10%; }
+.history-table th:nth-child(7), .history-table td:nth-child(7) { width: 12%; }
+@media (max-width: 768px) {
+    .history-table { min-width: 900px; }
+}
+
+
+/* ========================================================================
+   DESIGN HUB V25 — FLUJO DE REVISIÓN Y AJUSTES
+   ======================================================================== */
+.task-table .status-control-adjustment {
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.task-table .status-adjustment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 9px;
+    border: 1px solid rgba(251,191,36,.42);
+    border-radius: 8px;
+    background: rgba(251,191,36,.08);
+    color: #fbbf24;
+    font-size: .70rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.task-table .status-adjustment svg { width: 14px; height: 14px; }
+.task-table .status-start-adjustment {
+    flex: 0 0 auto;
+    color: var(--cyber-cyan);
+    border-color: rgba(34,211,238,.28);
+    background: rgba(34,211,238,.055);
+}
+.task-table .status-start-adjustment:hover,
+.task-table .status-start-adjustment:focus-visible {
+    border-color: var(--cyber-cyan);
+    background: rgba(34,211,238,.10);
+}
+.history-status.adjustment {
+    color: #fbbf24;
+    border-color: rgba(251,191,36,.35);
+    background: rgba(251,191,36,.08);
+}
+.history-start-adjustment-button {
+    color: var(--cyber-cyan);
+    border-color: rgba(34,211,238,.28);
+    background: rgba(34,211,238,.055);
+}
+.history-start-adjustment-button:hover,
+.history-start-adjustment-button:focus-visible {
+    border-color: var(--cyber-cyan);
+    background: rgba(34,211,238,.10);
+}
+@media (max-width: 768px) {
+    .task-table .status-control-adjustment,
+    .task-table .status-control-completed { width: 100%; }
+    .task-table .status-adjustment,
+    .task-table .status-start-adjustment,
+    .task-table .status-reopen { flex: 1 1 150px; justify-content: center; white-space: normal; }
+}
+
+
+/* V26 — trazabilidad visible del ciclo de entregas y ajustes */
+.history-lifecycle-meta,
+.task-lifecycle-meta {
+    margin-top: 4px;
+    color: #7186a3;
+    font-size: .66rem;
+    font-weight: 650;
+    line-height: 1.3;
+}
+.history-adjustment-reason {
+    margin-top: 6px;
+    padding: 6px 8px;
+    border-left: 2px solid #fbbf24;
+    border-radius: 0 6px 6px 0;
+    background: rgba(251,191,36,.055);
+    color: #cbd5e1;
+    font-size: .69rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+@media (max-width: 768px) {
+    .history-summary-grid { grid-template-columns: 1fr 1fr; }
+    .history-adjustment-reason { max-width: 100%; }
 }
