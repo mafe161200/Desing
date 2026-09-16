@@ -3226,33 +3226,6 @@ const App = {
                     <div class="req-detail-row"><span>Solicitante:</span><strong>${escapeHTML(t.requester)}</strong></div>
                     <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(t.assignee)}</span></div>
                 </div>
-                <div class="request-card-actions" aria-label="Acciones de la solicitud">
-                    <button type="button"
-                            class="btn-icon task-notes-button"
-                            aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}"
-                            title="${t.notes ? 'Ver notas' : 'Sin notas'}"
-                            data-action="view-task-notes"
-                            data-task-id="${escapeHTML(t.id)}">
-                        <i data-lucide="message-square-text" aria-hidden="true"></i>
-                        ${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}
-                    </button>
-                    <button type="button"
-                            class="btn-icon edit"
-                            aria-label="Editar solicitud"
-                            title="Editar solicitud"
-                            data-action="edit-task"
-                            data-task-id="${escapeHTML(t.id)}">
-                        <i data-lucide="edit-3" aria-hidden="true"></i>
-                    </button>
-                    <button type="button"
-                            class="btn-icon delete"
-                            aria-label="Eliminar solicitud"
-                            title="Eliminar solicitud"
-                            data-action="delete-task"
-                            data-task-id="${escapeHTML(t.id)}">
-                        <i data-lucide="trash-2" aria-hidden="true"></i>
-                    </button>
-                </div>
             `;
             sidebarFragment.appendChild(li);
         });
@@ -3316,9 +3289,10 @@ const App = {
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
                 <td class="task-status-action-cell" data-label="Estado">
-                    <div class="task-status-slider" role="group" aria-label="Estado de la solicitud">
-                        <button type="button"
-                                class="task-status-step ${t.status === 'En cola' ? 'is-active is-queue' : ''}"
+                    <div class="task-status-controls">
+                        <div class="task-status-slider" role="group" aria-label="Estado de la solicitud">
+                            <button type="button"
+                                    class="task-status-step ${t.status === 'En cola' ? 'is-active is-queue' : ''}"
                                 aria-label="${t.status === 'En cola' ? 'Estado actual: En cola' : 'Volver a En cola'}"
                                 aria-pressed="${t.status === 'En cola' ? 'true' : 'false'}"
                                 title="${t.status === 'En cola' ? 'Estado actual: En cola' : 'Volver a En cola'}"
@@ -3345,7 +3319,35 @@ const App = {
                                 data-task-id="${escapeHTML(t.id)}">
                             <i data-lucide="check-circle-2" aria-hidden="true"></i>
                             <span>Finalizar</span>
-                        </button>
+                            </button>
+                        </div>
+                        <div class="task-row-actions" aria-label="Acciones de la solicitud">
+                            <button type="button"
+                                    class="btn-icon task-notes-button"
+                                    aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}"
+                                    title="${t.notes ? 'Ver notas' : 'Sin notas'}"
+                                    data-action="view-task-notes"
+                                    data-task-id="${escapeHTML(t.id)}">
+                                <i data-lucide="message-square-text" aria-hidden="true"></i>
+                                ${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}
+                            </button>
+                            <button type="button"
+                                    class="btn-icon edit"
+                                    aria-label="Editar solicitud"
+                                    title="Editar solicitud"
+                                    data-action="edit-task"
+                                    data-task-id="${escapeHTML(t.id)}">
+                                <i data-lucide="edit-3" aria-hidden="true"></i>
+                            </button>
+                            <button type="button"
+                                    class="btn-icon delete"
+                                    aria-label="Eliminar solicitud"
+                                    title="Eliminar solicitud"
+                                    data-action="delete-task"
+                                    data-task-id="${escapeHTML(t.id)}">
+                                <i data-lucide="trash-2" aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </div>
                 </td>
             `;
