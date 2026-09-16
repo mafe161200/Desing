@@ -2623,20 +2623,11 @@ const App = {
                 return String(b.id).localeCompare(String(a.id));
             });
 
-        const thisMonth = (() => {
-            const now = new Date();
-            const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-            return allTasks.filter(task => monthOf(task.dateReceived) === month).length;
-        })();
-
         document.getElementById('historyCount').textContent = String(filtered.length);
-        document.getElementById('historyStatTotal').textContent = String(filtered.length);
         document.getElementById('historyStatMonth').textContent =
             String(filtered.filter(task => monthOf(task.dateReceived) === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).length);
         document.getElementById('historyStatCourse').textContent =
             String(filtered.filter(task => normalizeText(task.status) === 'En curso').length);
-        document.getElementById('historyStatDone').textContent =
-            String(filtered.filter(task => normalizeText(task.status) === 'Entregado').length);
         const historyAdjustmentStat = document.getElementById('historyStatAdjustments');
         if (historyAdjustmentStat) {
             historyAdjustmentStat.textContent = String(filtered.filter(task => normalizeText(task.status) === 'Ajuste solicitado').length);
@@ -2647,7 +2638,6 @@ const App = {
             filterResult.textContent = `${filtered.length} resultado${filtered.length === 1 ? '' : 's'}`;
         }
 
-        this.renderHistoryAnalytics(filtered);
 
         if (!filtered.length) {
             const row = document.createElement('tr');
@@ -2755,142 +2745,6 @@ const App = {
         });
 
         body.replaceChildren(fragment);
-    },
-
-    renderHistoryAnalytics(tasks) {
-        const monthly = document.getElementById('historyMonthlyChart');
-        const monthlySummary = document.getElementById('historyMonthlySummary');
-        const requester = document.getElementById('historyRequesterChart');
-        const assignee = document.getElementById('historyAssigneeChart');
-        const status = document.getElementById('historyStatusChart');
-        if (!monthly || !requester || !assignee || !status) return;
-
-        const labelMonth = (value) => {
-            if (!value || !/^\d{4}-\d{2}/.test(value)) return 'Sin fecha';
-            const [year, month] = value.slice(0, 7).split('-');
-            const date = new Date(Number(year), Number(month) - 1, 1);
-            return date.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') + ' ' + year.slice(2);
-        };
-
-        const countBy = (items, getter) => {
-            const map = new Map();
-            items.forEach(item => {
-                const key = normalizeText(getter(item)) || 'Sin asignar';
-                map.set(key, (map.get(key) || 0) + 1);
-            });
-            return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
-        };
-
-        const renderBars = (container, entries, emptyText) => {
-            container.replaceChildren();
-
-            if (!entries.length) {
-                const empty = document.createElement('div');
-                empty.className = 'history-chart-empty';
-                empty.textContent = emptyText;
-                container.appendChild(empty);
-                return;
-            }
-
-            const max = Math.max(...entries.map(([, value]) => value), 1);
-            entries.slice(0, 6).forEach(([label, value]) => {
-                const row = document.createElement('div');
-                row.className = 'history-bar-row';
-
-                const top = document.createElement('div');
-                top.className = 'history-bar-top';
-
-                const name = document.createElement('span');
-                name.className = 'history-bar-label';
-                name.textContent = label;
-
-                const number = document.createElement('strong');
-                number.textContent = String(value);
-
-                const track = document.createElement('div');
-                track.className = 'history-bar-track';
-
-                const fill = document.createElement('span');
-                fill.className = 'history-bar-fill';
-                fill.style.width = `${Math.max(5, Math.round((value / max) * 100))}%`;
-                fill.setAttribute('aria-hidden', 'true');
-
-                top.append(name, number);
-                track.appendChild(fill);
-                row.append(top, track);
-                container.appendChild(row);
-            });
-        };
-
-        const monthlyMap = new Map();
-        tasks.forEach(task => {
-            const key = normalizeText(task.dateReceived).slice(0, 7) || 'Sin fecha';
-            monthlyMap.set(key, (monthlyMap.get(key) || 0) + 1);
-        });
-
-        const monthlyEntries = [...monthlyMap.entries()]
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .slice(-8);
-
-        monthly.replaceChildren();
-        if (monthlySummary) monthlySummary.textContent = '';
-
-        if (!monthlyEntries.length) {
-            const empty = document.createElement('div');
-            empty.className = 'history-chart-empty';
-            empty.textContent = 'Sin datos para mostrar.';
-            monthly.appendChild(empty);
-        } else {
-            const max = Math.max(...monthlyEntries.map(([, value]) => value), 1);
-
-            if (monthlySummary) {
-                monthlySummary.textContent = monthlyEntries
-                    .map(([key, value]) => `${labelMonth(key)}: ${value} solicitud${value === 1 ? '' : 'es'}`)
-                    .join(' · ');
-            }
-
-            monthlyEntries.forEach(([key, value]) => {
-                const item = document.createElement('div');
-                item.className = 'history-month';
-
-                const barWrap = document.createElement('div');
-                barWrap.className = 'history-month-bar-wrap';
-                barWrap.title = `${labelMonth(key)}: ${value} solicitud${value === 1 ? '' : 'es'}`;
-
-                const bar = document.createElement('span');
-                bar.className = 'history-month-bar';
-                bar.style.height = `${Math.max(8, Math.round((value / max) * 100))}%`;
-
-                const valueLabel = document.createElement('strong');
-                valueLabel.textContent = String(value);
-
-                const label = document.createElement('span');
-                label.className = 'history-month-label';
-                label.textContent = labelMonth(key);
-
-                barWrap.append(bar, valueLabel);
-                item.append(barWrap, label);
-                monthly.appendChild(item);
-            });
-        }
-
-        renderBars(
-            requester,
-            countBy(tasks, task => task.requester),
-            'Sin solicitudes'
-        );
-
-        renderBars(
-            assignee,
-            countBy(tasks, task => task.assignee),
-            'Sin asignaciones'
-        );
-
-        renderBars(
-            status,
-            countBy(tasks, task => task.status),
-            'Sin estados'
-        );
     },
 
     renderAll() {

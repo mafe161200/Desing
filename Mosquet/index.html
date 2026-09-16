@@ -195,8 +195,7 @@
                         <div class="inline-filter-item">
                             <select id="filterStatus" name="filterStatus" class="native-select-hidden" aria-label="Filtrar por estado">
                                 <option value="Todos">Estado: Todos</option>
-                                <option value="En cola">En cola</option>
-                                <option value="En curso">En curso</option>
+                                    <option value="En curso">En curso</option>
                                 <option value="Ajuste solicitado">Ajuste solicitado</option>
                             </select>
                         </div>
@@ -266,7 +265,7 @@
                             <h2 id="historyViewTitle">Solicitudes realizadas</h2>
                             <span id="historyCount" class="badge-count badge-primary">0</span>
                         </div>
-                        <p class="subtitle">Historial de solicitudes registradas, filtrable por mes, solicitante, responsable y estado.</p>
+                        <p class="subtitle">Entregas registradas y solicitudes que han pasado por revisión.</p>
                     </div>
                     <button type="button" id="btnBackToBoard" class="btn btn-secondary">
                         <i data-lucide="arrow-left"></i> Volver a gestión
@@ -275,20 +274,12 @@
 
                 <div class="history-summary-grid" aria-label="Resumen del historial">
                     <article class="history-stat">
-                        <span>Solicitudes</span>
-                        <strong id="historyStatTotal">0</strong>
-                    </article>
-                    <article class="history-stat">
                         <span>Este mes</span>
                         <strong id="historyStatMonth">0</strong>
                     </article>
                     <article class="history-stat">
                         <span>En curso</span>
                         <strong id="historyStatCourse">0</strong>
-                    </article>
-                    <article class="history-stat">
-                        <span>Entregadas</span>
-                        <strong id="historyStatDone">0</strong>
                     </article>
                     <article class="history-stat">
                         <span>Ajustes pendientes</span>
@@ -299,10 +290,10 @@
                 <section class="history-filter-panel" aria-labelledby="historyFiltersTitle">
                     <div class="history-filter-heading">
                         <div>
-                            <h3 id="historyFiltersTitle">Filtrar historial</h3>
-                            <p>Refina los resultados por fecha, persona, estado o texto.</p>
+                            <h3 id="historyFiltersTitle">Filtrar</h3>
+                            <p>Busca por fecha, persona, estado o texto.</p>
                         </div>
-                        <span id="historyFilterResult" class="history-filter-result" aria-live="polite">22 resultados</span>
+                        <span id="historyFilterResult" class="history-filter-result" aria-live="polite">0 resultados</span>
                     </div>
                     <div class="history-filters" aria-label="Filtros del historial">
                     <label class="history-search">
@@ -336,7 +327,6 @@
                         <span>Estado</span>
                         <select id="historyStatus" class="history-select" aria-label="Filtrar por estado">
                             <option value="Todos">Todos</option>
-                            <option value="En cola">En cola</option>
                             <option value="En curso">En curso</option>
                             <option value="Ajuste solicitado">Ajuste solicitado</option>
                             <option value="Entregado">Entregado</option>
@@ -348,6 +338,25 @@
                         </button>
                     </div>
                 </section>        
+                <div class="history-table-wrap">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Solicitud</th>
+                                <th>Solicitante</th>
+                                <th>Responsable</th>
+                                <th>Fecha solicitud</th>
+                                <th>Entrega</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <!-- Historial general de cambios -->
         <section id="changeHistoryView" class="history-view change-history-view" hidden aria-labelledby="changeHistoryViewTitle">
             <div class="card history-section card-accent-primary">
@@ -401,58 +410,6 @@
         </section>
 
 
-                <section class="history-analytics" aria-labelledby="historyAnalyticsTitle">
-                    <div class="history-analytics-heading">
-                        <div>
-                            <h3 id="historyAnalyticsTitle">Resumen operativo</h3>
-                            <p>Volumen de solicitudes y distribución del trabajo según los filtros activos.</p>
-                        </div>
-                    </div>
-                    <div class="history-analytics-grid">
-                        <article class="history-chart-card history-chart-card-monthly">
-                            <h4 class="history-chart-title">Solicitudes por mes</h4>
-                            <div id="historyMonthlyChart" class="history-monthly-chart" aria-label="Solicitudes por mes"></div>
-                            <p id="historyMonthlySummary" class="history-chart-summary"></p>
-                        </article>
-                        <article class="history-chart-card">
-                            <h4 class="history-chart-title">Por solicitante</h4>
-                            <div id="historyRequesterChart" class="history-bars" aria-label="Distribución de solicitudes por solicitante"></div>
-                        </article>
-                        <article class="history-chart-card">
-                            <h4 class="history-chart-title">Por responsable</h4>
-                            <div id="historyAssigneeChart" class="history-bars" aria-label="Distribución de solicitudes por responsable"></div>
-                        </article>
-                        <article class="history-chart-card">
-                            <h4 class="history-chart-title">Por estado</h4>
-                            <div id="historyStatusChart" class="history-bars" aria-label="Distribución de solicitudes por estado"></div>
-                        </article>
-                    </div>
-                </section>
-
-                <div class="history-results-heading">
-                    <div>
-                        <h3>Resultados</h3>
-                        <p>Las solicitudes más recientes aparecen primero.</p>
-                    </div>
-                </div>
-                <div class="history-table-wrap">
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Solicitud</th>
-                                <th>Solicitante</th>
-                                <th>Responsable</th>
-                                <th>Fecha solicitud</th>
-                                <th>Entrega</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="historyTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
     </div>
 
     <!-- PANEL LATERAL DE NOTAS Y CHAT DE EQUIPO -->

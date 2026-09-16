@@ -4354,3 +4354,76 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     .history-summary-grid { grid-template-columns: 1fr 1fr; }
     .history-adjustment-reason { max-width: 100%; }
 }
+
+
+/* V27 — historial sintetizado: menos bloques, misma información útil */
+.history-header {
+    padding: 18px 24px 14px;
+}
+.history-summary-grid {
+    gap: 8px;
+    padding: 12px 24px;
+}
+.history-stat {
+    padding: 10px 13px;
+}
+.history-stat strong {
+    margin-top: 2px;
+    font-size: 1.05rem;
+}
+.history-filter-panel {
+    margin-bottom: 12px;
+    padding: 12px;
+}
+.history-filter-heading {
+    margin-bottom: 9px;
+}
+.history-table-wrap {
+    border-top: 1px solid #1e314b;
+}
+@media (max-width: 768px) {
+    .history-header {
+        padding: 15px 16px 12px;
+    }
+    .history-summary-grid {
+        gap: 7px;
+        padding: 10px 16px;
+    }
+}
+
+/* V28 — resumen ultracompacto del historial */
+.history-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px 24px 10px;
+}
+.history-stat {
+    min-height: 0;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.history-stat span {
+    margin: 0;
+    font-size: .68rem;
+    line-height: 1.2;
+}
+.history-stat strong {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1;
+}
+@media (max-width: 768px) {
+    .history-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        padding: 8px 16px 10px;
+    }
+    .history-stat {
+        padding: 8px 9px;
+        gap: 6px;
+    }
+    .history-stat span { font-size: .61rem; }
+}
