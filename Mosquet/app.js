@@ -3235,7 +3235,12 @@ const App = {
             }
             
             const statusButtons = t.status === 'Entregado'
-                ? `<span class="status-completed" role="status"><i data-lucide="check-circle-2" aria-hidden="true"></i> Realizada</span>`
+                ? `<div class="status-control status-control-completed" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
+                    <span class="status-completed" role="status"><i data-lucide="check-circle-2" aria-hidden="true"></i><span>Realizada</span></span>
+                    <button type="button" class="status-option status-reopen" data-action="set-status" data-status="En curso" data-task-id="${escapeHTML(t.id)}" aria-pressed="false" title="Reabrir solicitud">
+                        <i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Reabrir</span>
+                    </button>
+                </div>`
                 : `<div class="status-control" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
                     <button type="button" class="status-option status-queue ${t.status === 'En cola' ? 'is-active' : ''}" data-action="set-status" data-status="En cola" data-task-id="${escapeHTML(t.id)}" aria-pressed="${t.status === 'En cola'}">
                         <i data-lucide="pause-circle" aria-hidden="true"></i><span>En cola</span>

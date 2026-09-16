@@ -1,19 +1,26 @@
-Design Hub V24.3 — revisión y mejora
+Design Hub V24.4 — consolidación técnica
 
-Cambios principales:
-- Limpieza de la lógica del formulario de nuevas solicitudes.
-- Eliminación de referencias heredadas al selector de estado inexistente.
-- Estado inicial de nuevas tareas fijado en “En cola”.
-- Corrección del estado vacío de la tabla para respetar sus 5 columnas.
-- Consolidación final del layout responsive de la tabla de tareas.
-- Ajuste de los controles de estado para evitar solapamientos.
-- Mejora de accesibilidad de foco y reduced-motion.
-- Conservación de Supabase, Realtime, historial, notas y guardado existente.
+Base exclusiva: Design Hub V24.3 estable.
+
+Mejoras principales:
+- Limpieza de selectores CSS residuales de la tabla.
+- Distribución responsive de la tabla corregida para sumar 100% en tablet.
+- Controles de estado más claros y compactos.
+- Las solicitudes realizadas ahora pueden reabrirse desde la propia tabla.
+- Confirmación de eliminación más descriptiva.
+- Manejo de error fatal más útil; ya no recomienda limpiar caché como primera medida.
+- Guardado de altas y actualizaciones agrupado mediante upsert para reducir llamadas a Supabase.
+- Versiones de dependencias CDN fijadas para evitar cambios inesperados por `latest`/rangos.
+- Ajustes responsive de acciones y estado en móvil.
 
 Validaciones realizadas:
 - node --check app.js: OK
 - IDs HTML duplicados: ninguno detectado
-- Encabezados de tabla: 5, coherentes con las celdas renderizadas
-- Referencias estáticas getElementById: sin faltantes, salvo taskNotesViewer que es un elemento creado dinámicamente
-- status-switch heredado: eliminado del JS
-- submit duplicado de taskForm: eliminado
+- Tablas HTML: 2
+- Selectores CSS residuales detectados en la revisión final: corregidos
+- Distribución principal: 31/22/15/23/9 = 100%
+- Distribución tablet: 30/22/15/24/9 = 100%
+- Integridad ZIP: pendiente de empaquetado final
+
+Nota técnica:
+- El guardado sigue sin ser una transacción PostgreSQL completa porque eso requiere una función/RPC en Supabase. V24.4 reduce llamadas y mejora consistencia, pero no sustituye una transacción de base de datos.

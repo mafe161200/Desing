@@ -4043,7 +4043,6 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 15%; }
 .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 23%; }
 .task-table th:nth-child(5), .task-table td:nth-child(5) { width: 9%; }
-.task-table 
 .task-table th { padding: 10px 12px; text-align: left; white-space: nowrap; }
 .task-table td { padding: 11px 12px; vertical-align: middle; }
 .task-table th:nth-child(1), .task-table td:nth-child(1) { text-align: left; padding-left: 12px; padding-right: 12px; }
@@ -4107,7 +4106,12 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     font-weight: 600;
     white-space: nowrap;
 }
-.task-table .status-completed svg { width: 14px; height: 14px; }
+ .task-table .status-completed svg { width: 14px; height: 14px; }
+.task-table .status-control-completed { overflow: visible; background: transparent; border-color: transparent; padding: 0; }
+.task-table .status-control-completed .status-completed { flex: 1 1 auto; justify-content: center; }
+.task-table .status-option.status-reopen { flex: 0 0 auto; min-width: 78px; color: var(--text-muted); border-color: var(--v3-border); background: rgba(255,255,255,.018); }
+.task-table .status-option.status-reopen:hover,
+.task-table .status-option.status-reopen:focus-visible { color: var(--cyber-cyan); border-color: var(--cyber-cyan); background: rgba(34,211,238,.08); }
 .task-table .actions-cell { padding-left: 4px; padding-right: 4px; overflow: visible; }
 .task-table .action-buttons { display: flex; align-items: center; justify-content: center; gap: 1px; width: 100%; }
 .task-table .action-buttons .btn-icon { flex: 0 0 28px; width: 28px; height: 28px; }
@@ -4116,12 +4120,11 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 .task-table select:focus-visible { outline: 2px solid rgba(34,211,238,.9); outline-offset: 2px; }
 
 @media (max-width: 1100px) and (min-width: 769px) {
-    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 31%; }
+    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 30%; }
     .task-table th:nth-child(2), .task-table td:nth-child(2) { width: 22%; }
     .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 15%; }
-    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 23%; }
+    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 24%; }
     .task-table th:nth-child(5), .task-table td:nth-child(5) { width: 9%; }
-    .task-table 
     .task-table .status-option { font-size: .65rem; padding-left: 3px; padding-right: 3px; gap: 2px; }
     .task-table .status-option svg { width: 12px; height: 12px; flex-basis: 12px; }
 }
@@ -4136,7 +4139,9 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     .task-table td:nth-child(1)::before { display: none; }
     .task-table .status-control { width: 100%; max-width: 100%; flex-wrap: wrap; }
     .task-table .status-option { flex: 1 1 90px; }
-    .task-table .action-buttons { width: max-content; justify-content: flex-start; }
+    .task-table .action-buttons { width: max-content; justify-content: flex-start; gap: 4px; }
+    .task-table .action-buttons .btn-icon { flex-basis: 32px; width: 32px; height: 32px; }
+    .task-table .status-completed { width: 100%; justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
