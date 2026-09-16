@@ -448,32 +448,19 @@ const DataService = {
         }
     },
 
-    async getChangeHistory() {
+    async getChangeHistory(limit = 300) {
         if (!supabaseClient) return [];
-
         try {
-            const pageSize = 1000;
-            const history = [];
-
-            for (let from = 0; ; from += pageSize) {
-                const { data, error } = await supabaseClient
-                    .from('task_change_history')
-                    .select('id, task_id, operation, before_data, after_data, changed_by, created_at')
-                    .order('created_at', { ascending: false })
-                    .range(from, from + pageSize - 1);
-
-                if (error) {
-                    console.error('Supabase: no se pudo cargar el historial general.', error);
-                    return [];
-                }
-
-                const page = Array.isArray(data) ? data : [];
-                history.push(...page);
-
-                if (page.length < pageSize) break;
+            const { data, error } = await supabaseClient
+                .from('task_change_history')
+                .select('id, task_id, operation, before_data, after_data, changed_by, created_at')
+                .order('created_at', { ascending: false })
+                .limit(limit);
+            if (error) {
+                console.error('Supabase: no se pudo cargar el historial general.', error);
+                return [];
             }
-
-            return history;
+            return Array.isArray(data) ? data : [];
         } catch (error) {
             console.error('Supabase: error cargando historial general.', error);
             return [];
@@ -1567,26 +1554,9 @@ const App = {
                     }
                     break;
 
-                case 'start-task':
+                case 'toggle-status':
                     if (taskId) {
-                        this.updateTask(taskId, 'status', 'En curso', true);
-                        UI.showToast('Solicitud iniciada', 'success');
-                    }
-                    break;
-
-                case 'back-task':
-                    if (taskId) {
-                        this.updateTask(taskId, 'status', 'En cola', true);
-                        UI.showToast('Solicitud devuelta a la cola', 'success');
-                    }
-                    break;
-
-                case 'finish-task':
-                    if (taskId) {
-                        const confirmed = window.confirm('¿Confirmas que deseas finalizar esta tarea?');
-                        if (!confirmed) break;
-                        this.updateTask(taskId, 'status', 'Entregado', true);
-                        UI.showToast('Solicitud finalizada', 'success');
+                        this.toggleTaskStatus(taskId);
                     }
                     break;
 
@@ -1823,6 +1793,28 @@ const App = {
         }
 
         document.getElementById('modalEditTask').classList.add('active');
+    },
+
+    toggleTaskStatus(taskId) {
+        const task = this.tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const newStatus = task.status === 'En curso' ? 'En cola' : 'En curso';
+        task.status = newStatus;
+        
+        const element = document.getElementById(`status-switch-${taskId}`);
+        if (element) {
+            const isCurso = newStatus === 'En curso';
+            element.className = `status-switch ${isCurso ? 'curso' : 'cola'}`;
+            element.setAttribute('aria-checked', isCurso ? 'true' : 'false');
+            element.innerHTML = `
+                <div class="switch-track"><div class="switch-thumb"></div></div>
+                <span class="switch-label">${newStatus}</span>
+            `;
+        }
+
+        this.markAsUnsaved();
+        this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
     },
 
     setupProfileListeners() {
@@ -2247,15 +2239,12 @@ const App = {
             const after = entry.after_data || {};
             const fields = changedFields(entry);
 
-            const item = document.createElement('details');
+            const item = document.createElement('article');
             item.className = 'change-history-item';
             item.setAttribute('role', 'listitem');
             item.dataset.historyId = String(entry.id);
             item.style.animationDelay =
                 `${Math.min(index, 8) * 18}ms`;
-
-            const summary = document.createElement('summary');
-            summary.className = 'change-history-summary';
 
             const main = document.createElement('div');
             main.className = 'change-history-main';
@@ -2317,52 +2306,6 @@ const App = {
             }
 
             main.append(date, title, meta, detail);
-            summary.appendChild(main);
-            item.appendChild(summary);
-
-            const content = document.createElement('div');
-            content.className = 'change-history-content';
-
-            const changes = document.createElement('div');
-            changes.className = 'change-history-changes';
-
-            if (fields.length) {
-                fields.forEach(field => {
-                    const change = document.createElement('div');
-                    change.className = 'change-history-change';
-
-                    const fieldName = document.createElement('span');
-                    fieldName.className = 'change-history-change-field';
-                    fieldName.textContent = labels[field];
-
-                    const beforeValue = document.createElement('span');
-                    beforeValue.className = 'change-history-change-before';
-                    beforeValue.textContent = display(field, before[field]);
-
-                    const arrow = document.createElement('span');
-                    arrow.className = 'change-history-change-arrow';
-                    arrow.setAttribute('aria-hidden', 'true');
-                    arrow.textContent = '→';
-
-                    const afterValue = document.createElement('span');
-                    afterValue.className = 'change-history-change-after';
-                    afterValue.textContent = display(field, after[field]);
-
-                    change.append(fieldName, beforeValue, arrow, afterValue);
-                    changes.appendChild(change);
-                });
-            } else {
-                const change = document.createElement('div');
-                change.className = 'change-history-change';
-                change.textContent = entry.operation === 'INSERT'
-                    ? 'Se creó la solicitud con los datos registrados.'
-                    : entry.operation === 'DELETE'
-                        ? 'Se eliminó la solicitud con los datos registrados.'
-                        : 'No se detectaron campos modificados.';
-                changes.appendChild(change);
-            }
-
-            content.appendChild(changes);
 
             const actions = document.createElement('div');
             actions.className = 'change-history-action';
@@ -2427,8 +2370,7 @@ const App = {
                 actions.appendChild(button);
             }
 
-            content.appendChild(actions);
-            item.appendChild(content);
+            item.append(main, actions);
             fragment.appendChild(item);
         });
 
@@ -3247,10 +3189,11 @@ const App = {
             tr.dataset.taskRow = String(t.id);
             
             const colorHex = this.getColor(t.assignee);
+            const isCurso = t.status === 'En curso';
             
             tr.addEventListener('click', (e) => {
                 // Ignore clicks on buttons to prevent bubbling collision
-                if (e.target.closest('select, input, button, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
+                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
                     return;
                 }
                 this.selectTask(t.id);
@@ -3288,66 +3231,20 @@ const App = {
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
-                <td class="task-status-action-cell" data-label="Estado">
-                    <div class="task-status-controls">
-                        <div class="task-status-slider" role="group" aria-label="Estado de la solicitud">
-                            <button type="button"
-                                    class="task-status-step ${t.status === 'En cola' ? 'is-active is-queue' : ''}"
-                                aria-label="${t.status === 'En cola' ? 'Estado actual: En cola' : 'Volver a En cola'}"
-                                aria-pressed="${t.status === 'En cola' ? 'true' : 'false'}"
-                                title="${t.status === 'En cola' ? 'Estado actual: En cola' : 'Volver a En cola'}"
-                                data-action="back-task"
-                                data-task-id="${escapeHTML(t.id)}">
-                            <i data-lucide="pause-circle" aria-hidden="true"></i>
-                            <span>En cola</span>
-                        </button>
-                        <button type="button"
-                                class="task-status-step ${t.status === 'En curso' ? 'is-active is-progress' : ''}"
-                                aria-label="${t.status === 'En curso' ? 'Estado actual: En curso' : 'Iniciar solicitud'}"
-                                aria-pressed="${t.status === 'En curso' ? 'true' : 'false'}"
-                                title="${t.status === 'En curso' ? 'Estado actual: En curso' : 'Iniciar solicitud'}"
-                                data-action="start-task"
-                                data-task-id="${escapeHTML(t.id)}">
-                            <i data-lucide="play-circle" aria-hidden="true"></i>
-                            <span>En curso</span>
-                        </button>
-                        <button type="button"
-                                class="task-status-step task-status-finish ${t.status === 'En curso' ? 'is-finish-ready' : ''}"
-                                aria-label="Finalizar solicitud ${escapeHTML(t.name)}"
-                                title="Finalizar solicitud"
-                                data-action="finish-task"
-                                data-task-id="${escapeHTML(t.id)}">
-                            <i data-lucide="check-circle-2" aria-hidden="true"></i>
-                            <span>Finalizar</span>
-                            </button>
-                        </div>
-                        <div class="task-row-actions" aria-label="Acciones de la solicitud">
-                            <button type="button"
-                                    class="btn-icon task-notes-button"
-                                    aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}"
-                                    title="${t.notes ? 'Ver notas' : 'Sin notas'}"
-                                    data-action="view-task-notes"
-                                    data-task-id="${escapeHTML(t.id)}">
-                                <i data-lucide="message-square-text" aria-hidden="true"></i>
-                                ${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}
-                            </button>
-                            <button type="button"
-                                    class="btn-icon edit"
-                                    aria-label="Editar solicitud"
-                                    title="Editar solicitud"
-                                    data-action="edit-task"
-                                    data-task-id="${escapeHTML(t.id)}">
-                                <i data-lucide="edit-3" aria-hidden="true"></i>
-                            </button>
-                            <button type="button"
-                                    class="btn-icon delete"
-                                    aria-label="Eliminar solicitud"
-                                    title="Eliminar solicitud"
-                                    data-action="delete-task"
-                                    data-task-id="${escapeHTML(t.id)}">
-                                <i data-lucide="trash-2" aria-hidden="true"></i>
-                            </button>
-                        </div>
+                <td data-label="Estado">
+                    <button type="button" id="status-switch-${t.id}"
+                            class="status-switch ${isCurso ? 'curso' : 'cola'}"
+                            aria-label="Cambiar estado de ${escapeHTML(t.name)}. Estado actual: ${escapeHTML(t.status)}"
+                            data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
+                        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                        <span class="switch-label">${escapeHTML(t.status)}</span>
+                    </button>
+                </td>
+                <td style="text-align:center;" data-label="Acciones">
+                    <div class="action-buttons">
+                        <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
+                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
+                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
                     </div>
                 </td>
             `;
@@ -3356,7 +3253,7 @@ const App = {
         if(activas.length === 0) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
-            cell.colSpan = 4;
+            cell.colSpan = 5;
             cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
             cell.textContent = 'No hay tareas pendientes.';
             row.appendChild(cell);

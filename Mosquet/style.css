@@ -178,12 +178,9 @@ body {
 /* Acciones de solicitud: inicio/finalización accesibles */
 .btn-task-action {
     min-height: 44px;
-    width: 100%;
-    max-width: 120px;
     justify-content: center;
-    white-space: normal;
+    white-space: nowrap;
     font-weight: 500;
-    text-align: center;
 }
 .btn-task-action:focus-visible {
     outline: 3px solid var(--cyber-cyan);
@@ -1777,7 +1774,7 @@ main {
     .task-table tr.task-starred,
     .task-table tr.task-selected {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: 36px 1fr;
         gap: 0;
         margin: 8px 8px;
         border: 1px solid #243753;
@@ -1793,11 +1790,12 @@ main {
         padding: 9px 10px;
     }
 
-    .task-table td:nth-child(1) { grid-column: 1; grid-row: 1; }
-    .task-table td:nth-child(2) { grid-column: 1; grid-row: 2; }
-    .task-table td:nth-child(3) { grid-column: 1; grid-row: 3; }
-    .task-table td:nth-child(4) { grid-column: 1; grid-row: 4; }
-    .task-table td:nth-child(5) { grid-column: 1; grid-row: 5; }
+    .task-table td:nth-child(1) { grid-column: 1; grid-row: 1 / span 4; }
+    .task-table td:nth-child(2) { grid-column: 2; grid-row: 1; }
+    .task-table td:nth-child(3) { grid-column: 2; grid-row: 2; }
+    .task-table td:nth-child(4) { grid-column: 2; grid-row: 3; }
+    .task-table td:nth-child(5) { grid-column: 2; grid-row: 4; }
+    .task-table td:nth-child(6) { grid-column: 2; grid-row: 5; }
 
     .req-title-text {
         white-space: normal;
@@ -2987,29 +2985,6 @@ main {
     max-height: 360px !important;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: #31445f transparent;
-}
-
-/* Scrollbar de las cards laterales: discreta y acorde al panel oscuro. */
-.sidebar-content::-webkit-scrollbar {
-    width: 5px;
-}
-.sidebar-content::-webkit-scrollbar-track {
-    background: transparent;
-    margin: 8px 2px;
-}
-.sidebar-content::-webkit-scrollbar-thumb {
-    background: #31445f;
-    border-radius: 999px;
-    border: 1px solid transparent;
-    background-clip: padding-box;
-}
-.sidebar-content::-webkit-scrollbar-thumb:hover {
-    background: #4b6385;
-    background-clip: padding-box;
-}
-.sidebar-content::-webkit-scrollbar-button {
-    display: none;
 }
 
 .sidebar-card:nth-child(3) .sidebar-content {
@@ -3024,27 +2999,35 @@ main {
     width: 100% !important;
 }
 
- .task-table th:nth-child(1),
-.task-table td:nth-child(1) { width: 39% !important; }
+.task-table th:nth-child(1),
+.task-table td:nth-child(1) { width: 4% !important; }
 .task-table th:nth-child(2),
-.task-table td:nth-child(2) { width: 22% !important; }
+.task-table td:nth-child(2) { width: 39% !important; }
 .task-table th:nth-child(3),
-.task-table td:nth-child(3) { width: 17% !important; }
+.task-table td:nth-child(3) { width: 22% !important; }
 .task-table th:nth-child(4),
-.task-table td:nth-child(4) { width: 11% !important; }
+.task-table td:nth-child(4) { width: 17% !important; }
 .task-table th:nth-child(5),
 .task-table td:nth-child(5) { width: 11% !important; }
+.task-table th:nth-child(6),
+.task-table td:nth-child(6) { width: 7% !important; }
 
 .task-table th,
 .task-table td {
     box-sizing: border-box;
 }
 
-.task-table th:nth-child(5),
-.task-table td:nth-child(5) {
+.task-table th:nth-child(1),
+.task-table td:nth-child(1) {
+    padding-left: 10px !important;
+    padding-right: 6px !important;
+    text-align: center !important;
+}
+
+.task-table th:nth-child(6),
+.task-table td:nth-child(6) {
     padding-left: 4px !important;
     padding-right: 8px !important;
-    text-align: center !important;
 }
 
 .req-title-cell {
@@ -3134,22 +3117,9 @@ main {
 }
 
 .status-switch {
-    min-width: 112px !important;
+    min-width: 0 !important;
     width: fit-content;
     max-width: 100%;
-    height: 34px;
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-start;
-    flex-wrap: nowrap;
-    gap: 8px;
-    padding: 6px 12px;
-    white-space: nowrap;
-    border: 1px solid currentColor;
-    border-style: solid;
-    border-radius: 8px;
-    box-shadow: none !important;
 }
 
 .action-buttons {
@@ -4261,488 +4231,180 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     .change-history-item{animation:none}
 }
 /* =========================================================
-   DESIGN HUB — DASHBOARD FACELIFT
-   Solo presentación visual: no modifica estructura ni lógica.
+   V23 — DISTRIBUCIÓN DEFINITIVA DE LA TABLA PRINCIPAL
+   Objetivo: eliminar el espacio muerto y mantener Estado +
+   Acciones dentro de sus columnas sin solapamientos.
    ========================================================= */
-
-/* 1. KPIs: más jerarquía, profundidad y lectura inmediata. */
-.dashboard-summary .summary-card {
-    min-height: 86px;
-    padding: 16px 18px;
-    border-radius: 16px;
-    border-color: rgba(88, 116, 151, .42);
-    background:
-        radial-gradient(circle at 92% 8%, rgba(34, 211, 238, .08), transparent 38%),
-        linear-gradient(145deg, rgba(14, 23, 40, .98), rgba(8, 16, 29, .98));
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.025),
-        0 10px 26px rgba(0,0,0,.20);
+.task-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
 }
 
-.dashboard-summary .summary-card:hover {
-    border-color: rgba(34, 211, 238, .34);
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.03),
-        0 14px 30px rgba(0,0,0,.24),
-        0 0 18px rgba(34, 211, 238, .045);
-}
-
-.dashboard-summary .summary-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 11px;
-    background: rgba(34, 211, 238, .09);
-    box-shadow: inset 0 0 0 1px rgba(34,211,238,.08);
-}
-
-.dashboard-summary .summary-card strong {
-    margin-top: 5px;
-    font-size: 1.75rem;
-    line-height: .95;
-    font-weight: 800;
-    letter-spacing: -.035em;
-    text-shadow: 0 0 18px rgba(34,211,238,.08);
-}
-
-.dashboard-summary .summary-label {
-    font-size: .66rem;
-    font-weight: 700;
-    letter-spacing: .085em;
-}
-
-/* 2. Filtros: altura consistente + superficies limpias + focus visible. */
-.inline-filters-bar {
-    padding: 13px 16px;
-    gap: 9px;
-    background: rgba(7, 14, 26, .96);
-}
-
-.inline-filters-bar .custom-input,
-.inline-filters-bar .select-trigger,
-.inline-filter-item .select-trigger,
-.history-filters .custom-input,
-.history-filters .history-select,
-.change-history-filters .custom-input,
-.change-history-filters .history-select {
-    min-height: 38px;
-    height: 38px;
-    box-sizing: border-box;
-    border: 1px solid rgba(88, 116, 151, .42);
-    border-radius: 9px;
-    background: #0a1424;
-    color: #dcecff;
-    transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
-}
-
-.inline-filters-bar .custom-input:focus,
-.inline-filters-bar .select-trigger:focus-visible,
-.history-filters .custom-input:focus,
-.history-filters .history-select:focus,
-.change-history-filters .custom-input:focus,
-.change-history-filters .history-select:focus {
-    border-color: #22d3ee !important;
-    background: #0b1729;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(34, 211, 238, .11);
-}
-
-.inline-filter-item .select-trigger {
-    display: flex;
-    align-items: center;
-}
-
-/* 3. Gráfica vertical: barras más gruesas y con presencia. */
-.history-chart-card-monthly {
-    min-height: 230px;
-}
-
-.history-monthly-chart {
-    height: 158px;
-    gap: 10px;
-    padding: 8px 6px 0;
-}
-
-.history-month {
-    gap: 7px;
-}
-
-.history-month-bar-wrap {
-    height: 128px;
-    border-bottom-color: rgba(88, 116, 151, .26);
-}
-
-.history-month-bar {
-    width: min(40px, 76%);
-    min-height: 10px;
-    border-radius: 8px 8px 3px 3px;
-    background: linear-gradient(180deg, #67e8f9 0%, #22d3ee 58%, #0891b2 100%);
-    box-shadow:
-        0 0 14px rgba(34, 211, 238, .22),
-        inset 0 1px 0 rgba(255,255,255,.16);
-}
-
-.history-month-bar-wrap strong {
-    top: -1px;
-    font-size: .70rem;
-    font-weight: 800;
-}
-
-.history-month-label {
-    font-size: .67rem;
-    font-weight: 700;
-}
-
-/* 4. Barras horizontales: verdadero progreso 0–100%. */
-.history-bars {
-    gap: 15px;
-    padding-top: 2px;
-}
-
-.history-bar-row {
-    padding: 1px 0;
-}
-
-.history-bar-top {
-    margin-bottom: 7px;
-    gap: 12px;
-}
-
-.history-bar-label {
-    color: #a9bad0;
-    font-size: .70rem;
-    font-weight: 600;
-}
-
-.history-bar-top strong {
-    color: #e6f3ff;
-    font-size: .72rem;
-    font-weight: 800;
-}
-
-.history-bar-track {
-    position: relative;
-    height: 9px;
-    overflow: hidden;
-    border: 1px solid rgba(88, 116, 151, .20);
-    border-radius: 6px;
-    background: rgba(71, 85, 105, .20);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,.30);
-}
-
-.history-bar-fill {
-    height: 100%;
-    min-width: 7px;
-    border-radius: 5px;
-    opacity: 1;
-    background: linear-gradient(90deg, #0891b2 0%, #22d3ee 65%, #67e8f9 100%);
-    box-shadow:
-        0 0 12px rgba(34, 211, 238, .28),
-        inset 0 1px 0 rgba(255,255,255,.15);
-}
-
-/* 5. Profundidad y aire en paneles de analítica. */
-.history-analytics {
-    padding: 0 24px 22px;
-}
-
-.history-analytics-grid {
-    gap: 14px;
-}
-
-.history-chart-card {
-    padding: 17px 18px;
-    border-radius: 16px;
-    border-color: rgba(88, 116, 151, .36);
-    background:
-        linear-gradient(145deg, rgba(10, 19, 34, .98), rgba(6, 14, 25, .98));
-    box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.018),
-        0 12px 28px rgba(0,0,0,.17);
-}
-
-.history-chart-title {
-    margin-bottom: 15px;
-    color: #a8bbd2;
-    font-size: .69rem;
-    font-weight: 750;
-    letter-spacing: .055em;
-}
-
-.card,
-.sidebar-card,
-.workload-card,
-.summary-card {
-    border-radius: 16px;
-}
-
-.card-header {
-    padding: 18px 22px;
-}
-
-/* Mantener legibilidad y proporciones en pantallas pequeñas. */
-@media (max-width: 900px) {
-    .dashboard-summary .summary-card {
-        min-height: 78px;
-        padding: 13px 14px;
-    }
-
-    .dashboard-summary .summary-card strong {
-        font-size: 1.45rem;
-    }
-
-    .history-monthly-chart {
-        gap: 7px;
-    }
-
-    .history-month-bar {
-        width: min(32px, 72%);
-    }
-}
-
-@media (max-width: 620px) {
-    .dashboard-summary .summary-card {
-        min-height: 74px;
-        border-radius: 13px;
-    }
-
-    .dashboard-summary .summary-card strong {
-        font-size: 1.30rem;
-    }
-
-    .history-chart-card {
-        border-radius: 13px;
-        padding: 15px;
-    }
-}
-
-
-/* ESTADO — control de 3 fases: En cola → En curso → Finalizar. */
- .task-table .task-status-action-cell {
+/* La tabla ya no tiene columna de selección. */
+.task-table th:nth-child(1),
+.task-table td:nth-child(1) {
+    width: 37% !important;
+    padding-left: 12px !important;
+    padding-right: 16px !important;
     text-align: left !important;
-    vertical-align: middle;
-    width: 250px !important;
-    padding-left: 0 !important;
-    padding-right: 12px !important;
 }
 
-.task-table .task-status-controls {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    width: max-content;
-    max-width: 100%;
-    min-width: 0;
-    margin-left: 0;
-    padding-left: 0;
-    overflow: visible;
+/* Asignación: se conserva su proporción. */
+.task-table th:nth-child(2),
+.task-table td:nth-child(2) {
+    width: 22% !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
 }
 
-.task-table .task-row-actions {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 2px;
-    flex: 0 0 auto;
+/* Fecha más compacta: el espacio sobrante pasa a Estado/Acciones. */
+.task-table th:nth-child(3),
+.task-table td:nth-child(3) {
+    width: 16% !important;
+    padding-left: 10px !important;
+    padding-right: 8px !important;
 }
 
-.task-table .task-row-actions .btn-icon {
-    width: 28px;
-    height: 28px;
-    padding: 4px;
-    flex: 0 0 28px;
+/* Estado con espacio suficiente para su control completo. */
+.task-table th:nth-child(4),
+.task-table td:nth-child(4) {
+    width: 16% !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
 }
 
-.task-table .task-row-actions .task-notes-button {
-    position: relative;
-    color: #7dd3fc;
+/* Última columna reservada exclusivamente para nota/editar/eliminar. */
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) {
+    width: 9% !important;
+    padding-left: 4px !important;
+    padding-right: 8px !important;
 }
 
-.task-table .task-row-actions .task-notes-button:hover,
-.task-table .task-row-actions .task-notes-button.has-notes {
-    color: #67e8f9;
-    background: rgba(34,211,238,.07);
-    border-color: rgba(34,211,238,.28);
-}
-
-.task-table .task-row-actions .edit:hover {
-    color: var(--cyber-cyan);
-    background: rgba(34,211,238,.07);
-}
-
-.task-table .task-row-actions .delete:hover {
-    color: #fb7185;
-    background: rgba(251,113,133,.08);
-}
-
-.task-table .task-row-actions .task-notes-dot {
-    position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #22d3ee;
-    box-shadow: 0 0 5px rgba(34,211,238,.6);
-}
-
-.task-table .task-status-slider {
-    display: inline-flex;
-    align-items: stretch;
-    justify-content: flex-start;
-    gap: 2px;
-    width: 260px;
-    max-width: 260px;
-    min-width: 260px;
-    flex: 0 0 260px;
-    min-height: 40px;
-    padding: 3px;
-    border: 1px solid var(--border-light);
-    border-radius: 10px;
-    background: var(--bg-subtle);
-    box-sizing: border-box;
-}
-
-.task-table .task-status-step {
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    flex: 1 1 0;
-    min-width: 0;
+.task-table thead th {
     overflow: hidden;
-    min-height: 34px;
-    padding: 6px 8px;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    background: transparent;
-    color: var(--text-muted);
-    font: inherit;
-    font-size: 0.75rem;
-    font-weight: 600;
-    line-height: 1;
+    text-overflow: ellipsis;
+}
+
+.task-table tbody td {
+    overflow: hidden;
+}
+
+.task-table .req-title-cell,
+.task-table .req-title-cell strong {
+    width: 100%;
+    min-width: 0;
+}
+
+.task-table .req-title-text {
+    min-width: 0 !important;
+    max-width: 100%;
+    overflow: hidden !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+}
+
+.task-table .date-info {
+    min-width: 0 !important;
+    width: 100%;
+    align-items: flex-start !important;
+}
+
+.task-table .inline-date-picker-alt,
+.task-table .inline-date-picker {
+    max-width: 120px !important;
+}
+
+/* Estado y acciones nunca se salen de sus respectivas columnas. */
+.task-table td[data-label="Estado"] {
+    overflow: visible !important;
     white-space: nowrap;
-    cursor: pointer;
-    transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
 
-.task-table .task-status-step:hover {
-    color: var(--text-main);
-    background: rgba(255,255,255,.04);
+.task-table .status-switch {
+    display: inline-flex !important;
+    flex: 0 0 auto;
+    max-width: 100% !important;
+    min-width: 112px !important;
+    white-space: nowrap !important;
+    box-sizing: border-box;
 }
 
-.task-table .task-status-step.is-queue {
-    color: var(--status-cola);
-    background: var(--status-cola-bg);
-    border-color: var(--status-cola-border);
+.task-table td[data-label="Acciones"] {
+    overflow: visible !important;
+    white-space: nowrap;
 }
 
-.task-table .task-status-step.is-progress {
-    color: var(--status-curso);
-    background: var(--status-curso-bg);
-    border-color: var(--status-curso-border);
+.task-table .action-buttons {
+    width: 100%;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 2px !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
 }
 
-.task-table .task-status-step.task-status-finish {
-    color: var(--success);
+.task-table .action-buttons .btn-icon {
+    flex: 0 0 28px !important;
+    width: 28px !important;
+    min-width: 28px !important;
+    height: 28px !important;
+    padding: 5px !important;
+    box-sizing: border-box;
 }
 
-.task-table .task-status-step.task-status-finish.is-finish-ready {
-    color: var(--success);
-    background: var(--status-entregado-bg);
-    border-color: var(--status-entregado-border);
-}
+/* En anchos intermedios se prioriza Estado y Acciones sobre Fecha. */
+@media (max-width: 1100px) and (min-width: 769px) {
+    .task-table th:nth-child(1),
+    .task-table td:nth-child(1) { width: 35% !important; }
+    .task-table th:nth-child(2),
+    .task-table td:nth-child(2) { width: 22% !important; }
+    .task-table th:nth-child(3),
+    .task-table td:nth-child(3) { width: 14% !important; }
+    .task-table th:nth-child(4),
+    .task-table td:nth-child(4) { width: 18% !important; }
+    .task-table th:nth-child(5),
+    .task-table td:nth-child(5) { width: 11% !important; }
 
-.task-table .task-status-step:focus-visible {
-    outline: 3px solid #67e8f9;
-    outline-offset: 2px;
-    z-index: 2;
-    box-shadow: 0 0 0 2px rgba(8, 15, 30, .95);
-}
-
-.task-table .task-status-step {
-    min-height: 40px;
-    font-size: 0.82rem;
-    line-height: 1.2;
-}
-
-.task-table .task-status-step i {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 16px;
-}
-
-.task-table .task-row-actions .btn-icon {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
-    padding: 6px;
-}
-
-.task-table .task-row-actions .btn-icon:focus-visible {
-    outline: 3px solid #67e8f9;
-    outline-offset: 2px;
-    z-index: 3;
-    box-shadow: 0 0 0 2px rgba(8, 15, 30, .95);
-}
-
-.task-table .task-row-actions .btn-icon i {
-    width: 18px;
-    height: 18px;
-    flex: 0 0 18px;
-}
-
-.task-table .task-status-step:active {
-    transform: translateY(1px);
-}
-
-@media (min-width: 769px) {
-    /* Distribución real de las 5 columnas: Solicitud / Asignación / Fechas / Estado / Acciones. */
-    .task-table th:nth-child(1), .task-table td:nth-child(1) {
-        width: 28% !important;
-        text-align: left !important;
-    }
-    .task-table th:nth-child(2), .task-table td:nth-child(2) {
-        width: 18% !important;
-    }
-    .task-table th:nth-child(3), .task-table td:nth-child(3) {
-        width: 15% !important;
-    }
-    .task-table th:nth-child(4), .task-table td:nth-child(4) {
-        width: 27% !important;
-    }
-    .task-table th:nth-child(5), .task-table td:nth-child(5) {
-        width: 12% !important;
+    .task-table .action-buttons .btn-icon {
+        flex-basis: 26px !important;
+        width: 26px !important;
+        min-width: 26px !important;
+        height: 26px !important;
     }
 }
 
+/* En móvil conserva la tarjeta existente sin arrastrar las proporciones desktop. */
 @media (max-width: 768px) {
-    .task-table .task-status-action-cell {
+    .task-table tr,
+    .task-table tr.task-starred,
+    .task-table tr.task-selected {
+        grid-template-columns: 1fr !important;
+    }
+
+    .task-table td:nth-child(1),
+    .task-table td:nth-child(2),
+    .task-table td:nth-child(3),
+    .task-table td:nth-child(4),
+    .task-table td:nth-child(5) {
+        grid-column: 1 !important;
         width: 100% !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
     }
 
-    .task-table .task-status-controls {
-        width: 100%;
-        overflow-x: auto;
+    .task-table td:nth-child(1) { grid-row: 1 !important; }
+    .task-table td:nth-child(2) { grid-row: 2 !important; }
+    .task-table td:nth-child(3) { grid-row: 3 !important; }
+    .task-table td:nth-child(4) { grid-row: 4 !important; }
+    .task-table td:nth-child(5) { grid-row: 5 !important; }
+
+    .task-table td[data-label="Estado"] {
+        overflow: visible !important;
     }
 
-    .task-table .task-status-slider {
-        flex: 0 0 245px;
-        width: 245px;
-        max-width: 245px;
-        min-width: 245px;
-    }
-
-    .task-table .task-status-step {
-        flex: 1 1 0;
-        min-width: 0;
-    }
-
-    .task-table .task-status-action-cell > .btn-task-action {
-        max-width: 100%;
+    .task-table .action-buttons {
+        width: auto !important;
+        justify-content: flex-start !important;
     }
 }
