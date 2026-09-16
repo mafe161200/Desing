@@ -4654,9 +4654,43 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 }
 
 .task-table .task-status-step:focus-visible {
-    outline: 3px solid var(--cyber-cyan);
+    outline: 3px solid #67e8f9;
     outline-offset: 2px;
     z-index: 2;
+    box-shadow: 0 0 0 2px rgba(8, 15, 30, .95);
+}
+
+.task-table .task-status-step {
+    min-height: 40px;
+    font-size: 0.82rem;
+    line-height: 1.2;
+}
+
+.task-table .task-status-step i {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+}
+
+.task-table .task-row-actions .btn-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 7px;
+}
+
+.task-table .task-row-actions .btn-icon:focus-visible {
+    outline: 3px solid #67e8f9;
+    outline-offset: 2px;
+    z-index: 3;
+    box-shadow: 0 0 0 2px rgba(8, 15, 30, .95);
+}
+
+.task-table .task-row-actions .btn-icon i {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
 }
 
 .task-table .task-status-step:active {
