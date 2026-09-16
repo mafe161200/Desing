@@ -41,6 +41,23 @@ const clearLegacyLocalData = () => {
 
 const normalizeText = (value) => String(value ?? '').trim();
 
+// Fechas de negocio: se interpretan siempre en hora local para evitar
+// desplazamientos por UTC al comparar valores YYYY-MM-DD.
+const parseLocalDate = (value) => {
+    const normalized = normalizeText(value);
+    if (!normalized) return null;
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized);
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0);
+    return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const isDateBefore = (first, second) => {
+    const a = parseLocalDate(first);
+    const b = parseLocalDate(second);
+    return Boolean(a && b && a.getTime() < b.getTime());
+};
+
 const getInitials = (value) => {
     const parts = normalizeText(value)
         .split(/\s+/)
@@ -73,7 +90,7 @@ const sanitizeAvatarUrl = (value) => {
 
     try {
         const parsed = new URL(url, window.location.origin);
-        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        if (parsed.protocol === 'https:') {
             return parsed.href;
         }
     } catch (error) {
@@ -1050,6 +1067,12 @@ const App = {
         supabaseClient
             .channel('design-hub-tasks')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
+                // Nunca pisar cambios locales todavía no guardados. El siguiente
+                // guardado hará una comprobación de concurrencia contra Supabase.
+                if (this.hasUnsavedChanges) {
+                    UI.showToast('Se detectó un cambio remoto. Tus cambios locales siguen intactos.', 'warning', 7000);
+                    return;
+                }
                 await this.loadData();
                 this.changeHistory = await DataService.getChangeHistory();
                 if (this.currentView === 'board') this.renderBoard();
@@ -1168,11 +1191,34 @@ const App = {
     },
 
     async saveChanges() {
+        // Control de concurrencia optimista: si Supabase cambió desde la última
+        // carga, no sobrescribimos silenciosamente el trabajo de otro usuario.
+        const cloudBeforeSave = await DataService.getTasks();
+        const originalById = new Map(this.originalTasks.map(task => [String(task.id), task]));
+        const cloudById = new Map(cloudBeforeSave.map(task => [String(task.id), task]));
+        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
+        const changedRemotely = cloudBeforeSave.some(cloudTask => {
+            const original = originalById.get(String(cloudTask.id));
+            if (!original) return false;
+            return fields.some(field => String(cloudTask[field] ?? '') !== String(original[field] ?? ''));
+        }) || this.originalTasks.some(original => !cloudById.has(String(original.id)));
+
+        if (changedRemotely) {
+            UI.showToast('Hay cambios remotos pendientes. Se evitó sobrescribirlos. Revisa y vuelve a cargar antes de guardar.', 'warning', 9000);
+            return;
+        }
+
         const result = await DataService.saveTasks(this.tasks, this.originalTasks);
 
         if (!result.cloudSaved) {
             const detail = result.error?.message ? `: ${result.error.message}` : '';
-            UI.showToast(`No se pudieron guardar los cambios${detail}`, 'error', 7000);
+            // Recuperamos el estado real del servidor para evitar que la interfaz
+            // muestre datos que ya no coinciden con la nube.
+            const recoveredTasks = await DataService.getTasks();
+            if (Array.isArray(recoveredTasks) && recoveredTasks.length) {
+                this.originalTasks = JSON.parse(JSON.stringify(recoveredTasks));
+            }
+            UI.showToast(`No se pudieron guardar todos los cambios${detail}`, 'error', 7000);
             return;
         }
 
@@ -1186,7 +1232,7 @@ const App = {
             bar.setAttribute('aria-hidden', 'true');
             bar.setAttribute('inert', '');
         }
-        UI.showToast("Cambios guardados con éxito", "success");
+        UI.showToast('Cambios guardados con éxito', 'success');
         this.renderAll();
     },
 
@@ -1246,11 +1292,9 @@ const App = {
 
             const requesterSelect = document.getElementById('requesterSelect');
             const assigneeSelect = document.getElementById('assignee');
-            const statusSelect = document.getElementById('status');
 
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
             if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
-            if (statusSelect) updateCustomSelectUI(statusSelect, 'En cola');
 
             const taskNotes = document.getElementById('taskNotes');
             if (taskNotes) taskNotes.value = '';
@@ -1357,7 +1401,7 @@ const App = {
             const delivered = normalizeText(document.getElementById('dateDelivered')?.value);
             const input = document.getElementById('dateDelivered');
 
-            if (received && delivered && new Date(delivered) < new Date(received)) {
+            if (received && delivered && isDateBefore(delivered, received)) {
                 input.setCustomValidity('La fecha de entrega no puede ser anterior a la fecha de solicitud.');
             } else {
                 input.setCustomValidity('');
@@ -1366,20 +1410,25 @@ const App = {
 
         taskForm?.addEventListener('submit', (e) => {
             const name = document.getElementById('taskName');
-            const received = normalizeText(document.getElementById('dateReceived')?.value);
-            const delivered = normalizeText(document.getElementById('dateDelivered')?.value);
+            const receivedInput = document.getElementById('dateReceived');
+            const deliveryInput = document.getElementById('dateDelivered');
+            const requesterInput = document.getElementById('requesterSelect');
+            const assigneeInput = document.getElementById('assignee');
+
+            const taskNameRaw = normalizeText(name?.value);
+            const requesterRaw = normalizeText(requesterInput?.value);
+            const received = normalizeText(receivedInput?.value);
+            const delivered = normalizeText(deliveryInput?.value);
 
             if (name) {
-                const value = name.value.trim();
                 name.setCustomValidity(
-                    value.length < 3 ? 'Escribe un título de al menos 3 caracteres.' : ''
+                    taskNameRaw.length < 3 ? 'Escribe un título de al menos 3 caracteres.' : ''
                 );
             }
 
-            const deliveryInput = document.getElementById('dateDelivered');
             if (deliveryInput) {
                 deliveryInput.setCustomValidity(
-                    received && delivered && new Date(delivered) < new Date(received)
+                    received && delivered && isDateBefore(delivered, received)
                         ? 'La fecha de entrega no puede ser anterior a la fecha de solicitud.'
                         : ''
                 );
@@ -1388,65 +1437,55 @@ const App = {
             if (!taskForm.checkValidity()) {
                 e.preventDefault();
                 taskForm.reportValidity();
+                return;
             }
-        }, true);
 
-        document.getElementById('taskForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            
-            const taskNameRaw = document.getElementById('taskName').value.trim();
-            const requesterRaw = document.getElementById('requesterSelect').value;
-            
-            const isDuplicate = this.tasks.some(t => 
-                t.name.toLowerCase() === taskNameRaw.toLowerCase() && 
-                t.requester === requesterRaw
+
+            const isDuplicate = this.tasks.some(t =>
+                normalizeText(t.name).toLowerCase() === taskNameRaw.toLowerCase() &&
+                normalizeText(t.requester) === requesterRaw
             );
 
             if (isDuplicate) {
-                UI.showToast("Ya existe una tarea idéntica para este solicitante.", "error");
+                UI.showToast('Ya existe una tarea idéntica para este solicitante.', 'error');
                 return;
             }
-            
-            let dateReceivedValue = normalizeText(document.getElementById('dateReceived').value);
+
+            let dateReceivedValue = received;
             if (!dateReceivedValue) {
                 const d = new Date();
                 dateReceivedValue = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            }
-            
-            const dateDelivered = normalizeText(document.getElementById('dateDelivered').value);
-            
-            if (dateDelivered && new Date(dateDelivered) < new Date(dateReceivedValue)) {
-                UI.showToast("La entrega no puede ser anterior a la solicitud.", "error"); 
-                return;
             }
 
             this.tasks.push({
                 id: createId(),
                 name: taskNameRaw,
                 requester: requesterRaw,
-                assignee: normalizeText(document.getElementById('assignee').value),
-                status: normalizeText(document.getElementById('status')?.value) || 'En cola',
-                dateReceived: dateReceivedValue, 
-                dateDelivered: dateDelivered,
+                assignee: normalizeText(assigneeInput?.value),
+                status: 'En cola',
+                dateReceived: dateReceivedValue,
+                dateDelivered: delivered,
                 isStarred: false,
                 notes: normalizeText(document.getElementById('taskNotes')?.value)
-
             });
-            
-            this.markAsUnsaved(); 
-            e.target.reset();
+
+            this.markAsUnsaved();
+            taskForm.reset();
+
             const newRequesterSelect = document.getElementById('requesterSelect');
             const newAssigneeSelect = document.getElementById('assignee');
-            const newStatusSelect = document.getElementById('status');
             if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
             if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, 'No asignado');
-            if (newStatusSelect) updateCustomSelectUI(newStatusSelect, 'En cola');
-            document.getElementById('taskNotes')?.setAttribute('value', '');
-            const newDateDelivered = document.getElementById('dateDelivered');
-            if (newDateDelivered?._flatpickr) newDateDelivered._flatpickr.clear();
-            document.getElementById('modalTask').classList.remove('active');
-            UI.showToast("Solicitud añadida", "success");
+
+            const receivedPicker = document.getElementById('dateReceived')?._flatpickr;
+            const deliveredPicker = document.getElementById('dateDelivered')?._flatpickr;
+            if (receivedPicker) receivedPicker.setDate(dateReceivedValue);
+            if (deliveredPicker) deliveredPicker.clear();
+
+            document.getElementById('modalTask')?.classList.remove('active');
             this.renderBoard();
+            UI.showToast('Solicitud creada. Recuerda guardar los cambios.', 'success');
         });
 
         document.getElementById('editTaskForm').addEventListener('submit', (e) => {
@@ -1457,7 +1496,7 @@ const App = {
             if (task) {
                 const newRecDate = normalizeText(document.getElementById('editDateReceived').value);
                 
-                if (task.dateDelivered && new Date(task.dateDelivered) < new Date(newRecDate)) {
+                if (task.dateDelivered && isDateBefore(task.dateDelivered, newRecDate)) {
                     UI.showToast("La solicitud no puede superar la entrega.", "error"); 
                     return;
                 }
@@ -3274,7 +3313,7 @@ const App = {
                 const id = instance.element.getAttribute('data-id');
                 const dateReceived = instance.element.getAttribute('data-received');
                 
-                if (dateReceived && new Date(dateStr) < new Date(dateReceived)) {
+                if (dateReceived && isDateBefore(dateStr, dateReceived)) {
                     UI.showToast("La fecha de entrega no puede ser anterior a la recepción.", "error");
                     const task = this.tasks.find(x => x.id === id);
                     const oldDate = task ? task.dateDelivered : '';
