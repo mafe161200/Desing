@@ -1,30 +1,30 @@
-Design Hub V25 — flujo funcional de revisión y ajustes
+DESIGN HUB V30
 
-Base:
-- Construida exclusivamente sobre Design Hub V24.4 final.
+Versión basada exclusivamente en Design Hub V29.
 
-Cambios funcionales principales:
-- Nuevo estado operativo: “Ajuste solicitado”.
-- Flujo: En cola → En curso → Entregada → Ajuste solicitado → En curso → Entregada.
-- “Entregar” reemplaza el lenguaje de “Finalizar” en el control de tareas.
-- Una entrega requiere confirmación.
-- Una tarea entregada puede pasar por “Solicitar ajuste” desde el tablero y desde Solicitudes realizadas.
-- El motivo del ajuste es obligatorio y queda registrado en las notas con fecha, hora y usuario.
-- Una tarea en “Ajuste solicitado” muestra la acción “Iniciar ajuste”.
-- Se añadió filtro rápido “Ajustes”.
-- Se añadió “Ajuste solicitado” a los filtros de estado del tablero y del historial.
-- El historial distingue visualmente el estado “Ajuste solicitado”.
-- Las tareas entregadas mantienen su fecha registrada hasta que se solicita un ajuste; la siguiente entrega puede actualizarse desde el flujo existente.
-- Se conserva Supabase, Realtime, historial de cambios, notas, filtros y guardado.
+V30 refina la navegación y el historial general de cambios sin alterar la lógica principal de Gestión ni la trazabilidad de Solicitudes realizadas.
 
-Validaciones:
-- node --check app.js: OK
-- IDs HTML duplicados: ninguno
-- Estados incluidos en filtros: OK
-- Acción start-adjustment: OK
-- Acción request-adjustment: OK
-- ZIP integrity: OK
+Cambios principales:
+- Navegación conjunta entre Solicitudes realizadas e Historial de cambios.
+- Historial de cambios con el mismo ancho de la vista de gestión.
+- Tipografía y densidad visual reducidas para mostrar más actividad en menos espacio.
+- Categorías de auditoría: Creación, Cambio de estado, Asignación, Cambio de fecha, Ajuste solicitado, Modificación y Eliminación.
+- El nombre de la solicitud se obtiene preferentemente del snapshot histórico, no solo del registro actual.
+- Filtros de fecha normalizados a la fecha local mostrada por la interfaz.
+- Filtro de usuario por ID interno, manteniendo el nombre visible.
+- Contador que distingue cambios registrados y solicitudes afectadas.
+- Carga incremental del historial cuando supera el primer bloque de registros.
+- Detalle de cambio accesible con foco controlado, Escape y retorno del foco al botón de origen.
+- Restauración renombrada como “Restaurar estado anterior” y presentada como acción secundaria.
+- Fechas de campos de tareas formateadas de manera consistente en el detalle.
+- Eliminado user-scalable=no del viewport para permitir zoom accesible.
+- Etiquetado explícito del campo de fecha de recepción en edición.
+- Mantiene la trazabilidad de entregas y ajustes de Solicitudes realizadas.
 
-Nota:
-- El estado y el motivo usan los campos existentes de la aplicación; no se inventaron nuevas columnas de Supabase.
-- La trazabilidad detallada de cambios sigue dependiendo de task_change_history y sus políticas de Supabase.
+Validación V30:
+- app.js: node --check OK.
+- IDs HTML duplicados: ninguno.
+- ZIP íntegro: OK.
+
+Nota técnica:
+La persistencia transaccional/RPC y la validación definitiva de RLS de Supabase requieren el esquema SQL real de la instancia y no se inventan en esta versión.

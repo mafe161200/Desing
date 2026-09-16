@@ -465,14 +465,16 @@ const DataService = {
         }
     },
 
-    async getChangeHistory(limit = 300) {
+    async getChangeHistory(limit = 300, offset = 0) {
         if (!supabaseClient) return [];
         try {
+            const safeLimit = Math.max(1, Math.min(Number(limit) || 300, 1000));
+            const safeOffset = Math.max(0, Number(offset) || 0);
             const { data, error } = await supabaseClient
                 .from('task_change_history')
                 .select('id, task_id, operation, before_data, after_data, changed_by, created_at')
                 .order('created_at', { ascending: false })
-                .limit(limit);
+                .range(safeOffset, safeOffset + safeLimit - 1);
             if (error) {
                 console.error('Supabase: no se pudo cargar el historial general.', error);
                 return [];
@@ -956,6 +958,10 @@ const App = {
     lifecycleRuntime: new Map(),
     currentView: 'board',
     changeHistory: [],
+    changeHistoryPageSize: 300,
+    changeHistoryHasMore: false,
+    changeHistoryLoading: false,
+    changeHistoryLastFocusedElement: null,
     changeHistoryFilters: { search: '', from: '', to: '', user: 'Todos', operation: 'Todos' },
     historyFilters: {
         month: '',
@@ -987,7 +993,8 @@ const App = {
         }
 
         await this.loadData();
-        this.changeHistory = await DataService.getChangeHistory();
+        this.changeHistory = await DataService.getChangeHistory(this.changeHistoryPageSize, 0);
+        this.changeHistoryHasMore = this.changeHistory.length >= this.changeHistoryPageSize;
         this.rebuildLifecycleRuntime();
         this.setupPlugins();
         this.setupKeyboardShortcuts();
@@ -1077,7 +1084,9 @@ const App = {
                     return;
                 }
                 await this.loadData();
-                this.changeHistory = await DataService.getChangeHistory();
+                this.changeHistory = await DataService.getChangeHistory(this.changeHistoryPageSize, 0);
+                this.changeHistoryHasMore = this.changeHistory.length >= this.changeHistoryPageSize;
+                this.rebuildLifecycleRuntime();
                 if (this.currentView === 'board') this.renderBoard();
                 if (this.currentView === 'history') this.renderHistory();
                 if (this.currentView === 'change-history') this.renderChangeHistory();
@@ -1319,20 +1328,19 @@ const App = {
         this.setupAdminListeners();
         this.setupDynamicEventDelegation();
 
-        document.getElementById('btnBackToBoard')?.addEventListener('click', () => {
-            this.showView('board');
-        });
-
         document.getElementById('btnOpenChangeHistory')?.addEventListener('click', () => {
             this.showView('change-history');
         });
-        document.getElementById('btnBackFromChangeHistory')?.addEventListener('click', () => {
-            this.showView('board');
-        });
-
         document.getElementById('btnOpenHistoryBottom')?.addEventListener('click', () => {
             this.showView('history');
         });
+        document.getElementById('btnOpenHistorySidebar')?.addEventListener('click', () => {
+            this.showView('history');
+        });
+        document.getElementById('historyTabRequests')?.addEventListener('click', () => this.showView('history'));
+        document.getElementById('historyTabChanges')?.addEventListener('click', () => this.showView('change-history'));
+        document.getElementById('changeHistoryTabRequests')?.addEventListener('click', () => this.showView('history'));
+        document.getElementById('changeHistoryTabChanges')?.addEventListener('click', () => this.showView('change-history'));
 
         document.querySelectorAll('.close-modal').forEach(b => {
             if(b.id !== 'closeProfileModalBtn') {
@@ -2262,8 +2270,12 @@ const App = {
         const user = document.getElementById('changeHistoryUser');
         const operation = document.getElementById('changeHistoryOperation');
         const clear = document.getElementById('clearChangeHistoryFilters');
+        const loadMore = document.getElementById('changeHistoryLoadMore');
 
-        search?.addEventListener('input', () => { this.changeHistoryFilters.search = normalizeText(search.value).toLowerCase(); this.renderChangeHistory(); });
+        search?.addEventListener('input', () => {
+            this.changeHistoryFilters.search = normalizeText(search.value).toLowerCase();
+            this.renderChangeHistory();
+        });
         from?.addEventListener('change', () => { this.changeHistoryFilters.from = from.value; this.renderChangeHistory(); });
         to?.addEventListener('change', () => { this.changeHistoryFilters.to = to.value; this.renderChangeHistory(); });
         user?.addEventListener('change', () => { this.changeHistoryFilters.user = user.value; this.renderChangeHistory(); });
@@ -2277,11 +2289,34 @@ const App = {
             if (operation) operation.value = 'Todos';
             this.renderChangeHistory();
         });
+        loadMore?.addEventListener('click', () => this.loadMoreChangeHistory());
     },
 
-    async loadChangeHistory() {
-        this.changeHistory = await DataService.getChangeHistory();
-        this.renderChangeHistory();
+    async loadChangeHistory(reset = true) {
+        if (this.changeHistoryLoading) return;
+        this.changeHistoryLoading = true;
+        try {
+            if (reset) {
+                this.changeHistory = await DataService.getChangeHistory(this.changeHistoryPageSize, 0);
+            } else {
+                const next = await DataService.getChangeHistory(this.changeHistoryPageSize, this.changeHistory.length);
+                this.changeHistory = [...this.changeHistory, ...next];
+                this.changeHistoryHasMore = next.length >= this.changeHistoryPageSize;
+            }
+            if (reset) this.changeHistoryHasMore = this.changeHistory.length >= this.changeHistoryPageSize;
+            this.rebuildLifecycleRuntime();
+            this.renderChangeHistory();
+        } finally {
+            this.changeHistoryLoading = false;
+        }
+    },
+
+    async loadMoreChangeHistory() {
+        if (!this.changeHistoryHasMore || this.changeHistoryLoading) return;
+        const button = document.getElementById('changeHistoryLoadMore');
+        if (button) { button.disabled = true; button.setAttribute('aria-busy', 'true'); }
+        await this.loadChangeHistory(false);
+        if (button) { button.disabled = false; button.removeAttribute('aria-busy'); }
     },
 
     parseChangeHistoryData(value) {
@@ -2305,6 +2340,8 @@ const App = {
 
         const before = this.parseChangeHistoryData(entry.before_data);
         const after = this.parseChangeHistoryData(entry.after_data);
+        const snapshot = entry.operation === 'DELETE' ? before : after;
+        const historicalName = normalizeText(snapshot?.name || before?.name || after?.name || task?.name || `Solicitud #${entry.task_id}`);
         const fields = Object.keys(labels).filter(field =>
             String(before[field] ?? '') !== String(after[field] ?? '')
         );
@@ -2318,23 +2355,23 @@ const App = {
 
         const card = document.createElement('div');
         card.className = 'change-history-detail-card';
+        card.setAttribute('tabindex', '-1');
 
         const header = document.createElement('div');
         header.className = 'change-history-detail-header';
-
         const titleWrap = document.createElement('div');
         titleWrap.className = 'change-history-detail-title-wrap';
         const icon = document.createElement('i');
-        icon.setAttribute('data-lucide', 'history');
+        icon.setAttribute('data-lucide', entry.operation === 'INSERT' ? 'plus-circle' : entry.operation === 'DELETE' ? 'trash-2' : 'history');
         const title = document.createElement('h2');
         title.id = 'changeHistoryDetailTitle';
         title.textContent = entry.operation === 'INSERT' ? 'Solicitud creada' : entry.operation === 'DELETE' ? 'Solicitud eliminada' : 'Detalle del cambio';
         titleWrap.append(icon, title);
-
         const close = document.createElement('button');
         close.type = 'button';
         close.className = 'btn-icon change-history-detail-close';
         close.setAttribute('aria-label', 'Cerrar detalle');
+        close.title = 'Cerrar detalle';
         const closeIcon = document.createElement('i');
         closeIcon.setAttribute('data-lucide', 'x');
         close.appendChild(closeIcon);
@@ -2342,12 +2379,14 @@ const App = {
 
         const taskName = document.createElement('div');
         taskName.className = 'change-history-detail-task';
-        taskName.textContent = task?.name || `Solicitud #${entry.task_id}`;
+        taskName.textContent = historicalName;
 
         const meta = document.createElement('div');
         meta.className = 'change-history-detail-meta';
         const operationText = entry.operation === 'INSERT' ? 'Creación' : entry.operation === 'DELETE' ? 'Eliminación' : 'Modificación';
-        meta.textContent = `${operationText} · ${this.formatChangeHistoryDate(entry.created_at)} · ${normalizeText((this.usersList || []).find(u => String(u.id) === String(entry.changed_by))?.name || (this.usersList || []).find(u => String(u.id) === String(entry.changed_by))?.username || 'Usuario')}`;
+        const changedUser = (this.usersList || []).find(u => String(u.id) === String(entry.changed_by));
+        const userName = normalizeText(changedUser?.name || changedUser?.username || 'Usuario');
+        meta.textContent = `${operationText} · ${this.formatChangeHistoryDate(entry.created_at)} · ${userName}`;
 
         const body = document.createElement('div');
         body.className = 'change-history-detail-body';
@@ -2360,7 +2399,7 @@ const App = {
         } else if (entry.operation === 'DELETE') {
             const message = document.createElement('p');
             message.className = 'change-history-detail-message';
-            message.textContent = 'Se eliminó esta solicitud.';
+            message.textContent = 'Se eliminó esta solicitud. Los datos mostrados corresponden a su última versión registrada.';
             body.appendChild(message);
         } else if (!fields.length) {
             const message = document.createElement('p');
@@ -2407,26 +2446,27 @@ const App = {
             restore.className = 'btn btn-primary change-history-detail-restore';
             const restoreIcon = document.createElement('i');
             restoreIcon.setAttribute('data-lucide', 'rotate-ccw');
-            restore.append(restoreIcon, document.createTextNode(' Restaurar esta versión'));
+            restore.append(restoreIcon, document.createTextNode(' Restaurar estado anterior'));
+            restore.title = 'Restaurar los datos que existían antes de este cambio';
             restore.addEventListener('click', async () => {
-                const confirmed = confirm(`¿Restaurar la solicitud a la versión del ${this.formatChangeHistoryDate(entry.created_at)}? El cambio actual quedará registrado.`);
+                const confirmed = confirm(`¿Restaurar el estado anterior al cambio del ${this.formatChangeHistoryDate(entry.created_at)}? El estado actual quedará registrado como un nuevo cambio.`);
                 if (!confirmed) return;
                 restore.disabled = true;
                 try {
                     const result = await DataService.restoreTaskVersion(entry.task_id, before);
                     if (!result?.cloudSaved) {
                         restore.disabled = false;
-                        UI.showToast('No se pudo restaurar la versión.', 'error');
+                        UI.showToast('No se pudo restaurar el estado anterior.', 'error');
                         return;
                     }
-                    overlay.remove();
+                    closeViewer();
                     await this.loadData();
-                    await this.loadChangeHistory();
-                    UI.showToast('Versión restaurada correctamente.', 'success');
+                    await this.loadChangeHistory(true);
+                    UI.showToast('Estado anterior restaurado correctamente.', 'success');
                 } catch (error) {
                     console.error('Error al restaurar versión:', error);
                     restore.disabled = false;
-                    UI.showToast('No se pudo restaurar la versión.', 'error');
+                    UI.showToast('No se pudo restaurar el estado anterior.', 'error');
                 }
             });
             footer.appendChild(restore);
@@ -2437,226 +2477,159 @@ const App = {
         document.body.appendChild(overlay);
         lucide.createIcons();
 
+        this.changeHistoryLastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         const closeViewer = () => {
             overlay.remove();
             document.removeEventListener('keydown', onKeyDown);
+            if (this.changeHistoryLastFocusedElement?.isConnected) this.changeHistoryLastFocusedElement.focus();
+            this.changeHistoryLastFocusedElement = null;
         };
         const onKeyDown = event => {
-            if (event.key === 'Escape') closeViewer();
+            if (event.key === 'Escape') { closeViewer(); return; }
+            if (event.key !== 'Tab') return;
+            const focusable = [...card.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(el => el.offsetParent !== null);
+            if (!focusable.length) { event.preventDefault(); card.focus(); return; }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         };
         close.addEventListener('click', closeViewer);
         closeFooter.addEventListener('click', closeViewer);
-        overlay.addEventListener('click', event => {
-            if (event.target === overlay) closeViewer();
-        });
+        overlay.addEventListener('click', event => { if (event.target === overlay) closeViewer(); });
         document.addEventListener('keydown', onKeyDown);
+        window.requestAnimationFrame(() => close.focus());
     },
 
     renderChangeHistory() {
         const body = document.getElementById('changeHistoryTableBody');
         const empty = document.getElementById('changeHistoryEmpty');
-
         if (!body || !empty) return;
 
-        const filters = this.changeHistoryFilters || {
-            search: '',
-            from: '',
-            to: '',
-            user: 'Todos',
-            operation: 'Todos'
-        };
-
+        const filters = this.changeHistoryFilters || { search:'', from:'', to:'', user:'Todos', operation:'Todos' };
         const tasks = Array.isArray(this.tasks) ? this.tasks : [];
         const users = Array.isArray(this.usersList) ? this.usersList : [];
-
-        const taskMap = new Map(
-            tasks.map(task => [String(task.id), task])
-        );
-
-        const userMap = new Map(
-            users.map(user => [
-                String(user.id),
-                normalizeText(user.name || user.username || 'Usuario')
-            ])
-        );
-
-        const labels = {
-            name: 'Solicitud',
-            requester: 'Solicitante',
-            assignee: 'Responsable',
-            status: 'Estado',
-            dateReceived: 'Recepción',
-            dateDelivered: 'Entrega',
-            isStarred: 'Prioridad',
-            notes: 'Notas'
-        };
-
+        const taskMap = new Map(tasks.map(task => [String(task.id), task]));
+        const userMap = new Map(users.map(user => [String(user.id), normalizeText(user.name || user.username || 'Usuario')]));
+        const labels = { name:'Solicitud', requester:'Solicitante', assignee:'Responsable', status:'Estado', dateReceived:'Recepción', dateDelivered:'Entrega', isStarred:'Prioridad', notes:'Notas' };
         const display = (field, value) => {
             if (field === 'isStarred') return value ? 'Prioritaria' : 'Normal';
+            if (field === 'dateReceived' || field === 'dateDelivered') {
+                const text = normalizeText(value);
+                if (!text) return 'Vacío';
+                const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                return match ? `${match[3]}/${match[2]}/${match[1]}` : text;
+            }
             if (value === null || value === undefined || value === '') return 'Vacío';
             return String(value);
         };
-
+        const localDateKey = value => {
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) return '';
+            const y = parsed.getFullYear(); const m = String(parsed.getMonth()+1).padStart(2,'0'); const d = String(parsed.getDate()).padStart(2,'0');
+            return `${y}-${m}-${d}`;
+        };
         const changedFields = entry => {
             const before = this.parseChangeHistoryData(entry.before_data);
             const after = this.parseChangeHistoryData(entry.after_data);
-            return Object.keys(labels).filter(field =>
-                String(before[field] ?? '') !== String(after[field] ?? '')
-            );
+            return Object.keys(labels).filter(field => String(before[field] ?? '') !== String(after[field] ?? ''));
+        };
+        const category = (entry, fields) => {
+            if (entry.operation === 'INSERT') return { label:'Creación', key:'insert' };
+            if (entry.operation === 'DELETE') return { label:'Eliminación', key:'delete' };
+            if (fields.includes('status')) {
+                const before = this.parseChangeHistoryData(entry.before_data);
+                const after = this.parseChangeHistoryData(entry.after_data);
+                if (after.status === 'Ajuste solicitado') return { label:'Ajuste solicitado', key:'adjustment' };
+                return { label:'Cambio de estado', key:'status' };
+            }
+            if (fields.includes('assignee')) return { label:'Asignación', key:'assignment' };
+            if (fields.some(field => field === 'dateReceived' || field === 'dateDelivered')) return { label:'Cambio de fecha', key:'date' };
+            return { label:'Modificación', key:'update' };
         };
 
         const rows = (this.changeHistory || []).filter(entry => {
             const task = taskMap.get(String(entry.task_id));
-            const username =
-                userMap.get(String(entry.changed_by)) || 'Usuario';
+            const username = userMap.get(String(entry.changed_by)) || 'Usuario';
             const before = this.parseChangeHistoryData(entry.before_data);
             const after = this.parseChangeHistoryData(entry.after_data);
             const fields = changedFields(entry);
-
-            const summary = fields.map(field =>
-                `${labels[field]} ${display(field, before[field])} ${display(field, after[field])}`
-            ).join(' ');
-
-            const haystack = [
-                task?.name,
-                task?.requester,
-                task?.assignee,
-                username,
-                entry.operation,
-                summary
-            ].map(normalizeText).join(' ').toLowerCase();
-
-            const date = normalizeText(entry.created_at).slice(0, 10);
-
+            const historicalSnapshot = entry.operation === 'DELETE' ? before : after;
+            const historicalName = historicalSnapshot.name || before.name || after.name || task?.name || `Solicitud #${entry.task_id}`;
+            const summary = fields.map(field => `${labels[field]} ${display(field,before[field])} ${display(field,after[field])}`).join(' ');
+            const haystack = [historicalName, before.requester, after.requester, before.assignee, after.assignee, username, entry.operation, category(entry, fields).label, summary].map(normalizeText).join(' ').toLowerCase();
+            const date = localDateKey(entry.created_at);
             if (filters.search && !haystack.includes(filters.search)) return false;
-            if (filters.user !== 'Todos' && username !== filters.user) return false;
+            if (filters.user !== 'Todos' && String(entry.changed_by) !== String(filters.user)) return false;
             if (filters.operation !== 'Todos' && entry.operation !== filters.operation) return false;
-            if (filters.from && date < filters.from) return false;
-            if (filters.to && date > filters.to) return false;
-
+            if (filters.from && (!date || date < filters.from)) return false;
+            if (filters.to && (!date || date > filters.to)) return false;
             return true;
         });
 
         const userSelect = document.getElementById('changeHistoryUser');
-
         if (userSelect && userSelect.options.length <= 1) {
-            [...new Set(
-                (this.changeHistory || []).map(entry =>
-                    userMap.get(String(entry.changed_by)) || 'Usuario'
-                )
-            )]
-                .sort((a, b) => a.localeCompare(b, 'es'))
-                .forEach(name => {
-                    const option = document.createElement('option');
-                    option.value = name;
-                    option.textContent = name;
-                    userSelect.appendChild(option);
-                });
+            const ids = [...new Set((this.changeHistory || []).map(entry => String(entry.changed_by)).filter(Boolean))];
+            ids.sort((a,b) => (userMap.get(a)||'Usuario').localeCompare(userMap.get(b)||'Usuario','es'));
+            ids.forEach(id => {
+                const option = document.createElement('option');
+                option.value = id; option.textContent = userMap.get(id) || 'Usuario';
+                userSelect.appendChild(option);
+            });
         }
 
         body.replaceChildren();
-
         const count = document.getElementById('changeHistoryCount');
         const result = document.getElementById('changeHistoryResult');
-
         if (count) count.textContent = String(rows.length);
-        if (result) {
-            result.textContent =
-                `${rows.length} cambio${rows.length === 1 ? '' : 's'}`;
-        }
-
+        if (result) result.textContent = `${rows.length} cambio${rows.length === 1 ? '' : 's'} · ${(new Set(rows.map(entry => String(entry.task_id)))).size} solicitud${(new Set(rows.map(entry => String(entry.task_id)))).size === 1 ? '' : 'es'}`;
         empty.hidden = rows.length !== 0;
-
+        const loadWrap = document.getElementById('changeHistoryLoadMoreWrap');
+        const loadButton = document.getElementById('changeHistoryLoadMore');
+        if (loadWrap) loadWrap.hidden = !this.changeHistoryHasMore;
+        if (loadButton) loadButton.disabled = this.changeHistoryLoading;
         if (!rows.length) return;
 
         const fragment = document.createDocumentFragment();
-
-        rows.forEach((entry, index) => {
+        rows.forEach((entry,index) => {
             const task = taskMap.get(String(entry.task_id));
-            const username =
-                userMap.get(String(entry.changed_by)) || 'Usuario';
-
-            const before = entry.before_data || {};
-            const after = entry.after_data || {};
+            const before = this.parseChangeHistoryData(entry.before_data);
+            const after = this.parseChangeHistoryData(entry.after_data);
             const fields = changedFields(entry);
-
+            const snapshot = entry.operation === 'DELETE' ? before : after;
+            const historicalName = normalizeText(snapshot.name || before.name || after.name || task?.name || `Solicitud #${entry.task_id}`);
+            const username = userMap.get(String(entry.changed_by)) || 'Usuario';
+            const kind = category(entry, fields);
             const item = document.createElement('article');
-            item.className = 'change-history-item';
-            item.setAttribute('role', 'listitem');
+            item.className = `change-history-item category-${kind.key}`;
+            item.setAttribute('role','listitem');
             item.dataset.historyId = String(entry.id);
-            item.style.animationDelay =
-                `${Math.min(index, 8) * 18}ms`;
+            item.style.animationDelay = `${Math.min(index,8)*18}ms`;
 
-            const main = document.createElement('div');
-            main.className = 'change-history-main';
-
-            const date = document.createElement('time');
-            date.className = 'change-history-date';
-            date.dateTime = entry.created_at || '';
-            date.textContent = this.formatChangeHistoryDate(entry.created_at);
-
-            const title = document.createElement('div');
-            title.className = 'change-history-title';
-            title.textContent =
-                task?.name || `Solicitud #${entry.task_id}`;
-
-            const meta = document.createElement('div');
-            meta.className = 'change-history-meta';
-
-            const operation = document.createElement('span');
-            operation.className =
-                `change-history-operation ${String(entry.operation || '').toLowerCase()}`;
-            operation.textContent =
-                entry.operation === 'INSERT'
-                    ? 'Creación'
-                    : entry.operation === 'DELETE'
-                        ? 'Eliminación'
-                        : 'Modificación';
-
-            const user = document.createElement('span');
-            user.className = 'change-history-user';
-            user.textContent = username;
-
-            meta.append(operation, user);
-
-            const detail = document.createElement('div');
-            detail.className = 'change-history-detail';
-
-            if (entry.operation === 'INSERT') {
-                detail.textContent = 'Se creó la solicitud.';
-            } else if (entry.operation === 'DELETE') {
-                detail.textContent = 'Se eliminó la solicitud.';
-            } else if (!fields.length) {
-                detail.textContent = 'Cambio registrado.';
-            } else {
-                detail.textContent = fields.slice(0, 2).map(field =>
-                    `${labels[field]}: ${display(field, before[field])} → ${display(field, after[field])}`
-                ).join(' · ');
-                if (fields.length > 2) {
-                    detail.textContent += ` · +${fields.length - 2} cambio${fields.length - 2 === 1 ? '' : 's'}`;
-                }
+            const main = document.createElement('div'); main.className='change-history-main';
+            const date = document.createElement('time'); date.className='change-history-date'; date.dateTime=entry.created_at||''; date.textContent=this.formatChangeHistoryDate(entry.created_at);
+            const title = document.createElement('div'); title.className='change-history-title'; title.textContent=historicalName;
+            const meta = document.createElement('div'); meta.className='change-history-meta';
+            const operation = document.createElement('span'); operation.className=`change-history-operation ${kind.key}`; operation.textContent=kind.label;
+            const user = document.createElement('span'); user.className='change-history-user'; user.textContent=username;
+            meta.append(operation,user);
+            const detail = document.createElement('div'); detail.className='change-history-detail';
+            if (entry.operation === 'INSERT') detail.textContent='Se creó la solicitud.';
+            else if (entry.operation === 'DELETE') detail.textContent='Se eliminó la solicitud.';
+            else if (!fields.length) detail.textContent='Cambio registrado.';
+            else {
+                detail.textContent=fields.slice(0,2).map(field=>`${labels[field]}: ${display(field,before[field])} → ${display(field,after[field])}`).join(' · ');
+                if(fields.length>2) detail.textContent += ` · +${fields.length-2} cambio${fields.length-2===1?'':'s'}`;
             }
+            main.append(date,title,meta,detail);
 
-            main.append(date, title, meta, detail);
-
-            const actions = document.createElement('div');
-            actions.className = 'change-history-action';
-
-            const viewButton = document.createElement('button');
-            viewButton.type = 'button';
-            viewButton.className = 'btn-text change-history-view-detail';
-            viewButton.innerHTML = '<i data-lucide="eye"></i> Ver cambios';
-            viewButton.setAttribute('aria-label', `Ver cambios de ${title.textContent}`);
-            viewButton.addEventListener('click', () => {
-                this.openChangeHistoryDetail(entry, task, labels, display);
-            });
-            actions.appendChild(viewButton);
-
-            item.append(main, actions);
-            fragment.appendChild(item);
+            const actions=document.createElement('div'); actions.className='change-history-action';
+            const viewButton=document.createElement('button'); viewButton.type='button'; viewButton.className='btn-text change-history-view-detail'; viewButton.innerHTML='<i data-lucide="eye" aria-hidden="true"></i> Ver cambios'; viewButton.setAttribute('aria-label',`Ver cambios de ${historicalName}`);
+            viewButton.addEventListener('click',()=>this.openChangeHistoryDetail(entry,task,labels,display)); actions.appendChild(viewButton);
+            item.append(main,actions); fragment.appendChild(item);
         });
-
         body.appendChild(fragment);
+        lucide.createIcons();
     },
 
     showView(view) {
@@ -2670,6 +2643,14 @@ const App = {
         if (requestHistory) requestHistory.hidden = !isRequestHistory;
         if (changeHistory) changeHistory.hidden = !isChangeHistory;
         this.currentView = isRequestHistory ? 'history' : isChangeHistory ? 'change-history' : 'board';
+
+        document.querySelectorAll('.history-view-tab').forEach(tab => {
+            const active = (isRequestHistory && (tab.id === 'historyTabRequests' || tab.id === 'changeHistoryTabRequests'))
+                || (isChangeHistory && (tab.id === 'historyTabChanges' || tab.id === 'changeHistoryTabChanges'));
+            tab.classList.toggle('is-active', active);
+            if (active) tab.setAttribute('aria-current', 'page');
+            else tab.removeAttribute('aria-current');
+        });
 
         const targetHash = isRequestHistory ? '#solicitudes-realizadas' : isChangeHistory ? '#historial-cambios' : '';
         if (targetHash) window.history.pushState(null,'',targetHash);

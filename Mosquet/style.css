@@ -4622,3 +4622,88 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     .change-history-detail-footer .btn{width:100%}
 }
 @media(prefers-reduced-motion:reduce){.change-history-view .change-history-item{animation:none!important}}
+
+
+/* ========================================================================
+   DESIGN HUB V30 — NAVEGACIÓN Y AUDITORÍA REFINADA
+   ======================================================================== */
+.sidebar-nav-label{
+    margin:0 2px 7px;
+    color:#6f86a2;
+    font-size:.61rem;
+    font-weight:800;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+}
+.sidebar-nav-group{display:grid;gap:7px}
+.sidebar-nav-button{min-height:40px;font-size:.69rem}
+
+.history-view-tabs{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:3px;
+    border:1px solid #203650;
+    border-radius:10px;
+    background:#07111e;
+    flex:0 0 auto;
+}
+.history-view-tab{
+    min-height:34px;
+    padding:0 11px;
+    border:1px solid transparent;
+    border-radius:7px;
+    background:transparent;
+    color:#7f95ae;
+    font:inherit;
+    font-size:.66rem;
+    font-weight:750;
+    cursor:pointer;
+    transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+}
+.history-view-tab:hover{color:#dbeafe;background:#0a1829}
+.history-view-tab:focus-visible{outline:3px solid #67e8f9;outline-offset:2px}
+.history-view-tab.is-active{
+    color:#e9fbff;
+    border-color:#24506a;
+    background:#0b1d2d;
+}
+
+.change-history-view .history-header,
+.history-view .history-header{padding:15px 24px 12px}
+.change-history-view .history-header .subtitle{margin-top:4px}
+.change-history-view .change-history-list-wrap{margin-left:24px;margin-right:24px}
+.change-history-view .change-history-item{padding:11px 16px;gap:14px}
+.change-history-view .change-history-date{font-size:.66rem}
+.change-history-view .change-history-title{font-size:.79rem;line-height:1.28}
+.change-history-view .change-history-meta{font-size:.64rem}
+.change-history-view .change-history-detail{font-size:.67rem;line-height:1.32}
+.change-history-view .change-history-operation{min-height:20px;padding:2px 7px;font-size:.58rem}
+.change-history-view .change-history-user{font-size:.63rem}
+.change-history-view .change-history-view-detail{min-height:30px;padding:5px 8px;font-size:.63rem}
+.change-history-view .change-history-filter-panel{margin-left:24px;margin-right:24px;padding:10px}
+.change-history-view .history-filter-heading{margin-bottom:7px}
+.change-history-view .history-filter-result{font-size:.61rem}
+
+.change-history-operation.status{color:#67e8f9;border-color:rgba(103,232,249,.35);background:rgba(34,211,238,.08)}
+.change-history-operation.assignment{color:#c4b5fd;border-color:rgba(196,181,253,.35);background:rgba(139,92,246,.08)}
+.change-history-operation.date{color:#93c5fd;border-color:rgba(147,197,253,.35);background:rgba(59,130,246,.08)}
+.change-history-operation.adjustment{color:#fbbf24;border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08)}
+.change-history-operation.update{color:#67e8f9;border-color:rgba(103,232,249,.35);background:rgba(34,211,238,.08)}
+.change-history-load-more-wrap{display:flex;justify-content:center;padding:10px 12px 13px;border-top:1px solid #182a40}
+.change-history-load-more-wrap .btn{min-height:34px;font-size:.65rem}
+.change-history-detail-restore{font-size:.66rem}
+
+@media(max-width:760px){
+    .history-view-tabs{width:100%;}
+    .history-view-tab{flex:1;min-width:0}
+    .change-history-view .history-header,
+    .history-view .history-header{padding:14px 16px 11px}
+    .change-history-view .change-history-filter-panel,
+    .change-history-view .change-history-list-wrap{margin-left:14px;margin-right:14px}
+    .change-history-view .change-history-item{padding:12px 14px}
+}
+
+@media(prefers-reduced-motion:reduce){
+    .history-view-tab{transition:none}
+}
