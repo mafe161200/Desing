@@ -4530,7 +4530,7 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     align-items: center;
     justify-content: flex-start;
     gap: 8px;
-    width: 100%;
+    width: max-content;
     max-width: 100%;
     min-width: 0;
     margin-left: 0;
@@ -4591,10 +4591,10 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     align-items: stretch;
     justify-content: flex-start;
     gap: 2px;
-    width: 270px;
-    max-width: 270px;
-    min-width: 270px;
-    flex: 0 0 270px;
+    width: 260px;
+    max-width: 260px;
+    min-width: 260px;
+    flex: 0 0 260px;
     min-height: 40px;
     padding: 3px;
     border: 1px solid var(--border-light);
@@ -4699,8 +4699,9 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 }
 
 @media (min-width: 769px) {
+    /* Distribución real de las 5 columnas: Solicitud / Asignación / Fechas / Estado / Acciones. */
     .task-table th:nth-child(1), .task-table td:nth-child(1) {
-        width: 31% !important;
+        width: 28% !important;
         text-align: left !important;
     }
     .task-table th:nth-child(2), .task-table td:nth-child(2) {
@@ -4710,7 +4711,10 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
         width: 15% !important;
     }
     .task-table th:nth-child(4), .task-table td:nth-child(4) {
-        width: 36% !important;
+        width: 27% !important;
+    }
+    .task-table th:nth-child(5), .task-table td:nth-child(5) {
+        width: 12% !important;
     }
 }
 
@@ -4727,7 +4731,10 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     }
 
     .task-table .task-status-slider {
-        flex: 0 0 270px;
+        flex: 0 0 245px;
+        width: 245px;
+        max-width: 245px;
+        min-width: 245px;
     }
 
     .task-table .task-status-step {
