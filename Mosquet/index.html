@@ -367,7 +367,7 @@
                             <h2 id="changeHistoryViewTitle">Historial de cambios</h2>
                             <span id="changeHistoryCount" class="badge-count badge-primary">0</span>
                         </div>
-                        <p class="subtitle">Registro general de cambios realizados en las solicitudes, con usuario, fecha y detalle.</p>
+                        <p class="subtitle">Actividad y versiones de las solicitudes.</p>
                     </div>
                     <button type="button" id="btnBackFromChangeHistory" class="btn btn-secondary">
                         <i data-lucide="arrow-left" aria-hidden="true"></i> Volver a gestión
@@ -390,11 +390,16 @@
                                 <input type="search" id="changeHistorySearch" class="custom-input" placeholder="Solicitud, usuario o cambio..." aria-label="Buscar en el historial de cambios">
                             </div>
                         </label>
-                        <label class="history-field"><span>Desde</span><input type="date" id="changeHistoryFrom" class="custom-input" aria-label="Filtrar cambios desde una fecha"></label>
-                        <label class="history-field"><span>Hasta</span><input type="date" id="changeHistoryTo" class="custom-input" aria-label="Filtrar cambios hasta una fecha"></label>
                         <label class="history-field"><span>Usuario</span><select id="changeHistoryUser" class="history-select" aria-label="Filtrar por usuario"><option value="Todos">Todos</option></select></label>
                         <label class="history-field"><span>Acción</span><select id="changeHistoryOperation" class="history-select" aria-label="Filtrar por acción"><option value="Todos">Todas</option><option value="INSERT">Creación</option><option value="UPDATE">Modificación</option><option value="DELETE">Eliminación</option></select></label>
-                        <button type="button" id="clearChangeHistoryFilters" class="btn-text history-clear"><i data-lucide="x-circle" aria-hidden="true"></i> Limpiar filtros</button>
+                        <details class="change-history-more-filters">
+                            <summary><i data-lucide="sliders-horizontal" aria-hidden="true"></i> Fechas</summary>
+                            <div class="change-history-date-fields">
+                                <label class="history-field"><span>Desde</span><input type="date" id="changeHistoryFrom" class="custom-input" aria-label="Filtrar cambios desde una fecha"></label>
+                                <label class="history-field"><span>Hasta</span><input type="date" id="changeHistoryTo" class="custom-input" aria-label="Filtrar cambios hasta una fecha"></label>
+                            </div>
+                        </details>
+                        <button type="button" id="clearChangeHistoryFilters" class="btn-text history-clear"><i data-lucide="x-circle" aria-hidden="true"></i> Limpiar</button>
                     </div>
                 </section>
 

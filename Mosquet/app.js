@@ -2284,6 +2284,174 @@ const App = {
         this.renderChangeHistory();
     },
 
+    parseChangeHistoryData(value) {
+        if (typeof value === 'string') {
+            try { return JSON.parse(value) || {}; } catch { return {}; }
+        }
+        return value && typeof value === 'object' ? value : {};
+    },
+
+    formatChangeHistoryDate(value) {
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return 'Fecha no disponible';
+        return parsed.toLocaleString('es-CO', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+        });
+    },
+
+    openChangeHistoryDetail(entry, task, labels, display) {
+        document.getElementById('changeHistoryDetailViewer')?.remove();
+
+        const before = this.parseChangeHistoryData(entry.before_data);
+        const after = this.parseChangeHistoryData(entry.after_data);
+        const fields = Object.keys(labels).filter(field =>
+            String(before[field] ?? '') !== String(after[field] ?? '')
+        );
+
+        const overlay = document.createElement('div');
+        overlay.id = 'changeHistoryDetailViewer';
+        overlay.className = 'change-history-detail-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'changeHistoryDetailTitle');
+
+        const card = document.createElement('div');
+        card.className = 'change-history-detail-card';
+
+        const header = document.createElement('div');
+        header.className = 'change-history-detail-header';
+
+        const titleWrap = document.createElement('div');
+        titleWrap.className = 'change-history-detail-title-wrap';
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'history');
+        const title = document.createElement('h2');
+        title.id = 'changeHistoryDetailTitle';
+        title.textContent = entry.operation === 'INSERT' ? 'Solicitud creada' : entry.operation === 'DELETE' ? 'Solicitud eliminada' : 'Detalle del cambio';
+        titleWrap.append(icon, title);
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-icon change-history-detail-close';
+        close.setAttribute('aria-label', 'Cerrar detalle');
+        const closeIcon = document.createElement('i');
+        closeIcon.setAttribute('data-lucide', 'x');
+        close.appendChild(closeIcon);
+        header.append(titleWrap, close);
+
+        const taskName = document.createElement('div');
+        taskName.className = 'change-history-detail-task';
+        taskName.textContent = task?.name || `Solicitud #${entry.task_id}`;
+
+        const meta = document.createElement('div');
+        meta.className = 'change-history-detail-meta';
+        const operationText = entry.operation === 'INSERT' ? 'Creación' : entry.operation === 'DELETE' ? 'Eliminación' : 'Modificación';
+        meta.textContent = `${operationText} · ${this.formatChangeHistoryDate(entry.created_at)} · ${normalizeText((this.usersList || []).find(u => String(u.id) === String(entry.changed_by))?.name || (this.usersList || []).find(u => String(u.id) === String(entry.changed_by))?.username || 'Usuario')}`;
+
+        const body = document.createElement('div');
+        body.className = 'change-history-detail-body';
+
+        if (entry.operation === 'INSERT') {
+            const message = document.createElement('p');
+            message.className = 'change-history-detail-message';
+            message.textContent = 'Se creó esta solicitud.';
+            body.appendChild(message);
+        } else if (entry.operation === 'DELETE') {
+            const message = document.createElement('p');
+            message.className = 'change-history-detail-message';
+            message.textContent = 'Se eliminó esta solicitud.';
+            body.appendChild(message);
+        } else if (!fields.length) {
+            const message = document.createElement('p');
+            message.className = 'change-history-detail-message';
+            message.textContent = 'Se registró un cambio sin diferencias de campos disponibles.';
+            body.appendChild(message);
+        } else {
+            const diffList = document.createElement('div');
+            diffList.className = 'change-history-diff-list';
+            fields.forEach(field => {
+                const row = document.createElement('div');
+                row.className = 'change-history-diff-row';
+                const fieldName = document.createElement('span');
+                fieldName.className = 'change-history-diff-label';
+                fieldName.textContent = labels[field];
+                const values = document.createElement('div');
+                values.className = 'change-history-diff-values';
+                const beforeValue = document.createElement('span');
+                beforeValue.className = 'change-history-diff-before';
+                beforeValue.textContent = display(field, before[field]);
+                const arrow = document.createElement('i');
+                arrow.setAttribute('data-lucide', 'arrow-right');
+                const afterValue = document.createElement('span');
+                afterValue.className = 'change-history-diff-after';
+                afterValue.textContent = display(field, after[field]);
+                values.append(beforeValue, arrow, afterValue);
+                row.append(fieldName, values);
+                diffList.appendChild(row);
+            });
+            body.appendChild(diffList);
+        }
+
+        const footer = document.createElement('div');
+        footer.className = 'change-history-detail-footer';
+        const closeFooter = document.createElement('button');
+        closeFooter.type = 'button';
+        closeFooter.className = 'btn btn-secondary';
+        closeFooter.textContent = 'Cerrar';
+        footer.appendChild(closeFooter);
+
+        if (entry.operation === 'UPDATE' && task && typeof DataService.restoreTaskVersion === 'function') {
+            const restore = document.createElement('button');
+            restore.type = 'button';
+            restore.className = 'btn btn-primary change-history-detail-restore';
+            const restoreIcon = document.createElement('i');
+            restoreIcon.setAttribute('data-lucide', 'rotate-ccw');
+            restore.append(restoreIcon, document.createTextNode(' Restaurar esta versión'));
+            restore.addEventListener('click', async () => {
+                const confirmed = confirm(`¿Restaurar la solicitud a la versión del ${this.formatChangeHistoryDate(entry.created_at)}? El cambio actual quedará registrado.`);
+                if (!confirmed) return;
+                restore.disabled = true;
+                try {
+                    const result = await DataService.restoreTaskVersion(entry.task_id, before);
+                    if (!result?.cloudSaved) {
+                        restore.disabled = false;
+                        UI.showToast('No se pudo restaurar la versión.', 'error');
+                        return;
+                    }
+                    overlay.remove();
+                    await this.loadData();
+                    await this.loadChangeHistory();
+                    UI.showToast('Versión restaurada correctamente.', 'success');
+                } catch (error) {
+                    console.error('Error al restaurar versión:', error);
+                    restore.disabled = false;
+                    UI.showToast('No se pudo restaurar la versión.', 'error');
+                }
+            });
+            footer.appendChild(restore);
+        }
+
+        card.append(header, taskName, meta, body, footer);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        lucide.createIcons();
+
+        const closeViewer = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', onKeyDown);
+        };
+        const onKeyDown = event => {
+            if (event.key === 'Escape') closeViewer();
+        };
+        close.addEventListener('click', closeViewer);
+        closeFooter.addEventListener('click', closeViewer);
+        overlay.addEventListener('click', event => {
+            if (event.target === overlay) closeViewer();
+        });
+        document.addEventListener('keydown', onKeyDown);
+    },
+
     renderChangeHistory() {
         const body = document.getElementById('changeHistoryTableBody');
         const empty = document.getElementById('changeHistoryEmpty');
@@ -2330,8 +2498,8 @@ const App = {
         };
 
         const changedFields = entry => {
-            const before = entry.before_data || {};
-            const after = entry.after_data || {};
+            const before = this.parseChangeHistoryData(entry.before_data);
+            const after = this.parseChangeHistoryData(entry.after_data);
             return Object.keys(labels).filter(field =>
                 String(before[field] ?? '') !== String(after[field] ?? '')
             );
@@ -2341,8 +2509,8 @@ const App = {
             const task = taskMap.get(String(entry.task_id));
             const username =
                 userMap.get(String(entry.changed_by)) || 'Usuario';
-            const before = entry.before_data || {};
-            const after = entry.after_data || {};
+            const before = this.parseChangeHistoryData(entry.before_data);
+            const after = this.parseChangeHistoryData(entry.after_data);
             const fields = changedFields(entry);
 
             const summary = fields.map(field =>
@@ -2424,15 +2592,8 @@ const App = {
 
             const date = document.createElement('time');
             date.className = 'change-history-date';
-            date.dateTime = entry.created_at;
-
-            const parsedDate = new Date(entry.created_at);
-            date.textContent = Number.isNaN(parsedDate.getTime())
-                ? 'Fecha no disponible'
-                : parsedDate.toLocaleString('es-CO', {
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
-                });
+            date.dateTime = entry.created_at || '';
+            date.textContent = this.formatChangeHistoryDate(entry.created_at);
 
             const title = document.createElement('div');
             title.className = 'change-history-title';
@@ -2471,10 +2632,8 @@ const App = {
                 detail.textContent = fields.slice(0, 2).map(field =>
                     `${labels[field]}: ${display(field, before[field])} → ${display(field, after[field])}`
                 ).join(' · ');
-
                 if (fields.length > 2) {
-                    detail.textContent +=
-                        ` · +${fields.length - 2} cambio${fields.length - 2 === 1 ? '' : 's'}`;
+                    detail.textContent += ` · +${fields.length - 2} cambio${fields.length - 2 === 1 ? '' : 's'}`;
                 }
             }
 
@@ -2483,65 +2642,15 @@ const App = {
             const actions = document.createElement('div');
             actions.className = 'change-history-action';
 
-            if (
-                entry.operation === 'UPDATE' &&
-                task &&
-                typeof DataService.restoreTaskVersion === 'function'
-            ) {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className =
-                    'btn-text change-history-restore';
-                button.textContent = 'Restaurar';
-                button.setAttribute(
-                    'aria-label',
-                    `Restaurar versión del ${date.textContent}`
-                );
-
-                button.addEventListener('click', async () => {
-                    const confirmed = confirm(
-                        `¿Restaurar la solicitud a la versión del ${date.textContent}? El cambio actual quedará registrado.`
-                    );
-
-                    if (!confirmed) return;
-
-                    button.disabled = true;
-
-                    try {
-                        const restoreResult =
-                            await DataService.restoreTaskVersion(
-                                entry.task_id,
-                                entry.before_data
-                            );
-
-                        if (!restoreResult?.cloudSaved) {
-                            button.disabled = false;
-                            UI.showToast(
-                                'No se pudo restaurar la versión.',
-                                'error'
-                            );
-                            return;
-                        }
-
-                        await this.loadData();
-                        await this.loadChangeHistory();
-
-                        UI.showToast(
-                            'Versión restaurada correctamente.',
-                            'success'
-                        );
-                    } catch (error) {
-                        console.error('Error al restaurar versión:', error);
-                        button.disabled = false;
-                        UI.showToast(
-                            'No se pudo restaurar la versión.',
-                            'error'
-                        );
-                    }
-                });
-
-                actions.appendChild(button);
-            }
+            const viewButton = document.createElement('button');
+            viewButton.type = 'button';
+            viewButton.className = 'btn-text change-history-view-detail';
+            viewButton.innerHTML = '<i data-lucide="eye"></i> Ver cambios';
+            viewButton.setAttribute('aria-label', `Ver cambios de ${title.textContent}`);
+            viewButton.addEventListener('click', () => {
+                this.openChangeHistoryDetail(entry, task, labels, display);
+            });
+            actions.appendChild(viewButton);
 
             item.append(main, actions);
             fragment.appendChild(item);

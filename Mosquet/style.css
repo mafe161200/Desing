@@ -4427,3 +4427,198 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     }
     .history-stat span { font-size: .61rem; }
 }
+
+/* ========================================================================
+   DESIGN HUB V29 — HISTORIAL DE CAMBIOS / AUDITORÍA COMPACTA
+   Último bloque: sobrescribe estilos heredados del historial anterior.
+   ======================================================================== */
+.change-history-view .history-section{overflow:hidden}
+.change-history-view .history-header{padding-bottom:14px}
+.change-history-view .change-history-filter-panel{
+    margin:0 24px 14px;
+    padding:12px;
+    border-radius:12px;
+    background:#08111f;
+}
+.change-history-view .change-history-filter-panel .history-filter-heading{
+    margin-bottom:9px;
+}
+.change-history-view .change-history-filter-panel .history-filter-heading h3{font-size:.78rem}
+.change-history-view .change-history-filter-panel .history-filter-heading p{display:none}
+.change-history-filters{
+    display:grid;
+    grid-template-columns:minmax(260px,1.8fr) minmax(150px,1fr) minmax(150px,1fr) auto auto;
+    gap:8px;
+    align-items:end;
+}
+.change-history-filters .history-search,
+.change-history-filters .history-field{min-width:0}
+.change-history-filters .history-search>span,
+.change-history-filters .history-field>span{margin-bottom:4px;font-size:.62rem}
+.change-history-filters .custom-input,
+.change-history-filters .history-select{min-height:36px;height:36px}
+.change-history-more-filters{
+    position:relative;
+    min-width:92px;
+}
+.change-history-more-filters summary{
+    min-height:36px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:0 10px;
+    border:1px solid #29405d;
+    border-radius:8px;
+    background:#0a1626;
+    color:#a9bdd4;
+    font-size:.68rem;
+    font-weight:700;
+    cursor:pointer;
+    list-style:none;
+    user-select:none;
+}
+.change-history-more-filters summary::-webkit-details-marker{display:none}
+.change-history-more-filters summary svg{width:14px;height:14px}
+.change-history-more-filters[open] summary{color:#67e8f9;border-color:#35617b;background:#0c1a2b}
+.change-history-date-fields{
+    position:absolute;
+    z-index:20;
+    top:calc(100% + 7px);
+    right:0;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    width:360px;
+    padding:10px;
+    border:1px solid #29405d;
+    border-radius:10px;
+    background:#0a1524;
+    box-shadow:0 18px 45px rgba(0,0,0,.42);
+}
+.change-history-date-fields .history-field{min-width:0}
+.change-history-date-fields .custom-input{width:100%;box-sizing:border-box}
+.change-history-filters .history-clear{
+    min-height:36px;
+    padding:0 8px;
+    white-space:nowrap;
+}
+.change-history-view .change-history-list-wrap{
+    margin:0 24px 18px;
+    border-radius:12px;
+    background:#07111e;
+}
+.change-history-view .change-history-item{
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:16px;
+    padding:15px 18px;
+    background:#091423;
+}
+.change-history-view .change-history-main{gap:5px}
+.change-history-view .change-history-date{font-size:.72rem;color:#8399b3}
+.change-history-view .change-history-title{font-size:.86rem;line-height:1.3}
+.change-history-view .change-history-meta{gap:7px;font-size:.69rem}
+.change-history-view .change-history-operation{min-height:22px;padding:2px 7px;font-size:.61rem}
+.change-history-view .change-history-detail{font-size:.72rem;line-height:1.4;color:#aebfd1}
+.change-history-view .change-history-action{gap:6px}
+.change-history-view .change-history-view-detail{
+    min-height:32px;
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:6px 9px;
+    border:1px solid #263f5d;
+    border-radius:8px;
+    color:#67e8f9;
+    background:#0a1626;
+    font-size:.67rem;
+    font-weight:750;
+    white-space:nowrap;
+}
+.change-history-view .change-history-view-detail:hover{border-color:#3c6d88;background:#0d1d2f;color:#9af3ff}
+.change-history-view .change-history-view-detail svg{width:14px;height:14px}
+.change-history-view .change-history-empty{
+    min-height:0;
+    padding:42px 20px;
+    gap:6px;
+}
+.change-history-view .change-history-empty svg{width:26px;height:26px}
+.change-history-view .change-history-empty strong{font-size:.82rem}
+.change-history-view .change-history-empty span{font-size:.68rem;max-width:360px}
+
+/* Detalle de una versión: primero se consulta; restaurar es una acción secundaria. */
+.change-history-detail-overlay{
+    position:fixed;
+    inset:0;
+    z-index:11000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    box-sizing:border-box;
+    background:rgba(2,6,23,.78);
+    backdrop-filter:blur(7px);
+}
+.change-history-detail-card{
+    width:min(720px,calc(100vw - 40px));
+    max-height:calc(100vh - 40px);
+    overflow:auto;
+    box-sizing:border-box;
+    border:1px solid #29405d;
+    border-top:3px solid #22d3ee;
+    border-radius:15px;
+    background:#0b1422;
+    color:#dcecff;
+    box-shadow:0 28px 90px rgba(0,0,0,.58);
+}
+.change-history-detail-header{
+    min-height:58px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:13px 17px;
+    border-bottom:1px solid #203650;
+}
+.change-history-detail-title-wrap{display:flex;align-items:center;gap:9px;min-width:0}
+.change-history-detail-title-wrap svg{width:18px;height:18px;color:#22d3ee;flex:0 0 18px}
+.change-history-detail-title-wrap h2{margin:0;color:#f1f7ff;font-size:.95rem}
+.change-history-detail-close{flex:0 0 auto}
+.change-history-detail-task{padding:16px 18px 4px;color:#f4f8fc;font-size:.95rem;font-weight:750;line-height:1.4;overflow-wrap:anywhere}
+.change-history-detail-meta{padding:0 18px 15px;color:#8298b1;font-size:.68rem}
+.change-history-detail-body{padding:0 18px 18px}
+.change-history-detail-message{margin:0;padding:14px;border:1px solid #213751;border-radius:10px;background:#091423;color:#b8c9da;font-size:.76rem}
+.change-history-diff-list{display:grid;gap:7px}
+.change-history-diff-row{display:grid;grid-template-columns:130px minmax(0,1fr);gap:12px;align-items:center;padding:10px 12px;border:1px solid #1d334c;border-radius:10px;background:#091423}
+.change-history-diff-label{color:#8198b1;font-size:.67rem;font-weight:750}
+.change-history-diff-values{display:flex;align-items:center;gap:8px;min-width:0;font-size:.72rem;line-height:1.4}
+.change-history-diff-values svg{width:14px;height:14px;color:#647d98;flex:0 0 14px}
+.change-history-diff-before,.change-history-diff-after{min-width:0;overflow-wrap:anywhere}
+.change-history-diff-before{color:#a5b6c9}
+.change-history-diff-after{color:#67e8f9;font-weight:700}
+.change-history-detail-footer{display:flex;justify-content:flex-end;gap:8px;padding:13px 18px;border-top:1px solid #203650;background:#091321}
+.change-history-detail-footer .btn{min-height:36px}
+.change-history-detail-restore{font-size:.7rem}
+
+@media(max-width:900px){
+    .change-history-filters{grid-template-columns:minmax(220px,1fr) minmax(140px,1fr) minmax(140px,1fr) auto}
+    .change-history-more-filters{grid-column:4}
+    .change-history-filters .history-clear{grid-column:5;grid-row:1}
+}
+@media(max-width:760px){
+    .change-history-view .change-history-filter-panel,
+    .change-history-view .change-history-list-wrap{margin-left:14px;margin-right:14px}
+    .change-history-filters{grid-template-columns:1fr 1fr}
+    .change-history-filters .history-search{grid-column:1/-1}
+    .change-history-more-filters{grid-column:1}
+    .change-history-filters .history-clear{grid-column:2;grid-row:auto}
+    .change-history-date-fields{position:static;margin-top:7px;width:auto;box-shadow:none}
+    .change-history-more-filters[open]{grid-column:1/-1}
+    .change-history-view .change-history-item{grid-template-columns:1fr;gap:10px;padding:14px 15px}
+    .change-history-view .change-history-action{justify-content:flex-start}
+    .change-history-view .change-history-view-detail{width:auto}
+    .change-history-diff-row{grid-template-columns:1fr;gap:5px}
+    .change-history-detail-footer{flex-direction:column-reverse}
+    .change-history-detail-footer .btn{width:100%}
+}
+@media(prefers-reduced-motion:reduce){.change-history-view .change-history-item{animation:none!important}}
