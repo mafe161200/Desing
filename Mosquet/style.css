@@ -2987,6 +2987,29 @@ main {
     max-height: 360px !important;
     overflow-y: auto;
     scrollbar-width: thin;
+    scrollbar-color: #31445f transparent;
+}
+
+/* Scrollbar de las cards laterales: discreta y acorde al panel oscuro. */
+.sidebar-content::-webkit-scrollbar {
+    width: 5px;
+}
+.sidebar-content::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 8px 2px;
+}
+.sidebar-content::-webkit-scrollbar-thumb {
+    background: #31445f;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+    background: #4b6385;
+    background-clip: padding-box;
+}
+.sidebar-content::-webkit-scrollbar-button {
+    display: none;
 }
 
 .sidebar-card:nth-child(3) .sidebar-content {
@@ -4509,6 +4532,8 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     gap: 8px;
     width: 100%;
     min-width: 0;
+    margin-left: 0;
+    padding-left: 0;
 }
 
 .task-table .task-row-actions {
