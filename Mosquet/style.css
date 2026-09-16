@@ -4609,10 +4609,10 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    flex: 1 1 0;
-    min-width: 0;
+    flex: 1 1 auto;
+    min-width: max-content;
     min-height: 34px;
-    padding: 6px 7px;
+    padding: 6px 8px;
     border: 1px solid transparent;
     border-radius: 7px;
     background: transparent;
@@ -4726,7 +4726,7 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     }
 
     .task-table .task-status-slider {
-        flex: 0 0 220px;
+        flex: 0 0 245px;
     }
 
     .task-table .task-status-step {
