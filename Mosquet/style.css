@@ -4530,7 +4530,8 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     align-items: center;
     justify-content: flex-start;
     gap: 5px;
-    width: 100%;
+    width: max-content;
+    max-width: 100%;
     min-width: 0;
     margin-left: 0;
     padding-left: 0;
@@ -4590,10 +4591,10 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     align-items: stretch;
     justify-content: flex-start;
     gap: 2px;
-    width: auto;
-    max-width: 100%;
-    min-width: 0;
-    flex: 1 1 auto;
+    width: 220px;
+    max-width: 220px;
+    min-width: 220px;
+    flex: 0 0 220px;
     min-height: 40px;
     padding: 3px;
     border: 1px solid var(--border-light);
@@ -4608,6 +4609,7 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     align-items: center;
     justify-content: center;
     gap: 4px;
+    flex: 1 1 0;
     min-width: 0;
     min-height: 34px;
     padding: 6px 7px;
@@ -4681,12 +4683,12 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     }
 
     .task-table .task-status-slider {
-        flex: 1 0 auto;
+        flex: 0 0 220px;
     }
 
     .task-table .task-status-step {
-        flex: 1 0 auto;
-        min-width: 84px;
+        flex: 1 1 0;
+        min-width: 0;
     }
 
     .task-table .task-status-action-cell > .btn-task-action {
