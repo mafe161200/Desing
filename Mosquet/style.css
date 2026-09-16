@@ -4533,7 +4533,7 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     width: max-content;
     max-width: 100%;
     min-width: 0;
-    margin-left: -56px;
+    margin-left: -92px;
     padding-left: 0;
     overflow: visible;
 }
