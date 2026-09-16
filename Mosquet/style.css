@@ -4529,11 +4529,11 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    gap: 5px;
+    gap: 8px;
     width: max-content;
     max-width: 100%;
     min-width: 0;
-    margin-left: -92px;
+    margin-left: 0;
     padding-left: 0;
     overflow: visible;
 }
@@ -4591,10 +4591,10 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
     align-items: stretch;
     justify-content: flex-start;
     gap: 2px;
-    width: 220px;
-    max-width: 220px;
-    min-width: 220px;
-    flex: 0 0 220px;
+    width: 205px;
+    max-width: 205px;
+    min-width: 205px;
+    flex: 0 0 205px;
     min-height: 40px;
     padding: 3px;
     border: 1px solid var(--border-light);
@@ -4673,11 +4673,11 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 }
 
 .task-table .task-row-actions .btn-icon {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
-    padding: 7px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 6px;
 }
 
 .task-table .task-row-actions .btn-icon:focus-visible {
@@ -4698,10 +4698,10 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 }
 
 @media (min-width: 769px) {
-    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 35% !important; }
+    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 32% !important; }
     .task-table th:nth-child(2), .task-table td:nth-child(2) { width: 20% !important; }
-    .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 20% !important; }
-    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 25% !important; }
+    .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 18% !important; }
+    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 30% !important; }
 }
 
 @media (max-width: 768px) {
