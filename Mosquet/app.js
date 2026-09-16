@@ -1554,9 +1554,9 @@ const App = {
                     }
                     break;
 
-                case 'toggle-status':
+                case 'set-status':
                     if (taskId) {
-                        this.toggleTaskStatus(taskId);
+                        this.handleTaskStatusAction(taskId, target.dataset.status);
                     }
                     break;
 
@@ -1604,29 +1604,6 @@ const App = {
             if (!taskId) return;
 
             switch (action) {
-                case 'toggle-completed': {
-                    const completed = Boolean(target.checked);
-
-                    this.updateTask(
-                        taskId,
-                        'status',
-                        completed ? 'Entregado' : 'En curso',
-                        true
-                    );
-
-                    /*
-                     * Al marcarla, la tarea deja de estar en Pendientes y
-                     * aparece inmediatamente en Realizadas. Al desmarcarla,
-                     * vuelve a Pendientes.
-                     */
-                    if (completed) {
-                        UI.showToast('Tarea enviada a Realizadas', 'success');
-                    } else {
-                        UI.showToast('Tarea devuelta a Pendientes', 'info');
-                    }
-                    break;
-                }
-
                 case 'change-assignee':
                     this.updateTask(
                         taskId,
@@ -1795,26 +1772,36 @@ const App = {
         document.getElementById('modalEditTask').classList.add('active');
     },
 
-    toggleTaskStatus(taskId) {
-        const task = this.tasks.find(t => t.id === taskId);
+    setTaskStatus(taskId, newStatus) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task) return;
 
-        const newStatus = task.status === 'En curso' ? 'En cola' : 'En curso';
+        const allowedStatuses = ['En cola', 'En curso', 'Entregado'];
+        if (!allowedStatuses.includes(newStatus) || task.status === newStatus) return;
+
         task.status = newStatus;
-        
-        const element = document.getElementById(`status-switch-${taskId}`);
-        if (element) {
-            const isCurso = newStatus === 'En curso';
-            element.className = `status-switch ${isCurso ? 'curso' : 'cola'}`;
-            element.setAttribute('aria-checked', isCurso ? 'true' : 'false');
-            element.innerHTML = `
-                <div class="switch-track"><div class="switch-thumb"></div></div>
-                <span class="switch-label">${newStatus}</span>
-            `;
+        this.selectedTaskId = String(taskId);
+        this.markAsUnsaved();
+        this.renderBoard();
+    },
+
+    handleTaskStatusAction(taskId, newStatus) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task) return;
+
+        if (newStatus === 'Entregado') {
+            const confirmed = window.confirm('¿Confirmas que deseas finalizar esta tarea?');
+            if (!confirmed) return;
+            this.setTaskStatus(taskId, 'Entregado');
+            UI.showToast('Tarea enviada a Realizadas', 'success');
+            return;
         }
 
-        this.markAsUnsaved();
-        this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
+        this.setTaskStatus(taskId, newStatus);
+        UI.showToast(
+            newStatus === 'En curso' ? 'Tarea iniciada' : 'Tarea devuelta a En cola',
+            'info'
+        );
     },
 
     setupProfileListeners() {
@@ -2474,7 +2461,7 @@ const App = {
         if (!filtered.length) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
-            cell.colSpan = 6;
+            cell.colSpan = 5;
             cell.className = 'history-empty';
             cell.textContent = 'No hay solicitudes que coincidan con los filtros.';
             row.appendChild(cell);
@@ -2991,7 +2978,6 @@ const App = {
         const fCompletion = document.getElementById('filterCompletion')?.value || 'Pendientes';
         const fSortEl = document.getElementById('filterSort');
         const fSort = fSortEl ? fSortEl.value : 'received_asc';
-        const sortModifier = fSort === 'desc' ? -1 : 1;
 
         /*
          * Importante: los filtros generales NO deben eliminar las tareas
@@ -3189,11 +3175,10 @@ const App = {
             tr.dataset.taskRow = String(t.id);
             
             const colorHex = this.getColor(t.assignee);
-            const isCurso = t.status === 'En curso';
             
             tr.addEventListener('click', (e) => {
                 // Ignore clicks on buttons to prevent bubbling collision
-                if (e.target.closest('select, input, button, .status-switch, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
+                if (e.target.closest('select, input, button, .status-control, .inline-date-picker, .custom-checkbox, .action-buttons, a, .btn-star')) {
                     return;
                 }
                 this.selectTask(t.id);
@@ -3210,12 +3195,26 @@ const App = {
                 else if (t.dateDelivered === todayStr) dateClass = 'text-warning';
             }
             
+            const statusButtons = t.status === 'Entregado'
+                ? `<span class="status-completed" role="status"><i data-lucide="check-circle-2" aria-hidden="true"></i> Realizada</span>`
+                : `<div class="status-control" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
+                    <button type="button" class="status-option status-queue ${t.status === 'En cola' ? 'is-active' : ''}" data-action="set-status" data-status="En cola" data-task-id="${escapeHTML(t.id)}" aria-pressed="${t.status === 'En cola'}">
+                        <i data-lucide="pause-circle" aria-hidden="true"></i><span>En cola</span>
+                    </button>
+                    <button type="button" class="status-option status-progress ${t.status === 'En curso' ? 'is-active' : ''}" data-action="set-status" data-status="En curso" data-task-id="${escapeHTML(t.id)}" aria-pressed="${t.status === 'En curso'}">
+                        <i data-lucide="play-circle" aria-hidden="true"></i><span>En curso</span>
+                    </button>
+                    <button type="button" class="status-option status-done" data-action="set-status" data-status="Entregado" data-task-id="${escapeHTML(t.id)}" aria-pressed="false">
+                        <i data-lucide="check-circle-2" aria-hidden="true"></i><span>Finalizar</span>
+                    </button>
+                </div>`;
+
             tr.innerHTML = `
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
-                                <i data-lucide="star"></i>
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}">
+                                <i data-lucide="star" aria-hidden="true"></i>
                             </button>
                             <span class="req-title-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                         </strong>
@@ -3231,31 +3230,27 @@ const App = {
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
                 </td>
-                <td data-label="Estado">
-                    <button type="button" id="status-switch-${t.id}"
-                            class="status-switch ${isCurso ? 'curso' : 'cola'}"
-                            aria-label="Cambiar estado de ${escapeHTML(t.name)}. Estado actual: ${escapeHTML(t.status)}"
-                            data-action="toggle-status" data-task-id="${escapeHTML(t.id)}">
-                        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-                        <span class="switch-label">${escapeHTML(t.status)}</span>
-                    </button>
-                </td>
-                <td style="text-align:center;" data-label="Acciones">
+                <td class="status-cell" data-label="Estado">${statusButtons}</td>
+                <td class="actions-cell" data-label="Acciones">
                     <div class="action-buttons">
-                        <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
-                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3"></i></button>
-                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2"></i></button>
+                        <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text" aria-hidden="true"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
+                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" title="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3" aria-hidden="true"></i></button>
+                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" title="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2" aria-hidden="true"></i></button>
                     </div>
                 </td>
             `;
             activeFragment.appendChild(tr);
         });
-        if(activas.length === 0) {
+        if (boardTasks.length === 0) {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
             cell.colSpan = 5;
             cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
-            cell.textContent = 'No hay tareas pendientes.';
+            cell.textContent = fCompletion === 'Realizadas'
+                ? 'No hay tareas realizadas.'
+                : fCompletion === 'Todas'
+                    ? 'No hay tareas que coincidan con los filtros.'
+                    : 'No hay tareas pendientes.';
             row.appendChild(cell);
             activeFragment.appendChild(row);
         }
