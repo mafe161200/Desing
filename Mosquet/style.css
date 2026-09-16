@@ -4698,10 +4698,19 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 }
 
 @media (min-width: 769px) {
-    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 29% !important; }
-    .task-table th:nth-child(2), .task-table td:nth-child(2) { width: 18% !important; }
-    .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 17% !important; }
-    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 36% !important; }
+    .task-table th:nth-child(1), .task-table td:nth-child(1) {
+        width: 32% !important;
+        text-align: left !important;
+    }
+    .task-table th:nth-child(2), .task-table td:nth-child(2) {
+        width: 18% !important;
+    }
+    .task-table th:nth-child(3), .task-table td:nth-child(3) {
+        width: 14% !important;
+    }
+    .task-table th:nth-child(4), .task-table td:nth-child(4) {
+        width: 36% !important;
+    }
 }
 
 @media (max-width: 768px) {
