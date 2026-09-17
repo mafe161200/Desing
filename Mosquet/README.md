@@ -34,3 +34,12 @@
 - Se corrigieron las llamadas de transición de ajustes para pasar por `App.setTaskStatus`, manteniendo una única máquina de estados.
 - Los eventos de ciclo de vida se persisten de forma oportunista en `task_events`, además del historial general de cambios.
 - El botón de guardado muestra `Guardando…`, queda deshabilitado durante la operación y recupera su estado aunque ocurra un error.
+
+
+## V36.4 — Flujo de producción y claridad operacional
+- Se mantiene el switch de estados de V36.3 como interacción principal.
+- Se mejora la lectura de **Carga de trabajo actual**, indicando tareas activas y solicitudes sin asignar.
+- Las barras de carga representan distribución relativa de tareas, no porcentaje de capacidad.
+- El módulo de carga continúa siendo accionable para filtrar por responsable y resalta el responsable filtrado.
+- Los filtros avanzados separan visualmente estado/asignación de detalle/orden.
+- “Solicitudes realizadas” pasa a denominarse **Archivo de entregas** para reflejar su función.

@@ -74,3 +74,12 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 ### Validación
 - Se mantiene la base V36.2 como único punto de partida.
 - Se añade una prueba de regresión para el flujo de ajustes y la semántica de fechas.
+
+
+## V36.4 — Flujo de producción y claridad operacional
+- Mantiene el switch de estados V36.3 como control principal.
+- Mejora el módulo **Carga de trabajo actual** con resumen de tareas activas y detección visible de solicitudes sin asignar.
+- Las barras se documentan explícitamente como distribución relativa, no como capacidad laboral.
+- El filtrado por responsable desde la carga deja visible el filtro aplicado.
+- Los filtros avanzados incorporan una separación visual entre “Estado y asignación” y “Detalle y orden”.
+- La vista “Solicitudes realizadas” se renombra a **Archivo de entregas**.

@@ -5987,3 +5987,36 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
     .task-table .status-switch-completed,
     .task-table .status-switch-adjustment { width: 100%; }
 }
+
+
+/* ================================================================
+   V36.4 — Producción: claridad de carga, archivo y filtros
+   ================================================================ */
+.sidebar-section-subtitle {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: .74rem;
+    line-height: 1.35;
+}
+.sidebar-section-subtitle.has-unassigned {
+    color: var(--warning, #f59e0b);
+}
+.advanced-filter-group-label {
+    grid-column: 1 / -1;
+    margin: 2px 0 -4px;
+    color: var(--text-muted);
+    font-size: .68rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+.workload-item-interactive.is-filtered {
+    outline: 1px solid color-mix(in srgb, var(--primary-cold) 55%, transparent);
+    background: color-mix(in srgb, var(--primary-cold) 7%, transparent);
+}
+.workload-item-interactive.is-filtered .workload-name {
+    color: var(--text-primary);
+}
+@media (max-width: 760px) {
+    .advanced-filter-group-label { grid-column: 1 / -1; }
+}

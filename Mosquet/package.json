@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "36.3.0",
+  "version": "36.4.0",
   "private": true,
-  "description": "Design Hub V36.3 — workspace colaborativo",
+  "description": "Design Hub V36.4 — workspace colaborativo",
   "scripts": {
     "check": "node --check app.js",
     "test": "node --test tests/*.test.mjs"

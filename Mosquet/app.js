@@ -1999,6 +1999,8 @@ const App = {
                 const select = document.getElementById('filterAssignee');
                 if (select && [...select.options].some(option => option.value === assignee)) {
                     updateCustomSelectUI(select, assignee);
+                    const advanced = document.querySelector('.advanced-task-filters');
+                    if (advanced) advanced.open = true;
                     this.quickFilter = 'all';
                     document.querySelectorAll('.quick-filter').forEach(btn => btn.classList.toggle('active', btn.dataset.quickFilter === 'all'));
                     this.renderBoard();
@@ -4414,6 +4416,16 @@ const App = {
 
         const fragment = document.createDocumentFragment();
 
+        const totalActive = activasTasks.length;
+        const unassignedCount = workload['No asignado'] || 0;
+        const workloadSummary = document.getElementById('workloadSummary');
+        if (workloadSummary) {
+            const activeLabel = `${totalActive} tarea${totalActive === 1 ? '' : 's'} activa${totalActive === 1 ? '' : 's'}`;
+            const unassignedLabel = unassignedCount > 0 ? ` · ${unassignedCount} sin asignar` : '';
+            workloadSummary.textContent = `${activeLabel}${unassignedLabel}`;
+            workloadSummary.classList.toggle('has-unassigned', unassignedCount > 0);
+        }
+
         const findUser = (name) => {
             if (!name || name === 'No asignado') return null;
             const normalized = normalizeText(name).toLowerCase();
@@ -4460,15 +4472,17 @@ const App = {
         sortedWorkload.forEach(([name, count]) => {
             if (count === 0 && name === 'No asignado') return;
 
+            // La barra representa distribución relativa de tareas, no porcentaje de capacidad.
             const percentage = maxTasks === 0 ? 0 : (count / maxTasks) * 100;
             const color = this.getColor(name);
 
             const item = document.createElement('div');
             item.className = 'workload-item workload-item-interactive';
             item.dataset.workloadFilter = name;
+            if (document.getElementById('filterAssignee')?.value === name) item.classList.add('is-filtered');
             item.setAttribute('role', 'button');
             item.setAttribute('tabindex', '0');
-            item.setAttribute('aria-label', `Filtrar tareas asignadas a ${normalizeText(name)}: ${count}`);
+            item.setAttribute('aria-label', `Filtrar tareas asignadas a ${normalizeText(name)}: ${count}. La barra representa distribución relativa de tareas.`);
 
             const header = document.createElement('div');
             header.className = 'workload-header';
