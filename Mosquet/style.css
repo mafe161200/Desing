@@ -4826,3 +4826,71 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
 .btn-danger:hover{background:#be123c;border-color:#fb7185}
 .btn-danger:focus-visible{outline:3px solid #fda4af;outline-offset:2px}
 @media(max-width:520px){.delete-confirm-footer{flex-direction:column-reverse}.delete-confirm-footer .btn{width:100%}}
+
+/* V32 — vistas realmente independientes: nunca mostrar Archivo debajo de Gestión. */
+section.history-view[hidden] {
+    display: none !important;
+}
+
+#appContainer[data-view="history"],
+#appContainer[data-view="change-history"] {
+    --archive-view-gap: 16px;
+}
+
+#appContainer[data-view="history"] > section.history-view,
+#appContainer[data-view="change-history"] > section.history-view {
+    flex: 0 0 auto;
+    align-self: stretch;
+}
+
+/* Navegación superior única y compacta para las tres vistas. */
+.history-view-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid #243a56;
+    border-radius: 10px;
+    background: #07111f;
+}
+
+.history-view-tab {
+    min-height: 34px;
+    padding: 6px 11px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #8295ae;
+    font-size: .66rem;
+    font-weight: 750;
+    cursor: pointer;
+    transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+}
+
+.history-view-tab:hover {
+    color: #dbeafe;
+    background: #0b192b;
+}
+
+.history-view-tab.is-active {
+    color: #e9f8ff;
+    background: #0d2236;
+    border-color: #28516e;
+}
+
+@media (max-width: 760px) {
+    .history-view-tabs {
+        width: 100%;
+        display: flex;
+    }
+    .history-view-tab {
+        flex: 1 1 0;
+        min-width: 0;
+        padding-inline: 7px;
+        font-size: .61rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .history-view-tab { transition: none; }
+}

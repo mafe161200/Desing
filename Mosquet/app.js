@@ -1430,6 +1430,11 @@ const App = {
         document.getElementById('btnOpenChangeHistory')?.addEventListener('click', () => {
             this.showView('change-history');
         });
+        document.getElementById('historyTabBoard')?.addEventListener('click', () => this.showView('board'));
+        document.getElementById('historyTabBoard')?.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.showView('board'); }
+        });
+        document.getElementById('changeHistoryTabBoard')?.addEventListener('click', () => this.showView('board'));
         document.getElementById('btnOpenHistorySidebar')?.addEventListener('click', () => {
             this.showView('history');
         });
@@ -2803,17 +2808,38 @@ const App = {
     showView(view) {
         const isRequestHistory = view === 'history';
         const isChangeHistory = view === 'change-history';
-        const secondary = isRequestHistory || isChangeHistory;
-        document.querySelector('.layout-grid')?.toggleAttribute('hidden', secondary);
-        document.querySelector('.dashboard-summary')?.toggleAttribute('hidden', secondary);
+        const isBoard = !isRequestHistory && !isChangeHistory;
+        const secondary = !isBoard;
+        const layoutGrid = document.querySelector('.layout-grid');
+        const dashboardSummary = document.querySelector('.dashboard-summary');
         const requestHistory = document.getElementById('historyView');
         const changeHistory = document.getElementById('changeHistoryView');
-        if (requestHistory) requestHistory.hidden = !isRequestHistory;
-        if (changeHistory) changeHistory.hidden = !isChangeHistory;
+
+        // Las tres pantallas son vistas excluyentes. Usamos hidden + display inline
+        // para que ningún override CSS pueda dejar el historial visible debajo de Gestión.
+        if (layoutGrid) {
+            layoutGrid.hidden = secondary;
+            layoutGrid.style.display = secondary ? 'none' : '';
+        }
+        if (dashboardSummary) {
+            dashboardSummary.hidden = secondary;
+            dashboardSummary.style.display = secondary ? 'none' : '';
+        }
+        if (requestHistory) {
+            requestHistory.hidden = !isRequestHistory;
+            requestHistory.style.display = isRequestHistory ? 'block' : 'none';
+        }
+        if (changeHistory) {
+            changeHistory.hidden = !isChangeHistory;
+            changeHistory.style.display = isChangeHistory ? 'block' : 'none';
+        }
+
         this.currentView = isRequestHistory ? 'history' : isChangeHistory ? 'change-history' : 'board';
+        document.getElementById('appContainer')?.setAttribute('data-view', this.currentView);
 
         document.querySelectorAll('.history-view-tab').forEach(tab => {
-            const active = (isRequestHistory && (tab.id === 'historyTabRequests' || tab.id === 'changeHistoryTabRequests'))
+            const active = (isBoard && tab.classList.contains('history-tab-board'))
+                || (isRequestHistory && (tab.id === 'historyTabRequests' || tab.id === 'changeHistoryTabRequests'))
                 || (isChangeHistory && (tab.id === 'historyTabChanges' || tab.id === 'changeHistoryTabChanges'));
             tab.classList.toggle('is-active', active);
             if (active) tab.setAttribute('aria-current', 'page');
@@ -2821,14 +2847,18 @@ const App = {
         });
 
         const targetHash = isRequestHistory ? '#solicitudes-realizadas' : isChangeHistory ? '#historial-cambios' : '';
-        if (targetHash) window.history.pushState(null,'',targetHash);
-        else if (window.location.hash) window.history.pushState(null,'',window.location.pathname+window.location.search);
+        if (targetHash) window.history.pushState(null, '', targetHash);
+        else if (window.location.hash) window.history.pushState(null, '', window.location.pathname + window.location.search);
 
         if (isRequestHistory) this.renderHistory();
         if (isChangeHistory) this.renderChangeHistory();
-        if (!secondary) this.renderBoard();
+        if (isBoard) this.renderBoard();
 
-        requestAnimationFrame(() => { if(window.lucide) lucide.createIcons({attrs:{'aria-hidden':'true'}}); });
+        requestAnimationFrame(() => {
+            if (window.lucide) lucide.createIcons({attrs:{'aria-hidden':'true'}});
+            const activeView = isRequestHistory ? requestHistory : isChangeHistory ? changeHistory : document.getElementById('mainContent');
+            activeView?.removeAttribute('inert');
+        });
     },
 
     applyViewFromHash() {
