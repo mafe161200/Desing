@@ -83,3 +83,12 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 - El filtrado por responsable desde la carga deja visible el filtro aplicado.
 - Los filtros avanzados incorporan una separación visual entre “Estado y asignación” y “Detalle y orden”.
 - La vista “Solicitudes realizadas” se renombra a **Archivo de entregas**.
+
+
+## V36.5 — Atajos de filtrado consistentes
+- Se centralizó el reseteo de filtros de Gestión para evitar combinaciones accidentales entre accesos rápidos y filtros avanzados.
+- Los KPI y filtros rápidos ahora aplican su contexto de forma limpia.
+- Carga de trabajo filtra por responsable sin conservar filtros incompatibles previos.
+- Mis tareas lleva primero al contexto "Mis tareas" y después enfoca la solicitud.
+- Limpiar filtros sincroniza los componentes select personalizados.
+- **SQL: no requerido.** No se modificó `SUPABASE_V36_FINAL.sql`.

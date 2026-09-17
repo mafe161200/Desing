@@ -43,3 +43,11 @@
 - El módulo de carga continúa siendo accionable para filtrar por responsable y resalta el responsable filtrado.
 - Los filtros avanzados separan visualmente estado/asignación de detalle/orden.
 - “Solicitudes realizadas” pasa a denominarse **Archivo de entregas** para reflejar su función.
+
+
+## V36.5 — Atajos de filtrado consistentes
+- Los accesos rápidos desde KPI, filtros y Mis tareas limpian filtros incompatibles antes de aplicarse.
+- Carga de trabajo conserva el filtro por responsable sin arrastrar búsqueda, estado o fechas anteriores.
+- Mis tareas aplica el filtro personal antes de llevar el foco a la solicitud seleccionada.
+- Limpiar filtros actualiza también los selectores personalizados, evitando estados visuales desincronizados.
+- No requiere cambios en Supabase ni ejecución de SQL.

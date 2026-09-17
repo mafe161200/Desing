@@ -1786,22 +1786,12 @@ const App = {
         }
 
         document.getElementById('clearFilters').addEventListener('click', () => {
-            ['filterAssignee', 'filterRequester', 'filterStatus'].forEach(id => document.getElementById(id).value = 'Todos');
-            const taskSearch = document.getElementById('taskSearch');
-            if (taskSearch) taskSearch.value = '';
-            const filterCompletion = document.getElementById('filterCompletion');
-            if (filterCompletion) filterCompletion.value = 'Pendientes';
-            document.getElementById('filterSort').value = 'received_asc';
-            this.filterDates = [];
+            this.resetBoardFilters({ keepSort: false });
             this.quickFilter = 'all';
             document.querySelectorAll('.quick-filter').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.quickFilter === 'all');
             });
-            const fpInput = document.getElementById('filterDate');
-            if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
             this.renderBoard();
-            buildCustomSelects(document.querySelector('.inline-filters-bar'));
-            this.updateAdvancedFiltersSummary();
             UI.showToast("Filtros limpiados", "info");
         });
 
@@ -1985,11 +1975,7 @@ const App = {
 
             const quickFilter = event.target.closest('[data-quick-filter]');
             if (quickFilter) {
-                this.quickFilter = quickFilter.dataset.quickFilter || 'all';
-                document.querySelectorAll('.quick-filter').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
-                });
-                this.renderBoard();
+                this.activateQuickFilter(quickFilter.dataset.quickFilter || 'all');
                 return;
             }
 
@@ -1998,6 +1984,7 @@ const App = {
                 const assignee = normalizeText(workloadItem.dataset.workloadFilter);
                 const select = document.getElementById('filterAssignee');
                 if (select && [...select.options].some(option => option.value === assignee)) {
+                    this.resetBoardFilters();
                     updateCustomSelectUI(select, assignee);
                     const advanced = document.querySelector('.advanced-task-filters');
                     if (advanced) advanced.open = true;
@@ -2012,11 +1999,7 @@ const App = {
             const summaryCard = event.target.closest('[data-summary]');
             if (summaryCard && summaryCard.classList.contains('is-interactive')) {
                 const map = { total: 'all', course: 'course', queue: 'queue', adjustment: 'adjustment', overdue: 'overdue', starred: 'starred' };
-                this.quickFilter = map[summaryCard.dataset.summary] || 'all';
-                document.querySelectorAll('.quick-filter').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
-                });
-                this.renderBoard();
+                this.activateQuickFilter(map[summaryCard.dataset.summary] || 'all');
                 return;
             }
 
@@ -3596,6 +3579,38 @@ const App = {
         buildCustomSelects(document.querySelector('#editTaskForm'));
     },
 
+    resetBoardFilters({ keepSort = true } = {}) {
+        const setValue = (id, value) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            updateCustomSelectUI(el, value);
+        };
+
+        setValue('filterAssignee', 'Todos');
+        setValue('filterRequester', 'Todos');
+        setValue('filterStatus', 'Todos');
+        setValue('filterCompletion', 'Pendientes');
+        if (!keepSort) setValue('filterSort', 'received_asc');
+
+        const search = document.getElementById('taskSearch');
+        if (search) search.value = '';
+
+        this.filterDates = [];
+        const dateInput = document.getElementById('filterDate');
+        if (dateInput?._flatpickr) dateInput._flatpickr.clear();
+
+        this.updateAdvancedFiltersSummary();
+    },
+
+    activateQuickFilter(filter) {
+        this.resetBoardFilters();
+        this.quickFilter = filter || 'all';
+        document.querySelectorAll('.quick-filter').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
+        });
+        this.renderBoard();
+    },
+
     updateAdvancedFiltersSummary() {
         const summary = document.getElementById('advancedFiltersSummary');
         if (!summary) return;
@@ -4171,17 +4186,19 @@ const App = {
                 document.querySelectorAll('.task-table tr').forEach(tr => tr.classList.remove('expanded-row'));
             };
 
-            li.addEventListener('click', (e) => {
-                if (e.target.closest('input, button')) return;
-                this.focusTaskInBoard(t.id);
-                handleExpand(e);
-            });
+            const openMyTask = (event) => {
+                if (event.target.closest('input, button')) return;
+                this.activateQuickFilter('mine');
+                window.setTimeout(() => this.focusTaskInBoard(t.id), 0);
+                handleExpand(event);
+            };
+
+            li.addEventListener('click', openMyTask);
 
             li.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.focusTaskInBoard(t.id);
-                    handleExpand(e);
+                    openMyTask(e);
                 }
             });
             

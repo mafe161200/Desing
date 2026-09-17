@@ -6020,3 +6020,20 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
 @media (max-width: 760px) {
     .advanced-filter-group-label { grid-column: 1 / -1; }
 }
+
+
+/* =========================================================
+   DESIGN HUB V36.5 — ATAJOS DE FILTRADO CONSISTENTES
+   ========================================================= */
+.quick-filter.active {
+    box-shadow: 0 0 0 1px rgba(34,211,238,.16);
+}
+.workload-item-interactive.is-filtered {
+    box-shadow: 0 0 0 1px rgba(34,211,238,.12);
+}
+@media (prefers-reduced-motion: reduce) {
+    .quick-filter.active,
+    .workload-item-interactive.is-filtered {
+        transition: none;
+    }
+}
