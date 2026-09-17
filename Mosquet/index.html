@@ -108,6 +108,10 @@
                 <div class="summary-icon"><i data-lucide="clock-3"></i></div>
                 <div><span class="summary-label">En cola</span><strong id="summaryQueue">0</strong></div>
             </article>
+            <article class="summary-card summary-adjustment is-interactive" data-summary="adjustment" role="button" tabindex="0" aria-label="Mostrar tareas con ajuste solicitado">
+                <div class="summary-icon"><i data-lucide="message-square-warning"></i></div>
+                <div><span class="summary-label">Ajustes</span><strong id="summaryAdjustment">0</strong></div>
+            </article>
             <article class="summary-card summary-overdue is-interactive" data-summary="overdue" role="button" tabindex="0" aria-label="Mostrar tareas vencidas">
                 <div class="summary-icon"><i data-lucide="triangle-alert"></i></div>
                 <div><span class="summary-label">Vencidas</span><strong id="summaryOverdue">0</strong></div>
@@ -139,17 +143,7 @@
                     </div>
                 </div>
 
-                <nav class="sidebar-navigation" aria-label="Archivo y actividad">
-                    <div class="sidebar-nav-label">Archivo</div>
-                    <div class="sidebar-nav-group">
-                        <button type="button" id="btnOpenHistorySidebar" class="sidebar-nav-button" aria-controls="historyView">
-                            <span><i data-lucide="archive" aria-hidden="true"></i> Solicitudes realizadas</span>
-                        </button>
-                        <button type="button" id="btnOpenChangeHistory" class="sidebar-nav-button" aria-controls="changeHistoryView" aria-label="Abrir historial general de cambios">
-                            <span><i data-lucide="history" aria-hidden="true"></i> Historial de cambios</span>
-                        </button>
-                    </div>
-                </nav>
+
 
             </aside>
 
@@ -163,6 +157,11 @@
                             </h2>
                             <p class="subtitle">Trabajo activo · prioritarias primero · solicitudes más antiguas primero.</p>
                         </div>
+                        <nav class="workspace-tabs" aria-label="Secciones de solicitudes">
+                            <button type="button" class="workspace-tab is-active" id="boardWorkspaceTab" aria-controls="mainContent" aria-current="page">Gestión</button>
+                            <button type="button" class="workspace-tab" id="boardWorkspaceRequests" aria-controls="historyView">Solicitudes realizadas</button>
+                            <button type="button" class="workspace-tab" id="boardWorkspaceChanges" aria-controls="changeHistoryView">Historial de cambios</button>
+                        </nav>
                     </div>
 
                     <div class="inline-filters-bar">

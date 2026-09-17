@@ -4894,3 +4894,96 @@ section.history-view[hidden] {
 @media (prefers-reduced-motion: reduce) {
     .history-view-tab { transition: none; }
 }
+
+/* =========================================================
+   DESIGN HUB V33 — workspace navigation, actionable metrics
+   and compact contextual sidebar
+   ========================================================= */
+.dashboard-summary {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+.summary-adjustment .summary-icon {
+    color: #fbbf24;
+    background: rgba(251,191,36,.08);
+}
+.workspace-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 4px;
+    border: 1px solid rgba(58,83,117,.55);
+    border-radius: 10px;
+    background: rgba(5,12,24,.72);
+    flex: 0 0 auto;
+}
+.workspace-tab {
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #8195b2;
+    font-size: .67rem;
+    font-weight: 750;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color .16s ease, color .16s ease, border-color .16s ease;
+}
+.workspace-tab:hover {
+    color: #dbeafe;
+    background: #0b192b;
+}
+.workspace-tab.is-active {
+    color: #e9f8ff;
+    background: #0d2236;
+    border-color: #28516e;
+}
+.workspace-tab:focus-visible,
+.workload-item-interactive:focus-visible {
+    outline: 2px solid var(--cyber-cyan);
+    outline-offset: 2px;
+}
+.sidebar-navigation {
+    display: none !important;
+}
+.workload-item-interactive {
+    cursor: pointer;
+    border-radius: 8px;
+    padding: 6px 5px;
+    margin: -2px -5px;
+    transition: background-color .16s ease, transform .16s ease;
+}
+.workload-item-interactive:hover {
+    background: rgba(56,189,248,.045);
+}
+.workload-item-interactive:hover .workload-name {
+    color: #e6f6ff;
+}
+.task-jump-highlight {
+    animation: taskJumpHighlight 1.4s ease-out;
+}
+@keyframes taskJumpHighlight {
+    0% { background: rgba(34,211,238,.16); box-shadow: inset 3px 0 0 var(--cyber-cyan); }
+    100% { background: transparent; box-shadow: inset 0 0 0 transparent; }
+}
+.status-option:not(.is-active):not(.status-done):not(.status-reopen):not(.status-start-adjustment) {
+    opacity: .82;
+}
+.status-option.status-done {
+    font-weight: 750;
+}
+
+@media (max-width: 1180px) {
+    .dashboard-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .workspace-tabs { max-width: 100%; overflow-x: auto; }
+}
+@media (max-width: 760px) {
+    .dashboard-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .workspace-tabs { width: 100%; }
+    .workspace-tab { flex: 1 0 auto; min-width: max-content; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .task-jump-highlight { animation: none; }
+    .workspace-tab,
+    .workload-item-interactive { transition: none; }
+}

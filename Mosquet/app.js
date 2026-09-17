@@ -1100,6 +1100,14 @@ const App = {
         this.setupEventListeners();
         this.setupHistoryView();
         this.setupChangeHistoryView();
+        if (!window.__designHubUnsavedGuardBound) {
+            window.addEventListener('beforeunload', (event) => {
+                if (!this.hasUnsavedChanges) return;
+                event.preventDefault();
+                event.returnValue = '';
+            });
+            window.__designHubUnsavedGuardBound = true;
+        }
         this.setupNotesPanel();
         this.renderAll();
         this.applyViewFromHash();
@@ -1386,9 +1394,16 @@ const App = {
 
         document.addEventListener('keydown', (event) => {
             const card = event.target.closest?.('[data-summary].is-interactive');
-            if (!card || !['Enter', ' '].includes(event.key)) return;
-            event.preventDefault();
-            card.click();
+            if (card && ['Enter', ' '].includes(event.key)) {
+                event.preventDefault();
+                card.click();
+                return;
+            }
+            const workload = event.target.closest?.('[data-workload-filter]');
+            if (workload && ['Enter', ' '].includes(event.key)) {
+                event.preventDefault();
+                workload.click();
+            }
         });
     },
 
@@ -1430,6 +1445,9 @@ const App = {
         document.getElementById('btnOpenChangeHistory')?.addEventListener('click', () => {
             this.showView('change-history');
         });
+        document.getElementById('boardWorkspaceTab')?.addEventListener('click', () => this.showView('board'));
+        document.getElementById('boardWorkspaceRequests')?.addEventListener('click', () => this.showView('history'));
+        document.getElementById('boardWorkspaceChanges')?.addEventListener('click', () => this.showView('change-history'));
         document.getElementById('historyTabBoard')?.addEventListener('click', () => this.showView('board'));
         document.getElementById('historyTabBoard')?.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.showView('board'); }
@@ -1657,6 +1675,20 @@ const App = {
                     btn.classList.toggle('active', btn.dataset.quickFilter === this.quickFilter);
                 });
                 this.renderBoard();
+                return;
+            }
+
+            const workloadItem = event.target.closest('[data-workload-filter]');
+            if (workloadItem) {
+                const assignee = normalizeText(workloadItem.dataset.workloadFilter);
+                const select = document.getElementById('filterAssignee');
+                if (select && [...select.options].some(option => option.value === assignee)) {
+                    updateCustomSelectUI(select, assignee);
+                    this.quickFilter = 'all';
+                    document.querySelectorAll('.quick-filter').forEach(btn => btn.classList.toggle('active', btn.dataset.quickFilter === 'all'));
+                    this.renderBoard();
+                    UI.showToast(`Mostrando tareas de ${assignee}`, 'info');
+                }
                 return;
             }
 
@@ -2280,6 +2312,7 @@ const App = {
             summaryTotal: active.length,
             summaryCourse: active.filter(task => task.status === 'En curso').length,
             summaryQueue: active.filter(task => task.status === 'En cola').length,
+            summaryAdjustment: active.filter(task => task.status === 'Ajuste solicitado').length,
             summaryOverdue: active.filter(task => task.dateDelivered && task.dateDelivered < todayStr).length,
             summaryStarred: active.filter(task => task.isStarred).length
         };
@@ -2837,10 +2870,10 @@ const App = {
         this.currentView = isRequestHistory ? 'history' : isChangeHistory ? 'change-history' : 'board';
         document.getElementById('appContainer')?.setAttribute('data-view', this.currentView);
 
-        document.querySelectorAll('.history-view-tab').forEach(tab => {
-            const active = (isBoard && tab.classList.contains('history-tab-board'))
-                || (isRequestHistory && (tab.id === 'historyTabRequests' || tab.id === 'changeHistoryTabRequests'))
-                || (isChangeHistory && (tab.id === 'historyTabChanges' || tab.id === 'changeHistoryTabChanges'));
+        document.querySelectorAll('.history-view-tab, .workspace-tab').forEach(tab => {
+            const active = (isBoard && (tab.classList.contains('history-tab-board') || tab.id === 'boardWorkspaceTab'))
+                || (isRequestHistory && (tab.id === 'historyTabRequests' || tab.id === 'changeHistoryTabRequests' || tab.id === 'boardWorkspaceRequests'))
+                || (isChangeHistory && (tab.id === 'historyTabChanges' || tab.id === 'changeHistoryTabChanges' || tab.id === 'boardWorkspaceChanges'));
             tab.classList.toggle('is-active', active);
             if (active) tab.setAttribute('aria-current', 'page');
             else tab.removeAttribute('aria-current');
@@ -3339,6 +3372,20 @@ const App = {
         if (render) this.renderBoard();
     },
 
+    focusTaskInBoard(taskId) {
+        const id = String(taskId);
+        this.selectTask(id);
+        const row = document.querySelector(`.task-table tr[data-task-row="${CSS.escape(id)}"]`);
+        if (!row) return;
+        row.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        row.classList.add('task-jump-highlight');
+        window.setTimeout(() => row.classList.remove('task-jump-highlight'), 1400);
+        window.setTimeout(() => {
+            const target = row.querySelector('.req-title-text') || row.querySelector('button, input, select');
+            target?.focus({ preventScroll: true });
+        }, 80);
+    },
+
     renderBoard() {
         this.updateDashboardSummary();
 
@@ -3491,14 +3538,14 @@ const App = {
 
             li.addEventListener('click', (e) => {
                 if (e.target.closest('input, button')) return;
-                this.selectTask(t.id);
+                this.focusTaskInBoard(t.id);
                 handleExpand(e);
             });
 
             li.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    this.selectTask(t.id);
+                    this.focusTaskInBoard(t.id);
                     handleExpand(e);
                 }
             });
@@ -3764,7 +3811,11 @@ const App = {
             const color = this.getColor(name);
 
             const item = document.createElement('div');
-            item.className = 'workload-item';
+            item.className = 'workload-item workload-item-interactive';
+            item.dataset.workloadFilter = name;
+            item.setAttribute('role', 'button');
+            item.setAttribute('tabindex', '0');
+            item.setAttribute('aria-label', `Filtrar tareas asignadas a ${normalizeText(name)}: ${count}`);
 
             const header = document.createElement('div');
             header.className = 'workload-header';
