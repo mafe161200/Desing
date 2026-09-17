@@ -1404,7 +1404,7 @@ const App = {
             onReady: (selectedDates, dateStr, instance) => {
                 ensureFlatpickrFormFieldIds(instance, 'filter-date');
             },
-            onChange: (dates) => { this.filterDates = dates; this.renderBoard(); }
+            onChange: (dates) => { this.filterDates = dates; this.updateAdvancedFiltersSummary(); this.renderBoard(); }
         });
         
         flatpickr(".modal-date", { 
@@ -1613,7 +1613,10 @@ const App = {
         
         ['filterAssignee', 'filterRequester', 'filterStatus', 'filterSort', 'filterCompletion'].forEach(id => {
             const el = document.getElementById(id);
-            if(el) el.addEventListener('change', () => this.renderBoard());
+            if(el) el.addEventListener('change', () => {
+                this.updateAdvancedFiltersSummary();
+                this.renderBoard();
+            });
         });
 
         const taskSearch = document.getElementById('taskSearch');
@@ -1640,7 +1643,8 @@ const App = {
             const fpInput = document.getElementById('filterDate');
             if(fpInput && fpInput._flatpickr) fpInput._flatpickr.clear();
             this.renderBoard();
-            buildCustomSelects(document.querySelector('.inline-filters-bar')); 
+            buildCustomSelects(document.querySelector('.inline-filters-bar'));
+            this.updateAdvancedFiltersSummary();
             UI.showToast("Filtros limpiados", "info");
         });
 
@@ -3325,8 +3329,38 @@ const App = {
         });
 
         buildCustomSelects(document.querySelector('.inline-filters-bar'));
+        this.updateAdvancedFiltersSummary();
         buildCustomSelects(document.querySelector('#taskForm'));
         buildCustomSelects(document.querySelector('#editTaskForm'));
+    },
+
+    updateAdvancedFiltersSummary() {
+        const summary = document.getElementById('advancedFiltersSummary');
+        if (!summary) return;
+
+        const labels = [];
+        const dateInput = document.getElementById('filterDate');
+        const assignee = document.getElementById('filterAssignee')?.value || 'Todos';
+        const requester = document.getElementById('filterRequester')?.value || 'Todos';
+        const status = document.getElementById('filterStatus')?.value || 'Todos';
+        const completion = document.getElementById('filterCompletion')?.value || 'Pendientes';
+        const sort = document.getElementById('filterSort')?.value || 'received_asc';
+
+        if (dateInput?.value?.trim()) labels.push('fecha');
+        if (requester !== 'Todos') labels.push('solicitante');
+        if (assignee !== 'Todos') labels.push('asignación');
+        if (status !== 'Todos') labels.push('estado');
+        if (completion !== 'Pendientes') labels.push(completion === 'Realizadas' ? 'realizadas' : 'todas');
+        if (sort !== 'received_asc') labels.push('orden');
+
+        if (!labels.length) {
+            summary.textContent = 'Sin filtros adicionales';
+            summary.removeAttribute('data-active');
+            return;
+        }
+
+        summary.textContent = `${labels.length} filtro${labels.length === 1 ? '' : 's'} aplicado${labels.length === 1 ? '' : 's'}`;
+        summary.setAttribute('data-active', 'true');
     },
 
     refreshHistoryFilters() {

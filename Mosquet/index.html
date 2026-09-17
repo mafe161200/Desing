@@ -153,7 +153,7 @@
                         <div>
                             <h2>
                                 <i data-lucide="clock" class="icon-primary"></i> Gestión de solicitudes 
-                                <span class="badge-count badge-primary" id="countPrioridades">0</span>
+                                <span class="badge-count badge-primary" id="countPrioridades" aria-label="Solicitudes visibles">0</span>
                             </h2>
                             <p class="subtitle">Trabajo activo · prioritarias primero · solicitudes más antiguas primero.</p>
                         </div>
@@ -169,6 +169,7 @@
                             <i data-lucide="search" aria-hidden="true"></i>
                             <input type="search" id="taskSearch" class="custom-input" placeholder="Buscar solicitud, solicitante o responsable..." aria-label="Buscar solicitudes">
                         </div>
+
                         <div class="quick-filters" role="group" aria-label="Filtros rápidos">
                             <button type="button" class="quick-filter active" data-quick-filter="all">Todas</button>
                             <button type="button" class="quick-filter" data-quick-filter="mine">Mis tareas</button>
@@ -180,48 +181,59 @@
                             <button type="button" class="quick-filter" data-quick-filter="adjustment">Ajustes</button>
                             <button type="button" class="quick-filter" data-quick-filter="queue">En cola</button>
                         </div>
-                        <div class="inline-filter-item">
-                            <div class="input-with-icon">
-                                <i data-lucide="calendar"></i>
-                                <input type="text" id="filterDate" name="filterDate" class="date-range-picker custom-input" placeholder="Fecha entrega..." aria-label="Filtrar por fecha">
+
+                        <details class="advanced-task-filters">
+                            <summary>
+                                <span class="advanced-filters-label"><i data-lucide="sliders-horizontal" aria-hidden="true"></i> Más filtros</span>
+                                <span class="advanced-filters-summary" id="advancedFiltersSummary">Sin filtros adicionales</span>
+                                <i data-lucide="chevron-down" class="advanced-filters-chevron" aria-hidden="true"></i>
+                            </summary>
+                            <div class="advanced-task-filters-grid">
+                                <div class="inline-filter-item">
+                                    <div class="input-with-icon">
+                                        <i data-lucide="calendar" aria-hidden="true"></i>
+                                        <input type="text" id="filterDate" name="filterDate" class="date-range-picker custom-input" placeholder="Fecha de entrega..." aria-label="Filtrar por fecha">
+                                    </div>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterRequester" name="filterRequester" class="native-select-hidden" aria-label="Filtrar por solicitante">
+                                        <option value="Todos">Solicitante: Todos</option>
+                                    </select>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterAssignee" name="filterAssignee" class="native-select-hidden" aria-label="Filtrar por asignado">
+                                        <option value="Todos">Asignación: Todos</option>
+                                    </select>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterStatus" name="filterStatus" class="native-select-hidden" aria-label="Filtrar por estado">
+                                        <option value="Todos">Estado: Todos</option>
+                                        <option value="En cola">En cola</option>
+                                        <option value="En curso">En curso</option>
+                                        <option value="Ajuste solicitado">Ajuste solicitado</option>
+                                    </select>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterCompletion" name="filterCompletion" class="native-select-hidden" aria-label="Mostrar tareas">
+                                        <option value="Pendientes" selected>Pendientes</option>
+                                        <option value="Realizadas">Realizadas</option>
+                                        <option value="Todas">Todas</option>
+                                    </select>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterSort" name="filterSort" class="native-select-hidden" aria-label="Ordenar tareas">
+                                        <option value="received_asc" selected>Orden: más antiguas primero</option>
+                                        <option value="received_desc">Orden: más recientes primero</option>
+                                        <option value="asc">Orden: entrega más próxima</option>
+                                        <option value="desc">Orden: entrega más lejana</option>
+                                    </select>
+                                </div>
+                                <button type="button" id="clearFilters" class="btn-text clear-filters-button" title="Limpiar filtros" aria-label="Limpiar filtros">
+                                    <i data-lucide="x-circle" aria-hidden="true"></i>
+                                    <span>Limpiar</span>
+                                </button>
                             </div>
-                        </div>
-                        <div class="inline-filter-item">
-                            <select id="filterRequester" name="filterRequester" class="native-select-hidden" aria-label="Filtrar por solicitante">
-                                <option value="Todos">Solicitante: Todos</option>
-                            </select>
-                        </div>
-                        <div class="inline-filter-item">
-                            <select id="filterAssignee" name="filterAssignee" class="native-select-hidden" aria-label="Filtrar por asignado">
-                                <option value="Todos">Asignación: Todos</option>
-                            </select>
-                        </div>
-                        <div class="inline-filter-item">
-                            <select id="filterStatus" name="filterStatus" class="native-select-hidden" aria-label="Filtrar por estado">
-                                <option value="Todos">Estado: Todos</option>
-                                    <option value="En cola">En cola</option>
-                                <option value="En curso">En curso</option>
-                                <option value="Ajuste solicitado">Ajuste solicitado</option>
-                            </select>
-                        </div>
-                        <div class="inline-filter-item">
-                            <select id="filterCompletion" name="filterCompletion" class="native-select-hidden" aria-label="Mostrar tareas">
-                                <option value="Pendientes" selected>Pendientes</option>
-                                <option value="Realizadas">Realizadas</option>
-                                <option value="Todas">Todas</option>
-                            </select>
-                        </div>
-                        <div class="inline-filter-item">
-                            <select id="filterSort" name="filterSort" class="native-select-hidden" aria-label="Ordenar tareas">
-                                <option value="received_asc" selected>Solicitud: más antigua</option>
-                                <option value="received_desc">Solicitud: más reciente</option>
-                                <option value="asc">Entrega: más próxima</option>
-                                <option value="desc">Entrega: más lejana</option>
-                            </select>
-                        </div>
-                        <button type="button" id="clearFilters" class="btn-text" title="Limpiar filtros" aria-label="Limpiar filtros">
-                            <i data-lucide="x-circle"></i>
-                        </button>
+                        </details>
                     </div>
 
                     <div class="table-wrapper">
