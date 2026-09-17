@@ -1,6 +1,6 @@
-DESIGN HUB V34
+DESIGN HUB V35
 
-Versión basada exclusivamente en Design Hub V33.
+Versión basada exclusivamente en DESIGN HUB V35.
 
 V34 mantiene la interfaz y el flujo de trabajo de V33 y refuerza la robustez de la aplicación sin introducir una nueva navegación ni sobrecargar el dashboard.
 
@@ -35,3 +35,6 @@ VALIDACIÓN
 
 NOTA
 Para activar el control de concurrencia de V34 en Supabase debe aplicarse la migración SQL incluida y comprobar las políticas RLS de la instancia antes de producción.
+
+
+V35: endurecimiento de dominio, concurrencia, eventos de ciclo de vida, IDs relacionales opcionales y accesibilidad de controles. RLS y transacciones definitivas deben aplicarse en PostgreSQL tras validar el esquema real.

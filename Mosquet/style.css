@@ -5395,3 +5395,34 @@ section.history-view[hidden] {
 @media (prefers-reduced-motion: reduce) {
     .advanced-filters-chevron { transition: none; }
 }
+
+/* =========================================================
+   DESIGN HUB V35 — ENGINEERING UI LAYER
+   ========================================================= */
+:root {
+    --dh-text-primary:#eef5ff;
+    --dh-text-secondary:#b8c7dc;
+    --dh-text-muted:#8fa2bc;
+    --dh-border-strong:#29405f;
+    --dh-control-bg:#0b1424;
+    --dh-focus:#38bdf8;
+}
+button,input,select,textarea{font:inherit}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{
+    outline:3px solid rgba(56,189,248,.78)!important;
+    outline-offset:2px!important;
+}
+.workspace-tab{min-height:40px!important;padding:9px 15px!important;color:var(--dh-text-secondary)!important;font-weight:700!important;white-space:nowrap}
+.workspace-tab:hover{color:var(--dh-text-primary)!important;background:rgba(56,189,248,.07)!important}
+.workspace-tab.is-active{color:var(--dh-text-primary)!important;background:rgba(56,189,248,.12)!important;box-shadow:inset 0 -2px 0 var(--dh-focus)}
+.quick-filter,.filter-chip,.filter-button{min-height:38px!important;color:var(--dh-text-secondary)!important}
+.quick-filter.active,.filter-chip.active,.filter-button.active{color:var(--dh-text-primary)!important}
+.custom-select,.custom-input,select{background-color:var(--dh-control-bg);border-color:var(--dh-border-strong);color:var(--dh-text-primary)}
+.task-table th{font-size:.76rem!important;color:#b8c7dc!important;letter-spacing:.02em}
+.task-table td{color:#d8e3f2}
+.req-title-text,.req-name-text{color:var(--dh-text-primary)!important}
+.text-muted,.muted,.field-hint{color:var(--dh-text-muted)!important}
+button[disabled],[aria-disabled="true"]{cursor:not-allowed;opacity:.55}
+@media(max-width:900px){.workspace-tabs{overflow-x:auto;scrollbar-width:thin}}
+@media(max-width:680px){.task-table-wrapper,.table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}.task-table{min-width:760px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}

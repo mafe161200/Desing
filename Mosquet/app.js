@@ -352,6 +352,45 @@ const NotificationService = {
 /* =========================================
    CAPA DE SERVICIOS (PERSISTENCIA Y AUTH)
    ========================================= */
+
+/* =========================================================
+   DESIGN HUB V35 — DOMAIN RULES
+   ========================================================= */
+const TASK_STATUS = Object.freeze({
+    QUEUED: 'En cola',
+    IN_PROGRESS: 'En curso',
+    ADJUSTMENT: 'Ajuste solicitado',
+    DELIVERED: 'Entregado'
+});
+
+const TASK_STATUS_TRANSITIONS = Object.freeze({
+    [TASK_STATUS.QUEUED]: Object.freeze([TASK_STATUS.IN_PROGRESS]),
+    [TASK_STATUS.IN_PROGRESS]: Object.freeze([TASK_STATUS.DELIVERED, TASK_STATUS.QUEUED]),
+    [TASK_STATUS.ADJUSTMENT]: Object.freeze([TASK_STATUS.IN_PROGRESS]),
+    [TASK_STATUS.DELIVERED]: Object.freeze([TASK_STATUS.ADJUSTMENT])
+});
+
+const TASK_EVENT = Object.freeze({
+    CREATED: 'CREATED',
+    ASSIGNED: 'ASSIGNED',
+    STARTED: 'STARTED',
+    DELIVERED: 'DELIVERED',
+    ADJUSTMENT_REQUESTED: 'ADJUSTMENT_REQUESTED',
+    ADJUSTMENT_STARTED: 'ADJUSTMENT_STARTED',
+    UPDATED: 'UPDATED',
+    RESTORED: 'RESTORED',
+    DELETED: 'DELETED'
+});
+
+function canTransitionTaskStatus(fromStatus, toStatus) {
+    if (!fromStatus || !toStatus || fromStatus === toStatus) return false;
+    return (TASK_STATUS_TRANSITIONS[fromStatus] || []).includes(toStatus);
+}
+
+function getTaskStatusLabel(status) {
+    return Object.values(TASK_STATUS).includes(status) ? status : TASK_STATUS.QUEUED;
+}
+
 const DataService = {
     async getUsers() {
         if (!supabaseClient) {
@@ -483,11 +522,14 @@ const DataService = {
         const byId = new Map(safeOriginal.map(task => [String(task.id), task]));
         const currentIds = new Set(safeTasks.map(task => String(task.id)));
 
-        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
+        const fields = ['name', 'requester', 'assignee', 'assignee_id', 'requester_id', 'status', 'dateReceived', 'dateDelivered', 'due_at', 'delivered_at', 'isStarred', 'notes'];
         const buildPayload = (task) => {
             const payload = { id: task.id };
             fields.forEach(field => {
-                payload[field] = task[field] ?? (field === 'isStarred' ? false : '');
+                const value = task[field];
+                const optional = ['assignee_id','requester_id','due_at','delivered_at'].includes(field);
+                if (optional && value === undefined) return;
+                payload[field] = value ?? (field === 'isStarred' ? false : '');
             });
             return payload;
         };
@@ -608,6 +650,30 @@ const DataService = {
             if(error) throw error;
             return { cloudSaved:Boolean(data) };
         } catch(error) { console.error('Supabase: no se pudo restaurar la versión.',error); return {cloudSaved:false,error}; }
+    },
+
+    async recordTaskEvent(event) {
+        if (!supabaseClient || !event?.task_id || !event?.type) {
+            return { cloudSaved: false, reason: 'missing-client-or-event' };
+        }
+        try {
+            const { data, error } = await supabaseClient
+                .from('task_events')
+                .insert({
+                    task_id: event.task_id,
+                    type: event.type,
+                    reason: event.reason ?? null,
+                    actor_id: event.actor_id ?? null,
+                    metadata: event.metadata ?? {}
+                })
+                .select('id')
+                .single();
+            if (error) throw error;
+            return { cloudSaved: Boolean(data), data };
+        } catch (error) {
+            console.warn('Supabase: task_events no está disponible todavía.', error);
+            return { cloudSaved: false, error };
+        }
     },
 
     async getNotes() {
@@ -2157,12 +2223,14 @@ const App = {
         return match ? normalizeText(match[1]) : '';
     },
 
-    recordLifecycleEvent(taskId, type) {
+    recordLifecycleEvent(taskId, type, metadata = {}) {
         const id = String(taskId || '');
         if (!id) return;
-        const current = this.lifecycleRuntime.get(id) || { deliveries: 0, adjustments: 0 };
+        const current = this.lifecycleRuntime.get(id) || { deliveries: 0, adjustments: 0, events: [] };
         if (type === 'delivery') current.deliveries += 1;
         if (type === 'adjustment') current.adjustments += 1;
+        current.events = Array.isArray(current.events) ? current.events : [];
+        current.events.push({ type, at: new Date().toISOString(), metadata });
         this.lifecycleRuntime.set(id, current);
     },
 
@@ -2170,13 +2238,20 @@ const App = {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task) return;
 
-        const allowedStatuses = ['En cola', 'En curso', 'Ajuste solicitado', 'Entregado'];
-        if (!allowedStatuses.includes(newStatus) || task.status === newStatus) return;
+        const normalizedNewStatus = getTaskStatusLabel(newStatus);
+        if (!canTransitionTaskStatus(task.status, normalizedNewStatus)) {
+            UI.showToast(`No se puede pasar de "${task.status}" a "${normalizedNewStatus}".`, 'warning');
+            return false;
+        }
 
-        task.status = newStatus;
+        const previousStatus = task.status;
+        task.status = normalizedNewStatus;
+        task.updatedAt = new Date().toISOString();
         this.selectedTaskId = String(taskId);
+        this.recordLifecycleEvent(taskId, 'status', { from: previousStatus, to: normalizedNewStatus });
         this.markAsUnsaved();
         this.renderBoard();
+        return true;
     },
 
     handleTaskStatusAction(taskId, newStatus, sourceButton = null) {
@@ -3882,7 +3957,10 @@ const App = {
 
         this.renderWorkloadChart(activas);
 
-        const myTasks = this.tasks.filter(t => t.status !== 'Entregado' && t.assignee === this.user.name).sort(sortTasks);
+        const myTasks = this.tasks.filter(t => t.status !== TASK_STATUS.DELIVERED && (
+                (t.assignee_id && this.user?.id && String(t.assignee_id) === String(this.user.id)) ||
+                (!t.assignee_id && t.assignee === this.user.name)
+            )).sort(sortTasks);
         const myTasksBadge = document.querySelector('.sidebar-card:first-child .badge-count');
         if (myTasksBadge) myTasksBadge.textContent = String(myTasks.length);
         
