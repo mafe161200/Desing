@@ -821,29 +821,80 @@ function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
 }
 
 function buildCustomSelects(container = document) {
+    // Limpia wrappers previos y menús portaled que pudieran pertenecer a una renderización anterior.
     container.querySelectorAll('.select-wrapper').forEach(w => {
         const select = w.querySelector('select');
         if (select) { w.parentNode.insertBefore(select, w); select.style.display = ''; }
         w.remove();
     });
+    document.querySelectorAll('.select-options-portal').forEach(menu => menu.remove());
+
+    if (!window.__designHubSelectDismissBound) {
+        document.addEventListener('click', (event) => {
+            if (event.target.closest('.select-trigger') || event.target.closest('.select-options')) return;
+            document.querySelectorAll('.select-options.open').forEach(menu => menu.classList.remove('open'));
+            document.querySelectorAll('.select-trigger.active').forEach(trigger => {
+                trigger.classList.remove('active');
+                trigger.setAttribute('aria-expanded', 'false');
+            });
+        });
+        window.__designHubSelectDismissBound = true;
+    }
+
+    const closeAll = (except = null) => {
+        document.querySelectorAll('.select-options.open').forEach(menu => {
+            if (menu !== except) menu.classList.remove('open');
+        });
+        document.querySelectorAll('.select-trigger.active').forEach(trigger => {
+            if (except?.dataset.triggerId !== trigger.id) {
+                trigger.classList.remove('active');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
+        });
+    };
+
+    const positionPortal = (trigger, menu) => {
+        const rect = trigger.getBoundingClientRect();
+        const margin = 6;
+        const viewportPadding = 8;
+        const estimatedHeight = Math.min(menu.scrollHeight || 220, 220);
+        const openAbove = window.innerHeight - rect.bottom < estimatedHeight + margin + viewportPadding;
+        const top = openAbove
+            ? Math.max(viewportPadding, rect.top - Math.min(estimatedHeight, 220) - margin)
+            : Math.min(window.innerHeight - viewportPadding - Math.min(estimatedHeight, 220), rect.bottom + margin);
+        const maxWidth = Math.max(120, Math.min(rect.width, window.innerWidth - viewportPadding * 2));
+        const left = Math.min(Math.max(viewportPadding, rect.left), window.innerWidth - maxWidth - viewportPadding);
+        menu.style.position = 'fixed';
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        menu.style.bottom = 'auto';
+        menu.style.width = `${rect.width}px`;
+        menu.style.maxHeight = `${Math.max(120, Math.min(220, openAbove ? rect.top - margin - viewportPadding : window.innerHeight - rect.bottom - margin - viewportPadding))}px`;
+    };
 
     container.querySelectorAll('select.native-select-hidden').forEach(select => {
         const wrapper = document.createElement('div');
         wrapper.className = 'select-wrapper';
         select.parentNode.insertBefore(wrapper, select);
         wrapper.appendChild(select);
-        
+
         const trigger = document.createElement('div');
-        trigger.setAttribute('tabindex', '0'); 
-        trigger.setAttribute('role', 'button');
+        const triggerId = `select-trigger-${createId()}`;
+        const optionsId = `select-options-${createId()}`;
+        trigger.id = triggerId;
+        trigger.setAttribute('tabindex', '0');
+        trigger.setAttribute('role', 'combobox');
         trigger.setAttribute('aria-haspopup', 'listbox');
-        
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.setAttribute('aria-controls', optionsId);
+        trigger.setAttribute('aria-label', select.getAttribute('aria-label') || select.name || select.id || 'Selector');
+
         const classNames = Array.from(select.classList).filter(c => c !== 'native-select-hidden').join(' ');
         trigger.className = `select-trigger ${classNames}`;
-        
+
         const safeText = escapeHTML(select.options[select.selectedIndex]?.text || '');
-        trigger.innerHTML = `<span>${safeText}</span> <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-        
+        trigger.innerHTML = `<span>${safeText}</span> <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
         const applyColor = (color) => {
             if (color && color !== '#94a3b8') {
                 trigger.style.color = color;
@@ -855,72 +906,115 @@ function buildCustomSelects(container = document) {
                 trigger.style.borderColor = 'var(--border-light)';
             }
         };
-
         applyColor(select.getAttribute('data-color'));
 
         const optionsDiv = document.createElement('div');
+        optionsDiv.id = optionsId;
         optionsDiv.className = 'select-options';
         optionsDiv.setAttribute('role', 'listbox');
+        optionsDiv.setAttribute('aria-label', trigger.getAttribute('aria-label'));
+        optionsDiv.dataset.triggerId = triggerId;
+        optionsDiv.dataset.selectId = select.id;
 
-        Array.from(select.options).forEach(opt => {
+        // Los selectores dentro de la tabla se portan al body para evitar que
+        // overflow-x/scroll de la tabla los recorte o tape el bloque Archivo.
+        const isTableSelect = select.classList.contains('table-select');
+        if (isTableSelect) {
+            optionsDiv.classList.add('select-options-portal');
+            document.body.appendChild(optionsDiv);
+        }
+
+        const optionElements = [];
+        const focusOption = (index) => {
+            const options = optionElements.filter(Boolean);
+            if (!options.length) return;
+            const nextIndex = Math.max(0, Math.min(index, options.length - 1));
+            options[nextIndex].focus();
+        };
+
+        Array.from(select.options).forEach((opt, index) => {
             const item = document.createElement('div');
             item.className = `select-option ${opt.selected ? 'selected' : ''}`;
-            item.textContent = opt.text; 
+            item.textContent = opt.text;
             item.setAttribute('role', 'option');
+            item.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
             item.setAttribute('tabindex', '-1');
-            
+            item.dataset.index = String(index);
+
             const handleSelect = (e) => {
                 e.stopPropagation();
+                if (opt.disabled) return;
                 select.value = opt.value;
                 trigger.querySelector('span').textContent = opt.text;
-                
                 if (select.classList.contains('inline-assignee')) {
                     const newColor = App.getColor(opt.value);
                     select.setAttribute('data-color', newColor);
                     applyColor(newColor);
                 }
-
                 select.dispatchEvent(new Event('change', { bubbles: true }));
                 optionsDiv.classList.remove('open');
                 trigger.classList.remove('active');
-                Array.from(optionsDiv.children).forEach(c => c.classList.remove('selected'));
+                trigger.setAttribute('aria-expanded', 'false');
+                optionElements.forEach(c => c?.setAttribute('aria-selected', 'false'));
+                optionElements.forEach(c => c?.classList.remove('selected'));
                 item.classList.add('selected');
+                item.setAttribute('aria-selected', 'true');
                 trigger.focus();
             };
 
             item.addEventListener('click', handleSelect);
             item.addEventListener('keydown', (e) => {
+                const currentIndex = Number(item.dataset.index);
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelect(e); }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); focusOption(currentIndex + 1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); focusOption(currentIndex - 1); }
+                else if (e.key === 'Home') { e.preventDefault(); focusOption(0); }
+                else if (e.key === 'End') { e.preventDefault(); focusOption(optionElements.length - 1); }
+                else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    optionsDiv.classList.remove('open');
+                    trigger.classList.remove('active');
+                    trigger.setAttribute('aria-expanded', 'false');
+                    trigger.focus();
+                }
             });
+            optionElements.push(item);
             optionsDiv.appendChild(item);
         });
 
         const toggleDropdown = (e) => {
             e.stopPropagation();
             const isOpen = optionsDiv.classList.contains('open');
-            document.querySelectorAll('.select-options').forEach(o => o.classList.remove('open'));
-            document.querySelectorAll('.select-trigger').forEach(t => t.classList.remove('active'));
-            
-            if (!isOpen) { 
-                const rect = trigger.getBoundingClientRect();
-                if (window.innerHeight - rect.bottom < 200) {
-                    optionsDiv.style.top = 'auto'; optionsDiv.style.bottom = 'calc(100% + 6px)';
-                } else {
-                    optionsDiv.style.top = 'calc(100% + 6px)'; optionsDiv.style.bottom = 'auto';
-                }
-                optionsDiv.classList.add('open'); trigger.classList.add('active'); 
-                const firstOpt = optionsDiv.querySelector('.select-option');
-                if (firstOpt) firstOpt.focus();
+            closeAll(optionsDiv);
+            if (isOpen) {
+                optionsDiv.classList.remove('open');
+                trigger.classList.remove('active');
+                trigger.setAttribute('aria-expanded', 'false');
+                return;
             }
+            if (isTableSelect) positionPortal(trigger, optionsDiv);
+            optionsDiv.classList.add('open');
+            trigger.classList.add('active');
+            trigger.setAttribute('aria-expanded', 'true');
+            const selectedIndex = Array.from(select.options).findIndex(option => option.value === select.value);
+            const targetIndex = selectedIndex >= 0 ? selectedIndex : 0;
+            window.requestAnimationFrame(() => focusOption(targetIndex));
         };
 
         trigger.addEventListener('click', toggleDropdown);
         trigger.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDropdown(e); }
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                toggleDropdown(e);
+            } else if (e.key === 'Escape' && trigger.classList.contains('active')) {
+                e.preventDefault();
+                optionsDiv.classList.remove('open');
+                trigger.classList.remove('active');
+                trigger.setAttribute('aria-expanded', 'false');
+            }
         });
 
         wrapper.appendChild(trigger);
-        wrapper.appendChild(optionsDiv);
     });
     lucide.createIcons();
 }
@@ -928,14 +1022,19 @@ function buildCustomSelects(container = document) {
 function updateCustomSelectUI(selectElement, value) {
     selectElement.value = value;
     const wrapper = selectElement.closest('.select-wrapper');
-    if (wrapper) {
-        const triggerSpan = wrapper.querySelector('.select-trigger span');
-        const option = Array.from(selectElement.options).find(o => o.value === value);
-        if (triggerSpan && option) triggerSpan.textContent = option.text;
-        wrapper.querySelectorAll('.select-option').forEach(opt => {
-            opt.classList.toggle('selected', opt.textContent === option?.text);
-        });
-    }
+    const option = Array.from(selectElement.options).find(o => o.value === value);
+    const triggerSpan = wrapper?.querySelector('.select-trigger span');
+    if (triggerSpan && option) triggerSpan.textContent = option.text;
+
+    const localOptions = wrapper?.querySelectorAll('.select-option') || [];
+    const portalOptions = selectElement.id
+        ? document.querySelectorAll(`.select-options-portal[data-select-id="${CSS.escape(selectElement.id)}"] .select-option`)
+        : [];
+    [...localOptions, ...portalOptions].forEach(opt => {
+        const isSelected = opt.textContent === option?.text;
+        opt.classList.toggle('selected', isSelected);
+        opt.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+    });
 }
 
 /* =========================================
@@ -1331,9 +1430,6 @@ const App = {
         document.getElementById('btnOpenChangeHistory')?.addEventListener('click', () => {
             this.showView('change-history');
         });
-        document.getElementById('btnOpenHistoryBottom')?.addEventListener('click', () => {
-            this.showView('history');
-        });
         document.getElementById('btnOpenHistorySidebar')?.addEventListener('click', () => {
             this.showView('history');
         });
@@ -1649,21 +1745,7 @@ const App = {
                     break;
 
                 case 'delete-task':
-                    if (!taskId) return;
-
-                    if (confirm('¿Eliminar?')) {
-                        this.tasks = this.tasks.filter(
-                            task => task.id !== taskId
-                        );
-
-                        this.markAsUnsaved();
-                        this.renderBoard();
-
-                        UI.showToast(
-                            'Tarea eliminada',
-                            'success'
-                        );
-                    }
+                    if (taskId) this.openDeleteConfirmation(taskId, target);
                     break;
 
                 default:
@@ -2632,6 +2714,92 @@ const App = {
         lucide.createIcons();
     },
 
+    openDeleteConfirmation(taskId, sourceButton = null) {
+        document.getElementById('deleteTaskConfirmDialog')?.remove();
+        const task = (this.tasks || []).find(item => String(item.id) === String(taskId));
+        if (!task) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'deleteTaskConfirmDialog';
+        overlay.className = 'delete-confirm-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'deleteTaskConfirmTitle');
+        overlay.setAttribute('aria-describedby', 'deleteTaskConfirmDescription');
+
+        const card = document.createElement('div');
+        card.className = 'delete-confirm-card';
+        card.setAttribute('tabindex', '-1');
+
+        const iconWrap = document.createElement('div');
+        iconWrap.className = 'delete-confirm-icon';
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', 'trash-2');
+        icon.setAttribute('aria-hidden', 'true');
+        iconWrap.appendChild(icon);
+
+        const title = document.createElement('h2');
+        title.id = 'deleteTaskConfirmTitle';
+        title.textContent = 'Eliminar solicitud';
+
+        const description = document.createElement('p');
+        description.id = 'deleteTaskConfirmDescription';
+        description.textContent = 'La solicitud se quitará de la gestión. El cambio quedará pendiente de guardar en la nube.';
+
+        const taskName = document.createElement('strong');
+        taskName.className = 'delete-confirm-task';
+        taskName.textContent = normalizeText(task.name);
+
+        const footer = document.createElement('div');
+        footer.className = 'delete-confirm-footer';
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'btn btn-secondary';
+        cancel.textContent = 'Cancelar';
+        const confirmDelete = document.createElement('button');
+        confirmDelete.type = 'button';
+        confirmDelete.className = 'btn btn-danger delete-confirm-action';
+        const deleteIcon = document.createElement('i');
+        deleteIcon.setAttribute('data-lucide', 'trash-2');
+        deleteIcon.setAttribute('aria-hidden', 'true');
+        confirmDelete.append(deleteIcon, document.createTextNode(' Eliminar solicitud'));
+        footer.append(cancel, confirmDelete);
+
+        card.append(iconWrap, title, description, taskName, footer);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        lucide.createIcons();
+
+        const previousFocus = sourceButton instanceof HTMLElement ? sourceButton : document.activeElement;
+        const close = () => {
+            overlay.remove();
+            document.removeEventListener('keydown', onKeyDown);
+            if (previousFocus?.isConnected) previousFocus.focus();
+        };
+        const onKeyDown = event => {
+            if (event.key === 'Escape') { event.preventDefault(); close(); return; }
+            if (event.key !== 'Tab') return;
+            const focusable = [...card.querySelectorAll('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(el => el.offsetParent !== null);
+            if (!focusable.length) { event.preventDefault(); card.focus(); return; }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        };
+
+        cancel.addEventListener('click', close);
+        overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+        confirmDelete.addEventListener('click', () => {
+            this.tasks = this.tasks.filter(item => String(item.id) !== String(taskId));
+            this.markAsUnsaved();
+            close();
+            this.renderBoard();
+            UI.showToast('Solicitud eliminada. Guarda los cambios para confirmar la eliminación.', 'success');
+        });
+        document.addEventListener('keydown', onKeyDown);
+        window.requestAnimationFrame(() => cancel.focus());
+    },
+
     showView(view) {
         const isRequestHistory = view === 'history';
         const isChangeHistory = view === 'change-history';
@@ -2682,6 +2850,20 @@ const App = {
         };
 
         const monthOf = (value) => normalizeText(value).slice(0, 7);
+        const formatTaskDate = (value) => {
+            const text = normalizeText(value);
+            if (!text) return '—';
+            const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/);
+            if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+            const parsed = new Date(text);
+            if (!Number.isNaN(parsed.getTime())) {
+                const y = parsed.getFullYear();
+                const m = String(parsed.getMonth() + 1).padStart(2, '0');
+                const d = String(parsed.getDate()).padStart(2, '0');
+                return `${d}/${m}/${y}`;
+            }
+            return text;
+        };
 
         const allTasks = (Array.isArray(this.tasks) ? this.tasks : [])
             .filter(task => this.getTaskLifecycle(task).deliveries > 0);
@@ -2784,13 +2966,11 @@ const App = {
             assigneeCell.textContent = normalizeText(task.assignee) || 'No asignado';
 
             const receivedCell = document.createElement('td');
-            receivedCell.textContent = task.dateReceived
-                ? task.dateReceived.split('-').reverse().join('/')
-                : '—';
+            receivedCell.textContent = formatTaskDate(task.dateReceived);
 
             const deliveryCell = document.createElement('td');
             deliveryCell.textContent = task.dateDelivered
-                ? `${task.dateDelivered.split('-').reverse().join('/')} · #${Math.max(1, lifecycle.deliveries)}`
+                ? `${formatTaskDate(task.dateDelivered)} · Entrega ${Math.max(1, lifecycle.deliveries)}`
                 : '—';
 
             const statusCell = document.createElement('td');

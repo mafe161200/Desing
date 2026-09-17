@@ -1,8 +1,8 @@
-DESIGN HUB V30
+DESIGN HUB V31
 
 Versión basada exclusivamente en Design Hub V29.
 
-V30 refina la navegación y el historial general de cambios sin alterar la lógica principal de Gestión ni la trazabilidad de Solicitudes realizadas.
+V31 refina la navegación y el historial general de cambios sin alterar la lógica principal de Gestión ni la trazabilidad de Solicitudes realizadas.
 
 Cambios principales:
 - Navegación conjunta entre Solicitudes realizadas e Historial de cambios.
@@ -28,3 +28,17 @@ Validación V30:
 
 Nota técnica:
 La persistencia transaccional/RPC y la validación definitiva de RLS de Supabase requieren el esquema SQL real de la instancia y no se inventan en esta versión.
+
+
+V31 — ajustes adicionales:
+- Eliminado el acceso contextual duplicado a Solicitudes realizadas al final de Gestión.
+- Archivo queda como único acceso desde la gestión; se eliminaron flechas redundantes del menú.
+- Solicitudes realizadas e Historial de cambios se mantienen como vistas hermanas mediante pestañas.
+- Dropdowns de asignación de la tabla se renderizan sobre el body para evitar recortes por overflow y solapamiento con Archivo.
+- Dropdowns personalizados mejorados con semántica combobox/listbox, aria-expanded, aria-selected y navegación por teclado.
+- Distribución de columnas de Gestión ajustada para dar más espacio a la solicitud.
+- Historial general compactado para reducir densidad vertical y espacio vacío.
+- Fechas de Solicitudes realizadas normalizadas para evitar mostrar timestamps ISO como texto.
+- Entrega mostrada como “Entrega 1”, “Entrega 2”, etc.
+- Eliminada la restricción accidental del viewport que podía dificultar el zoom.
+- Eliminado confirm() genérico para borrar solicitudes y reemplazado por diálogo accesible con foco controlado.
