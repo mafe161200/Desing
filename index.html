@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Design Hub V1 — gestión de producción, diseño, clientes y finanzas.">
+  <title>Design Hub — V1</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#app">Saltar al contenido</a>
+
+  <div id="login-view" class="screen">
+    <main class="login-card" aria-labelledby="login-title">
+      <div class="brand-mark">DESIGN</div>
+      <p class="eyebrow">GESTIÓN INTEGRAL</p>
+      <h1 id="login-title">Design Hub</h1>
+      <p class="muted">Producción, diseño, clientes y finanzas en un solo sistema.</p>
+      <form id="login-form" novalidate>
+        <label for="login-user">Usuario</label>
+        <input id="login-user" name="username" autocomplete="username" required>
+        <label for="login-password">Contraseña</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        <button class="btn primary" type="submit">Ingresar</button>
+        <p id="login-message" class="form-message" role="alert"></p>
+      </form>
+    </main>
+  </div>
+
+  <div id="app" class="app-shell" hidden>
+    <header class="topbar">
+      <div>
+        <div class="brand-mark">DESIGN</div>
+        <span class="subtitle">Gestión de Producción y Diseño</span>
+      </div>
+      <div class="topbar-user">
+        <span id="current-user">—</span>
+        <button id="logout-btn" class="btn ghost" type="button">Salir</button>
+      </div>
+    </header>
+
+    <nav class="module-nav" aria-label="Módulos principales">
+      <button class="nav-item active" data-view="dashboard">Dashboard</button>
+      <button class="nav-item" data-view="requests">Solicitudes</button>
+      <button class="nav-item" data-view="clients">Clientes</button>
+      <button class="nav-item" data-view="production">Producción</button>
+      <button class="nav-item" data-view="finance">Finanzas</button>
+      <button class="nav-item" data-view="history">Historial</button>
+    </nav>
+
+    <main class="main-content">
+      <section id="dashboard-view" class="view active" aria-labelledby="dashboard-title">
+        <div class="view-head">
+          <div>
+            <p class="eyebrow">CENTRO DE CONTROL</p>
+            <h1 id="dashboard-title">Dashboard</h1>
+            <p class="muted">Resumen operativo del sistema.</p>
+          </div>
+          <button id="new-request-btn" class="btn primary" type="button">+ Nueva solicitud</button>
+        </div>
+
+        <div id="kpi-grid" class="kpi-grid"></div>
+
+        <div class="grid-2">
+          <article class="panel">
+            <div class="panel-head"><h2>Prioridades de hoy</h2></div>
+            <div id="priority-list" class="list"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><h2>Carga de producción</h2></div>
+            <div id="workload-list" class="list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="requests-view" class="view" hidden aria-labelledby="requests-title">
+        <div class="view-head">
+          <div>
+            <p class="eyebrow">OPERACIÓN</p>
+            <h1 id="requests-title">Solicitudes</h1>
+          </div>
+          <button class="btn primary new-request-trigger" type="button">+ Nueva solicitud</button>
+        </div>
+        <div class="toolbar">
+          <input id="request-search" type="search" placeholder="Buscar por solicitud, cliente o responsable..." aria-label="Buscar solicitudes">
+          <select id="request-status" aria-label="Filtrar por estado">
+            <option value="">Todos los estados</option>
+            <option>En cola</option><option>En curso</option><option>Ajustes</option><option>Entregada</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Solicitud</th><th>Cliente</th><th>Responsable</th><th>Fecha límite</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="request-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="clients-view" class="view" hidden aria-labelledby="clients-title">
+        <div class="view-head"><div><p class="eyebrow">RELACIÓN COMERCIAL</p><h1 id="clients-title">Clientes</h1></div><button class="btn primary" id="new-client-btn">+ Nuevo cliente</button></div>
+        <div id="clients-list" class="cards-grid"></div>
+      </section>
+
+      <section id="production-view" class="view" hidden aria-labelledby="production-title">
+        <div class="view-head"><div><p class="eyebrow">EQUIPO</p><h1 id="production-title">Producción</h1><p class="muted">Vista para jefe de producción y diseño.</p></div></div>
+        <div class="cards-grid" id="production-cards"></div>
+      </section>
+
+      <section id="finance-view" class="view" hidden aria-labelledby="finance-title">
+        <div class="view-head"><div><p class="eyebrow">CONTROL FINANCIERO</p><h1 id="finance-title">Finanzas</h1><p class="muted">Acceso separado para información comercial, facturación y cobros.</p></div></div>
+        <div class="notice">V1 establece la estructura del módulo. Los datos financieros reales deben conectarse a Supabase y protegerse mediante RLS antes de producción.</div>
+        <div class="kpi-grid" id="finance-kpis"></div>
+      </section>
+
+      <section id="history-view" class="view" hidden aria-labelledby="history-title">
+        <div class="view-head"><div><p class="eyebrow">AUDITORÍA</p><h1 id="history-title">Historial</h1></div></div>
+        <div id="history-list" class="timeline"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="request-dialog">
+    <form id="request-form" method="dialog" class="dialog-form">
+      <div class="dialog-head"><h2>Nueva solicitud</h2><button class="icon-btn" value="cancel" aria-label="Cerrar">×</button></div>
+      <label for="request-title">Título *</label>
+      <input id="request-title" required maxlength="160">
+      <label for="request-client">Cliente *</label>
+      <input id="request-client" required maxlength="120">
+      <label for="request-assignee">Responsable</label>
+      <select id="request-assignee"><option value="">Sin asignar</option><option>Mafe</option><option>Camilo</option><option>David</option></select>
+      <label for="request-due">Fecha límite</label>
+      <input id="request-due" type="date">
+      <label for="request-notes">Notas</label>
+      <textarea id="request-notes" rows="4" maxlength="1000"></textarea>
+      <div class="dialog-actions"><button class="btn ghost" value="cancel">Cancelar</button><button class="btn primary" id="save-request-btn" value="default">Crear solicitud</button></div>
+    </form>
+  </dialog>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
