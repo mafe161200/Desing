@@ -38,3 +38,11 @@ Para activar el control de concurrencia de V34 en Supabase debe aplicarse la mig
 
 
 V35: endurecimiento de dominio, concurrencia, eventos de ciclo de vida, IDs relacionales opcionales y accesibilidad de controles. RLS y transacciones definitivas deben aplicarse en PostgreSQL tras validar el esquema real.
+
+V36 - Stabilization:
+- Concurrency-aware restoration.
+- Lifecycle actions routed through the centralized status transition helper.
+- Persistent task event helpers and adjustment persistence helper.
+- Overdue filter aligned with due_at/dueAt and excludes delivered tasks.
+- New relational/timestamp/version fields included when present.
+- Supabase migration includes atomic restore helper and indexes.

@@ -2307,7 +2307,7 @@ const App = {
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         task.dateDelivered = today;
-        task.status = 'Entregado';
+        if (!setTaskStatus(task, TASK_STATUS.DELIVERED)) return;
         this.recordLifecycleEvent(taskId, 'delivery');
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
@@ -2355,7 +2355,7 @@ const App = {
         const adjustmentNote = `[AJUSTE SOLICITADO — ${stamp} — ${author}] ${cleanReason}`;
         const previousNotes = normalizeText(task.notes);
 
-        task.status = 'Ajuste solicitado';
+        if (!setTaskStatus(task, TASK_STATUS.ADJUSTMENT)) return;
         this.recordLifecycleEvent(taskId, 'adjustment');
         task.notes = previousNotes
             ? `${adjustmentNote}\n${previousNotes}`
@@ -2373,7 +2373,7 @@ const App = {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task || task.status !== 'Ajuste solicitado') return;
 
-        task.status = 'En curso';
+        if (!setTaskStatus(task, TASK_STATUS.IN_PROGRESS)) return;
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         this.renderBoard();

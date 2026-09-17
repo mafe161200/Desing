@@ -5426,3 +5426,19 @@ button[disabled],[aria-disabled="true"]{cursor:not-allowed;opacity:.55}
 @media(max-width:900px){.workspace-tabs{overflow-x:auto;scrollbar-width:thin}}
 @media(max-width:680px){.task-table-wrapper,.table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch}.task-table{min-width:760px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* V36 stabilization: conflict/async state clarity */
+.dh-control[aria-busy="true"],
+button[aria-busy="true"] { cursor: progress; }
+button:disabled, input:disabled, select:disabled, textarea:disabled {
+  opacity: .62;
+  cursor: not-allowed;
+}
+[role="dialog"] [data-modal-close]:focus-visible,
+[role="dialog"] button:focus-visible,
+[role="dialog"] input:focus-visible,
+[role="dialog"] select:focus-visible,
+[role="dialog"] textarea:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}

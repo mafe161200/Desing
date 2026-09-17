@@ -53,3 +53,57 @@ commit;
 
 -- IMPORTANTE: revisar y aplicar RLS/policies según el esquema de Auth real.
 -- Las operaciones críticas deben usar UPDATE ... WHERE id=:id AND version=:expected_version.
+
+
+-- ============================================================
+-- V36 STABILIZATION
+-- Atomic optimistic-concurrency helper for restoring snapshots.
+-- Apply only after reviewing the real Supabase Auth/RLS model.
+-- ============================================================
+
+create or replace function public.design_hub_restore_task(
+    p_task_id uuid,
+    p_expected_version bigint,
+    p_name text,
+    p_requester text,
+    p_assignee text,
+    p_status text,
+    p_date_received timestamptz,
+    p_date_delivered timestamptz,
+    p_notes text
+)
+returns table (
+    id uuid,
+    version bigint,
+    updated_at timestamptz
+)
+language plpgsql
+security invoker
+as $$
+begin
+    return query
+    update public.tasks t
+       set name = p_name,
+           requester = p_requester,
+           assignee = p_assignee,
+           status = p_status,
+           date_received = p_date_received,
+           date_delivered = p_date_delivered,
+           notes = p_notes
+     where t.id = p_task_id
+       and t.version = p_expected_version
+    returning t.id, t.version, t.updated_at;
+
+    if not found then
+        raise exception using
+            errcode = 'P0001',
+            message = 'DH_CONFLICT: la tarea cambió antes de restaurar la versión';
+    end if;
+end;
+$$;
+
+create index if not exists idx_task_adjustments_open_task
+    on public.task_adjustments(task_id, status, requested_at desc);
+
+create index if not exists idx_task_events_task_created
+    on public.task_events(task_id, created_at desc);
