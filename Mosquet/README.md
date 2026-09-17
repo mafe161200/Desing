@@ -51,3 +51,13 @@
 - Mis tareas aplica el filtro personal antes de llevar el foco a la solicitud seleccionada.
 - Limpiar filtros actualiza también los selectores personalizados, evitando estados visuales desincronizados.
 - No requiere cambios en Supabase ni ejecución de SQL.
+
+
+## V36.6 — Pulido final de la pantalla principal
+- Se conserva el switch de estados como interacción principal.
+- Se amplía la columna de Estado y se uniforman los botones para evitar solapamientos.
+- Los estados especiales de ajuste y entrega se presentan en bloques verticales.
+- La columna Acciones recibe espacio suficiente para notas, historial y más acciones.
+- Los KPI con atención (ajustes, vencidas y prioridad) reciben una señal visual discreta y siguen siendo clicables.
+- `No asignado` aparece primero en Carga de trabajo cuando existe trabajo sin responsable y queda visualmente identificado.
+- No requiere cambios SQL.

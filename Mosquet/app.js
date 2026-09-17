@@ -2749,6 +2749,16 @@ const App = {
             const element = document.getElementById(id);
             if (element) element.textContent = String(value);
         });
+
+        const alertStates = [
+            ['.summary-adjustment', values.summaryAdjustment > 0],
+            ['.summary-overdue', values.summaryOverdue > 0],
+            ['.summary-starred', values.summaryStarred > 0]
+        ];
+        alertStates.forEach(([selector, isActive]) => {
+            const card = document.querySelector(selector);
+            if (card) card.classList.toggle('has-attention', isActive);
+        });
     },
 
     setupHistoryView() {
@@ -4424,7 +4434,14 @@ const App = {
         });
 
         const sortedWorkload = Object.entries(workload)
-            .sort((a, b) => b[1] - a[1]);
+            .filter(([, count]) => count > 0)
+            .sort((a, b) => {
+                // Sin asignar siempre queda primero: representa trabajo que requiere atención.
+                if (a[0] === 'No asignado' && b[0] !== 'No asignado') return -1;
+                if (a[0] !== 'No asignado' && b[0] === 'No asignado') return 1;
+                if (b[1] !== a[1]) return b[1] - a[1];
+                return a[0].localeCompare(b[0], 'es', { sensitivity: 'base' });
+            });
 
         const maxTasks = sortedWorkload.reduce(
             (max, [, count]) => Math.max(max, count),
@@ -4494,7 +4511,7 @@ const App = {
             const color = this.getColor(name);
 
             const item = document.createElement('div');
-            item.className = 'workload-item workload-item-interactive';
+            item.className = `workload-item workload-item-interactive ${name === 'No asignado' ? 'is-unassigned' : ''}`;
             item.dataset.workloadFilter = name;
             if (document.getElementById('filterAssignee')?.value === name) item.classList.add('is-filtered');
             item.setAttribute('role', 'button');

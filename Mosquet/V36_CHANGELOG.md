@@ -92,3 +92,12 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 - Mis tareas lleva primero al contexto "Mis tareas" y después enfoca la solicitud.
 - Limpiar filtros sincroniza los componentes select personalizados.
 - **SQL: no requerido.** No se modificó `SUPABASE_V36_FINAL.sql`.
+
+
+## V36.6 — Pulido final de la pantalla principal
+- Switch de estados conservado y con ancho equilibrado.
+- Ajuste solicitado / Entregada con acciones verticales.
+- Más espacio para Acciones.
+- KPI de atención con señal visual cuando tienen contenido.
+- `No asignado` priorizado visualmente en Carga de trabajo.
+- Sin cambios en Supabase ni SQL.

@@ -6037,3 +6037,107 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
         transition: none;
     }
 }
+
+
+/* =========================================================
+   DESIGN HUB V36.6 — PULIDO FINAL DE LA PANTALLA PRINCIPAL
+   ========================================================= */
+.task-table th:nth-child(1), .task-table td:nth-child(1) { width: 29%; }
+.task-table th:nth-child(2), .task-table td:nth-child(2) { width: 20%; }
+.task-table th:nth-child(3), .task-table td:nth-child(3) { width: 15%; }
+.task-table th:nth-child(4), .task-table td:nth-child(4) { width: 26%; }
+.task-table th:nth-child(5), .task-table td:nth-child(5) { width: 10%; }
+
+.task-table .status-cell { min-width: 220px; padding-left: 7px; padding-right: 7px; }
+.task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) {
+    width: 100%;
+    max-width: 100%;
+}
+.task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) .status-switch-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 9px;
+}
+.task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) .status-switch-btn span {
+    overflow: visible;
+    text-overflow: clip;
+}
+.task-table .status-switch-adjustment,
+.task-table .status-switch-completed {
+    width: 188px;
+    min-width: 188px;
+    max-width: 100%;
+}
+.task-table .status-switch-adjustment .status-switch-btn,
+.task-table .status-switch-completed .status-switch-btn {
+    justify-content: flex-start;
+    padding-inline: 10px;
+}
+.task-table .status-switch-adjustment .status-switch-btn:not(.is-current),
+.task-table .status-switch-completed .status-switch-btn.is-reopen {
+    border-top-color: rgba(65,91,126,.28);
+}
+.task-table .actions-cell {
+    min-width: 108px;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.task-table .action-buttons { gap: 4px; justify-content: flex-start; }
+.task-table .action-buttons .btn-icon { flex-basis: 30px; width: 30px; height: 30px; }
+
+.summary-card.has-attention {
+    border-color: color-mix(in srgb, var(--warning, #f59e0b) 46%, rgba(65,91,126,.45));
+}
+.summary-overdue.has-attention {
+    border-color: color-mix(in srgb, #fb7185 58%, rgba(65,91,126,.45));
+    box-shadow: inset 0 0 0 1px rgba(251,113,133,.06);
+}
+.summary-starred.has-attention {
+    border-color: color-mix(in srgb, #67e8f9 34%, rgba(65,91,126,.45));
+}
+.summary-adjustment.has-attention {
+    border-color: color-mix(in srgb, #fbbf24 58%, rgba(65,91,126,.45));
+}
+
+.workload-item-interactive.is-unassigned {
+    border-color: rgba(245,158,11,.34);
+    background: rgba(245,158,11,.035);
+}
+.workload-item-interactive.is-unassigned .workload-name,
+.workload-item-interactive.is-unassigned .workload-count {
+    color: #fbbf24;
+}
+.workload-item-interactive.is-unassigned .workload-bar-fill {
+    opacity: .92;
+}
+
+@media (max-width: 1100px) and (min-width: 769px) {
+    .task-table th:nth-child(1), .task-table td:nth-child(1) { width: 28%; }
+    .task-table th:nth-child(2), .task-table td:nth-child(2) { width: 20%; }
+    .task-table th:nth-child(3), .task-table td:nth-child(3) { width: 15%; }
+    .task-table th:nth-child(4), .task-table td:nth-child(4) { width: 27%; }
+    .task-table th:nth-child(5), .task-table td:nth-child(5) { width: 10%; }
+    .task-table .status-cell { min-width: 210px; }
+    .task-table .status-switch-btn { font-size: .66rem; }
+}
+
+@media (max-width: 768px) {
+    .task-table .status-cell { min-width: 180px; }
+    .task-table .actions-cell { min-width: 108px; }
+    .task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) .status-switch-btn {
+        padding-inline: 7px;
+        font-size: .63rem;
+    }
+    .task-table .status-switch-adjustment,
+    .task-table .status-switch-completed { width: 100%; min-width: 0; }
+}
+
+@media (max-width: 560px) {
+    .task-table .status-cell { min-width: 176px; }
+    .task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) .status-switch-btn {
+        font-size: .62rem;
+        padding-inline: 6px;
+    }
+    .task-table .status-switch-adjustment,
+    .task-table .status-switch-completed { width: 100%; }
+}
