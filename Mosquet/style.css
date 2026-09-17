@@ -5442,3 +5442,271 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
   outline: 3px solid currentColor;
   outline-offset: 2px;
 }
+
+/* =========================================================
+   DESIGN HUB V36.1 — CONSOLIDACIÓN UX/UI DEL WORKSPACE
+   Ajuste incremental sobre V36: menos ruido, acciones claras,
+   estado único y jerarquía operativa. No cambia la arquitectura.
+   ========================================================= */
+
+/* Resumen: seis métricas caben en una sola línea en escritorio. */
+.dashboard-summary {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+.summary-card.summary-overdue,
+.summary-card.summary-adjustment,
+.summary-card.summary-starred {
+    border-color: rgba(56,189,248,.22);
+}
+.summary-card.summary-overdue .summary-label,
+.summary-card.summary-adjustment .summary-label,
+.summary-card.summary-starred .summary-label {
+    color: #a9bad1 !important;
+}
+
+/* Filtros principales: solo cuatro visibles; el resto vive en Más filtros. */
+.quick-filters {
+    flex: 0 1 auto;
+}
+.advanced-quick-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 0 2px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid rgba(36,52,81,.65);
+}
+.advanced-quick-filters-label {
+    color: var(--text-muted);
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-right: 4px;
+}
+.advanced-quick-filter {
+    min-height: 30px;
+    padding-inline: 9px;
+    background: #0a1423;
+    border-color: rgba(65,91,126,.42);
+}
+.advanced-quick-filter:hover,
+.advanced-quick-filter.active {
+    border-color: rgba(34,211,238,.30);
+    color: #67e8f9;
+    background: rgba(34,211,238,.08);
+}
+.advanced-task-filters[open] .advanced-filters-summary {
+    color: #67e8f9;
+}
+
+/* Selector de estado único: una sola decisión visible por fila. */
+.task-table .status-cell .select-wrapper {
+    width: min(170px, 100%);
+}
+.task-table .table-status-select + .select-trigger,
+.task-table .select-trigger.table-status-select {
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    font-size: .72rem;
+    font-weight: 800;
+    justify-content: space-between;
+    letter-spacing: .01em;
+}
+.task-table .select-trigger.table-status-select span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.task-table .select-trigger.status-select-queue {
+    color: #f9a8d4;
+    background: rgba(236,72,153,.09);
+    border-color: rgba(236,72,153,.28);
+}
+.task-table .select-trigger.status-select-progress {
+    color: #67e8f9;
+    background: rgba(34,211,238,.09);
+    border-color: rgba(34,211,238,.28);
+}
+.task-table .select-trigger.status-select-adjustment {
+    color: #fbbf24;
+    background: rgba(251,191,36,.09);
+    border-color: rgba(251,191,36,.30);
+}
+.task-table .select-trigger.status-select-completed {
+    color: #6ee7b7;
+    background: rgba(52,211,153,.09);
+    border-color: rgba(52,211,153,.28);
+}
+.task-table .select-trigger.table-status-select:hover,
+.task-table .select-trigger.table-status-select:focus-visible,
+.task-table .select-trigger.table-status-select.active {
+    filter: none;
+    box-shadow: 0 0 0 3px rgba(34,211,238,.08);
+}
+.task-table .status-cell .select-options {
+    min-width: 170px;
+}
+.task-table .status-cell .select-option {
+    padding: 9px 11px;
+}
+.task-table .status-cell .select-option.selected {
+    color: #67e8f9;
+    background: rgba(34,211,238,.09);
+}
+
+/* Fechas: semántica explícita en lugar de R / E. */
+.task-table td.date-info {
+    display: flex;
+    flex-direction: column;
+    gap: 6px !important;
+    align-items: flex-start;
+}
+.date-label {
+    color: #7f93ae;
+    font-size: .61rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .055em;
+}
+.date-label-primary {
+    color: #9fc5dd;
+    display: block;
+    margin-bottom: 4px;
+}
+.deadline-control {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    width: 100%;
+}
+.delivery-date-meta {
+    font-size: .66rem;
+    font-weight: 700;
+    color: #7890ad;
+    line-height: 1.2;
+}
+.delivery-date-meta.text-danger { color: var(--danger) !important; }
+.delivery-date-meta.text-warning { color: var(--warning) !important; }
+
+/* Acciones: notas + historial visibles; editar/eliminar bajo Más. */
+.task-table .actions-cell {
+    overflow: visible;
+}
+.task-table .action-buttons {
+    justify-content: flex-end;
+    gap: 3px;
+    overflow: visible;
+}
+.row-actions-menu {
+    position: relative;
+    display: inline-flex;
+}
+.row-menu-trigger {
+    color: #8ea0bd;
+}
+.row-menu-trigger[aria-expanded="true"] {
+    color: #67e8f9;
+    background: rgba(34,211,238,.08);
+}
+.row-actions-popover {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 30000;
+    min-width: 190px;
+    padding: 5px;
+    border: 1px solid #29405d;
+    border-radius: 10px;
+    background: #0a1423;
+    box-shadow: 0 18px 42px rgba(0,0,0,.46);
+}
+.row-actions-popover[hidden] { display: none !important; }
+.row-menu-item {
+    width: 100%;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-main);
+    font: inherit;
+    font-size: .73rem;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+}
+.row-menu-item svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.row-menu-item:hover,
+.row-menu-item:focus-visible {
+    background: rgba(34,211,238,.08);
+    color: #67e8f9;
+    outline: none;
+}
+.row-menu-item.is-danger { color: #fda4af; }
+.row-menu-item.is-danger:hover,
+.row-menu-item.is-danger:focus-visible {
+    color: #fecdd3;
+    background: rgba(251,113,133,.09);
+}
+
+/* Carga de trabajo: deja claro que cada fila es un filtro. */
+.workload-item-interactive {
+    cursor: pointer;
+    padding: 6px 7px;
+    margin-inline: -7px;
+    border-radius: 8px;
+    transition: background .16s ease, transform .16s ease;
+}
+.workload-item-interactive:hover,
+.workload-item-interactive:focus-visible {
+    background: rgba(34,211,238,.06);
+    outline: none;
+}
+.workload-item-interactive:focus-visible {
+    box-shadow: 0 0 0 2px rgba(103,232,249,.55);
+}
+.workload-item-interactive[data-workload-filter="No asignado"] .workload-name {
+    color: #fbbf24;
+}
+
+/* Menos densidad vertical en escritorio. */
+.task-table td {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+.task-table .req-title-cell strong {
+    font-size: .90rem;
+}
+
+@media (max-width: 1200px) {
+    .dashboard-summary { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+
+@media (max-width: 900px) {
+    .task-table .status-cell .select-wrapper { width: 100%; }
+    .task-table .status-cell .select-options { min-width: 180px; }
+}
+
+@media (max-width: 768px) {
+    .dashboard-summary { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .advanced-quick-filters { align-items: flex-start; }
+    .advanced-quick-filters-label { width: 100%; margin-bottom: 2px; }
+    .task-table .status-cell .select-wrapper { width: 100%; }
+    .row-actions-popover {
+        right: 0;
+        min-width: 180px;
+    }
+    .task-table td.date-info { align-items: flex-start !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .workload-item-interactive { transition: none; }
+}

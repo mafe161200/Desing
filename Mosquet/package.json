@@ -1,6 +1,6 @@
 {
   "name": "design-hub",
-  "version": "36.0.0",
+  "version": "36.1.0",
   "private": true,
   "description": "Design Hub V36 — workspace colaborativo",
   "scripts": {

@@ -58,6 +58,9 @@ const normalizeTask = (task) => {
         isStarred: Boolean(source.isStarred),
         notes: normalizeText(source.notes)
     };
+    if (!normalized.dateDelivered && source.due_at) {
+        normalized.dateDelivered = String(source.due_at).slice(0, 10);
+    }
     if (source.version !== undefined && source.version !== null) normalized.version = Number(source.version) || 1;
     if (source.updated_at !== undefined) normalized.updated_at = source.updated_at;
     if (source.updated_by !== undefined) normalized.updated_by = source.updated_by;
@@ -80,6 +83,18 @@ const isDateBefore = (first, second) => {
     const b = parseLocalDate(second);
     return Boolean(a && b && a.getTime() < b.getTime());
 };
+
+const getTaskDeadline = (task) => {
+    if (!task) return '';
+    return normalizeText(task.due_at).slice(0, 10) || normalizeText(task.dateDelivered);
+};
+
+const getTaskDeliveredDate = (task) => {
+    if (!task) return '';
+    return normalizeText(task.delivered_at).slice(0, 10) || (task.status === 'Entregado' ? normalizeText(task.dateDelivered) : '');
+};
+
+const getTaskBoardDate = (task) => task?.status === 'Entregado' ? getTaskDeliveredDate(task) : getTaskDeadline(task);
 
 const getInitials = (value) => {
     const parts = normalizeText(value)
@@ -320,18 +335,18 @@ const NotificationService = {
             }, 100);
         };
 
-        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && t.dateDelivered);
+        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && getTaskDeadline(t));
         if (myPendingTasks.length > 0) {
-            myPendingTasks.sort((a, b) => new Date(a.dateDelivered).getTime() - new Date(b.dateDelivered).getTime());
+            myPendingTasks.sort((a, b) => new Date(getTaskDeadline(a) + 'T12:00:00').getTime() - new Date(getTaskDeadline(b) + 'T12:00:00').getTime());
             const nearest = myPendingTasks[0];
             const callback = () => highlightTask(nearest.id);
             
-            if (nearest.dateDelivered < todayStr) {
+            if (getTaskDeadline(nearest) < todayStr) {
                  setTimeout(() => UI.showToast(`¡Tienes una tarea vencida!: ${nearest.name}`, 'error', 8000, callback, true), 1000);
-            } else if (nearest.dateDelivered === todayStr) {
+            } else if (getTaskDeadline(nearest) === todayStr) {
                  setTimeout(() => UI.showToast(`Tu tarea más próxima es para hoy: ${nearest.name}`, 'warning', 8000, callback), 1000);
             } else {
-                 setTimeout(() => UI.showToast(`Próxima entrega: ${nearest.name} el ${nearest.dateDelivered.split('-').reverse().join('/')}`, 'info', 8000, callback), 1000);
+                 setTimeout(() => UI.showToast(`Próxima fecha límite: ${nearest.name} el ${getTaskDeadline(nearest).split('-').reverse().join('/')}`, 'info', 8000, callback), 1000);
             }
         }
 
@@ -1859,6 +1874,7 @@ const App = {
                 status: 'En cola',
                 dateReceived: dateReceivedValue,
                 dateDelivered: delivered,
+                due_at: delivered ? `${delivered}T12:00:00` : null,
                 isStarred: false,
                 notes: normalizeText(document.getElementById('taskNotes')?.value)
             });
@@ -1935,6 +1951,11 @@ const App = {
          * (onclick/onchange/onkeydown), centralizamos sus eventos aquí.
          */
         document.addEventListener('click', async (event) => {
+            if (!event.target.closest('.row-actions-menu')) {
+                document.querySelectorAll('.row-actions-popover').forEach(popover => { popover.hidden = true; });
+                document.querySelectorAll('.row-menu-trigger[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
+            }
+
             const quickFilter = event.target.closest('[data-quick-filter]');
             if (quickFilter) {
                 this.quickFilter = quickFilter.dataset.quickFilter || 'all';
@@ -1975,6 +1996,18 @@ const App = {
 
             const action = target.dataset.action;
             const taskId = target.dataset.taskId;
+
+            if (action === 'toggle-row-menu') {
+                const menu = target.closest('.row-actions-menu')?.querySelector('.row-actions-popover');
+                const isOpen = Boolean(menu && !menu.hidden);
+                document.querySelectorAll('.row-actions-popover').forEach(popover => { popover.hidden = true; });
+                document.querySelectorAll('.row-menu-trigger[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
+                if (menu && !isOpen) {
+                    menu.hidden = false;
+                    target.setAttribute('aria-expanded', 'true');
+                }
+                return;
+            }
 
             switch (action) {
                 case 'remove-member': {
@@ -2080,6 +2113,24 @@ const App = {
                         false
                     );
                     break;
+
+                case 'set-status': {
+                    const selectedStatus = target.value;
+                    const currentStatus = target.dataset.currentStatus || this.tasks.find(t => String(t.id) === String(taskId))?.status;
+                    if (!taskId || !selectedStatus) break;
+                    if (selectedStatus === 'Ajuste solicitado') {
+                        this.requestTaskAdjustment(taskId);
+                    } else if (selectedStatus === 'En curso' && currentStatus === 'Ajuste solicitado') {
+                        this.startTaskAdjustment(taskId);
+                    } else {
+                        this.handleTaskStatusAction(taskId, selectedStatus, target);
+                    }
+                    window.setTimeout(() => {
+                        const task = this.tasks.find(t => String(t.id) === String(taskId));
+                        if (task) updateCustomSelectUI(target, task.status);
+                    }, 0);
+                    break;
+                }
 
                 default:
                     break;
@@ -2334,7 +2385,7 @@ const App = {
         const confirmButton = document.getElementById('confirmDeliveryBtn');
 
         if (title) title.textContent = normalizeText(task.name);
-        if (date) date.textContent = task.dateDelivered ? this.formatBusinessDate(task.dateDelivered) : 'Se registrará hoy';
+        if (date) date.textContent = 'Se registrará hoy como fecha real de entrega';
         if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
 
         modal.dataset.taskId = String(taskId);
@@ -2355,7 +2406,7 @@ const App = {
 
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        task.dateDelivered = today;
+        task.delivered_at = `${today}T12:00:00`;
         if (!setTaskStatus(task, TASK_STATUS.DELIVERED)) return;
         this.recordLifecycleEvent(taskId, 'delivery');
         this.selectedTaskId = String(taskId);
@@ -2625,7 +2676,7 @@ const App = {
             summaryCourse: active.filter(task => task.status === 'En curso').length,
             summaryQueue: active.filter(task => task.status === 'En cola').length,
             summaryAdjustment: active.filter(task => task.status === 'Ajuste solicitado').length,
-            summaryOverdue: active.filter(task => task.dateDelivered && task.dateDelivered < todayStr).length,
+            summaryOverdue: active.filter(task => { const deadline = getTaskDeadline(task); return deadline && deadline < todayStr; }).length,
             summaryStarred: active.filter(task => task.isStarred).length
         };
 
@@ -3618,6 +3669,9 @@ const App = {
         const t = this.tasks.find(x => String(x.id) === String(id));
         if (t) {
             t[field] = field === 'isStarred' ? Boolean(value) : normalizeText(value);
+            if (field === 'dateDelivered' && t.status !== 'Entregado') {
+                t.due_at = value ? `${normalizeText(value)}T12:00:00` : null;
+            }
             this.selectedTaskId = String(id);
             this.markAsUnsaved();
             this.renderWorkloadChart(this.tasks.filter(x => x.status !== 'Entregado'));
@@ -3935,9 +3989,9 @@ const App = {
             } else if (this.quickFilter === 'unassigned') {
                 mQuick = !t.assignee || t.assignee === 'No asignado';
             } else if (this.quickFilter === 'overdue') {
-                mQuick = t.status !== 'Entregado' && !!t.dateDelivered && dateValue(t.dateDelivered) < Date.now();
+                mQuick = t.status !== 'Entregado' && !!getTaskDeadline(t) && dateValue(getTaskDeadline(t)) < Date.now();
             } else if (this.quickFilter === 'today') {
-                mQuick = t.status !== 'Entregado' && t.dateDelivered === todayStr;
+                mQuick = t.status !== 'Entregado' && getTaskDeadline(t) === todayStr;
             } else if (this.quickFilter === 'course') {
                 mQuick = t.status === 'En curso';
             } else if (this.quickFilter === 'adjustment') {
@@ -3948,7 +4002,8 @@ const App = {
 
             let mDate = true;
             if (this.filterDates.length > 0) {
-                if (!t.dateDelivered) {
+                const boardDate = getTaskBoardDate(t);
+                if (!boardDate) {
                     mDate = false;
                 } else {
                     const start = new Date(this.filterDates[0]);
@@ -3957,7 +4012,7 @@ const App = {
                         ? new Date(this.filterDates[1])
                         : new Date(this.filterDates[0]);
                     end.setHours(23, 59, 59, 999);
-                    const taskDate = new Date(t.dateDelivered + 'T12:00:00');
+                    const taskDate = new Date(boardDate + 'T12:00:00');
                     mDate = taskDate >= start && taskDate <= end;
                 }
             }
@@ -3977,8 +4032,8 @@ const App = {
 
             const receivedA = dateValue(a.dateReceived);
             const receivedB = dateValue(b.dateReceived);
-            const deliveryA = dateValue(a.dateDelivered);
-            const deliveryB = dateValue(b.dateDelivered);
+            const deliveryA = dateValue(getTaskBoardDate(a));
+            const deliveryB = dateValue(getTaskBoardDate(b));
 
             if (fSort === 'received_asc' || fSort === 'received_desc') {
                 const diff = receivedA - receivedB;
@@ -4053,12 +4108,12 @@ const App = {
             let dateAlertIcon = '';
             let overDueBadge = '';
 
-            if (t.dateDelivered) {
-                if (t.dateDelivered < todayStr) {
+            if (getTaskDeadline(t)) {
+                if (getTaskDeadline(t) < todayStr) {
                     dateClass = 'text-danger';
                     dateAlertIcon = '<i data-lucide="alert-triangle" class="text-danger" style="width:14px;height:14px;margin-right:2px;"></i>';
                     overDueBadge = '<span class="time-alert-badge danger">¡Vencida!</span>';
-                } else if (t.dateDelivered === todayStr) {
+                } else if (getTaskDeadline(t) === todayStr) {
                     dateClass = 'text-warning';
                     dateAlertIcon = '<i data-lucide="clock" class="text-warning" style="width:14px;height:14px;margin-right:2px;"></i>';
                     overDueBadge = '<span class="time-alert-badge warning">Para Hoy</span>';
@@ -4076,7 +4131,7 @@ const App = {
                     <div class="req-dates">
                         <span style="white-space: nowrap;">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
                         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-                            <span class="${dateClass}" style="display:flex; align-items:center; white-space:nowrap;">E: <strong style="display:inline-flex; align-items:center; margin-left:4px;">${dateAlertIcon}${t.dateDelivered ? t.dateDelivered.split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
+                            <span class="${dateClass}" style="display:flex; align-items:center; white-space:nowrap;">E: <strong style="display:inline-flex; align-items:center; margin-left:4px;">${dateAlertIcon}${getTaskDeadline(t) ? getTaskDeadline(t).split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
                             ${overDueBadge}
                         </div>
                     </div>
@@ -4119,41 +4174,47 @@ const App = {
                 tr.classList.toggle('expanded-row');
             });
             
-            let dateDeliveredVal = t.dateDelivered || '';
+            const boardDate = getTaskBoardDate(t);
+            const deadlineDate = getTaskDeadline(t);
+            const deliveredDate = getTaskDeliveredDate(t);
+            let dateDeliveredVal = t.status === 'Entregado' ? (deliveredDate || '') : (deadlineDate || '');
             let dateClass = '';
-            if (t.dateDelivered) {
-                if (t.dateDelivered < todayStr) dateClass = 'text-danger';
-                else if (t.dateDelivered === todayStr) dateClass = 'text-warning';
+            if (boardDate && t.status !== 'Entregado') {
+                if (boardDate < todayStr) dateClass = 'text-danger';
+                else if (boardDate === todayStr) dateClass = 'text-warning';
             }
             
-            let statusButtons;
-            if (t.status === 'Entregado') {
-                statusButtons = `<div class="status-control status-control-completed" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
-                    <span class="status-completed" role="status"><i data-lucide="check-circle-2" aria-hidden="true"></i><span>Entregada</span></span>
-                    <button type="button" class="status-option status-reopen" data-action="request-adjustment" data-task-id="${escapeHTML(t.id)}" aria-pressed="false" title="Registrar un ajuste solicitado por el solicitante">
-                        <i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Solicitar ajuste</span>
-                    </button>
-                </div>`;
-            } else if (t.status === 'Ajuste solicitado') {
-                statusButtons = `<div class="status-control status-control-adjustment" role="group" aria-label="Ajuste solicitado para ${escapeHTML(t.name)}">
-                    <span class="status-adjustment" role="status"><i data-lucide="message-square-warning" aria-hidden="true"></i><span>Ajuste solicitado</span></span>
-                    <button type="button" class="status-option status-start-adjustment" data-action="start-adjustment" data-task-id="${escapeHTML(t.id)}" title="Iniciar el trabajo sobre el ajuste solicitado">
-                        <i data-lucide="play" aria-hidden="true"></i><span>Iniciar ajuste</span>
-                    </button>
-                </div>`;
-            } else {
-                statusButtons = `<div class="status-control" role="group" aria-label="Estado de ${escapeHTML(t.name)}">
-                    <button type="button" class="status-option status-queue ${t.status === 'En cola' ? 'is-active' : ''}" data-action="set-status" data-status="En cola" data-task-id="${escapeHTML(t.id)}" aria-pressed="${t.status === 'En cola'}">
-                        <i data-lucide="pause-circle" aria-hidden="true"></i><span>En cola</span>
-                    </button>
-                    <button type="button" class="status-option status-progress ${t.status === 'En curso' ? 'is-active' : ''}" data-action="set-status" data-status="En curso" data-task-id="${escapeHTML(t.id)}" aria-pressed="${t.status === 'En curso'}">
-                        <i data-lucide="play-circle" aria-hidden="true"></i><span>En curso</span>
-                    </button>
-                    <button type="button" class="status-option status-done" data-action="set-status" data-status="Entregado" data-task-id="${escapeHTML(t.id)}" aria-pressed="false">
-                        <i data-lucide="check-circle-2" aria-hidden="true"></i><span>Entregar</span>
-                    </button>
-                </div>`;
-            }
+            const taskId = escapeHTML(t.id);
+            const taskNameEscaped = escapeHTML(t.name);
+            const statusOptions = {
+                'En cola': [
+                    ['En cola', 'En cola'],
+                    ['En curso', 'En curso']
+                ],
+                'En curso': [
+                    ['En curso', 'En curso'],
+                    ['En cola', 'En cola'],
+                    ['Entregado', 'Entregar']
+                ],
+                'Ajuste solicitado': [
+                    ['Ajuste solicitado', 'Ajuste solicitado'],
+                    ['En curso', 'Iniciar ajuste']
+                ],
+                'Entregado': [
+                    ['Entregado', 'Entregada'],
+                    ['Ajuste solicitado', 'Solicitar ajuste']
+                ]
+            };
+            const optionsForStatus = statusOptions[t.status] || statusOptions['En cola'];
+            const statusClass = {
+                'En cola': 'status-select-queue',
+                'En curso': 'status-select-progress',
+                'Ajuste solicitado': 'status-select-adjustment',
+                'Entregado': 'status-select-completed'
+            }[t.status] || 'status-select-queue';
+            const statusButtons = `<select class="native-select-hidden table-select table-status-select ${statusClass}" data-action="set-status" data-task-id="${taskId}" data-current-status="${escapeHTML(t.status)}" aria-label="Cambiar estado de ${taskNameEscaped}">
+                ${optionsForStatus.map(([value, label]) => `<option value="${escapeHTML(value)}"${value === t.status ? ' selected' : ''}>${escapeHTML(label)}</option>`).join('')}
+            </select>`;
 
             tr.innerHTML = `
                 <td data-label="Solicitud">
@@ -4173,18 +4234,26 @@ const App = {
                         ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
                     </select>
                 </td>
-                <td class="date-info" data-label="Fechas (Rec - Ent)">
-                    <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                    <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
-                    <span class="delivery-date-meta ${dateClass}">${t.dateDelivered ? escapeHTML(this.formatBusinessDate(t.dateDelivered)) : 'Sin fecha de entrega'}</span>
+                <td class="date-info" data-label="Fechas">
+                    <span class="date-req"><span class="date-label">Recibida</span> ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
+                    <div class="deadline-control">
+                        <span class="date-label date-label-primary">${t.status === 'Entregado' ? 'Entregada' : 'Fecha límite'}</span>
+                        <input type="text" id="delivery-date-${taskId}" name="delivery-date-${taskId}" class="inline-date-picker ${dateClass}" data-id="${taskId}" aria-label="${t.status === 'Entregado' ? 'Fecha de entrega' : 'Cambiar fecha límite'}" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar" ${t.status === 'Entregado' ? 'disabled' : ''}>
+                    </div>
+                    <span class="delivery-date-meta ${dateClass}">${boardDate ? escapeHTML(this.formatBusinessDate(boardDate)) : 'Sin fecha'}</span>
                 </td>
                 <td class="status-cell" data-label="Estado">${statusButtons}</td>
                 <td class="actions-cell" data-label="Acciones">
                     <div class="action-buttons">
-                        <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text" aria-hidden="true"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
-                        <button type="button" class="btn-icon" aria-label="Ver historial de la solicitud" title="Ver historial" data-action="view-task-history" data-task-id="${escapeHTML(t.id)}"><i data-lucide="history" aria-hidden="true"></i></button>
-                        <button type="button" class="btn-icon edit" aria-label="Editar tarea" title="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3" aria-hidden="true"></i></button>
-                        <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" title="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2" aria-hidden="true"></i></button>
+                        <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${taskId}"><i data-lucide="message-square-text" aria-hidden="true"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
+                        <button type="button" class="btn-icon" aria-label="Ver historial de la solicitud" title="Ver historial" data-action="view-task-history" data-task-id="${taskId}"><i data-lucide="history" aria-hidden="true"></i></button>
+                        <div class="row-actions-menu">
+                            <button type="button" class="btn-icon row-menu-trigger" aria-label="Más acciones" title="Más acciones" aria-expanded="false" data-action="toggle-row-menu" data-task-id="${taskId}"><i data-lucide="more-horizontal" aria-hidden="true"></i></button>
+                            <div class="row-actions-popover" role="menu" hidden>
+                                <button type="button" class="row-menu-item" role="menuitem" data-action="edit-task" data-task-id="${taskId}"><i data-lucide="edit-3" aria-hidden="true"></i><span>Editar solicitud</span></button>
+                                <button type="button" class="row-menu-item is-danger" role="menuitem" data-action="delete-task" data-task-id="${taskId}"><i data-lucide="trash-2" aria-hidden="true"></i><span>Eliminar solicitud</span></button>
+                            </div>
+                        </div>
                     </div>
                 </td>
             `;

@@ -25,3 +25,13 @@
 ## Nota de producción
 
 La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea policies genéricas que puedan conceder permisos incorrectos en una instancia real.
+
+
+## V36.1 — Consolidación UX/UI
+
+- Selector único de estado por solicitud con transiciones existentes.
+- Menú contextual para editar/eliminar y acciones frecuentes visibles.
+- Filtros rápidos principales simplificados y secundarios agrupados.
+- “No asignado” conservado como filtro accionable desde Carga de Trabajo.
+- Semántica visual de fechas: Recibida / Fecha límite / Entregada.
+- Separación de `due_at` y `delivered_at` cuando están disponibles.
