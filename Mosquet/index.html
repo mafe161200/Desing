@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://gbltrfqxohrmkopanghx.supabase.co wss://gbltrfqxohrmkopanghx.supabase.co; worker-src 'self' blob:;">
+    <title>Design Hub | Plataforma Colaborativa</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%234f46e5%27/%3E%3Ctext x=%2732%27 y=%2744%27 text-anchor=%27middle%27 font-size=%2738%27 font-family=%27Georgia%27 font-style=%27italic%27 fill=%27white%27%3ED%3C/text%3E%3C/svg%3E">
+        
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,800&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    
+    <script src="https://unpkg.com/lucide@1.46.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.1"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <a class="skip-link" href="#mainContent">Saltar al contenido principal</a>
+
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card" style="text-align: left;">
+            <h1 class="mixed-title logo-large" style="margin-bottom: 30px;">
+                <span class="logo-typographic">Design</span>
+            </h1>
+            <h2>Acceso al Sistema</h2>
+            <p style="margin-bottom: 24px;">Inicia sesión en la plataforma colaborativa</p>
+            <form id="loginForm" class="login-form" method="post" action="" novalidate>
+                <div class="field">
+                    <label for="usernameInput">Usuario</label>
+                    <input type="text" id="usernameInput" name="username" class="custom-input" placeholder="Ej: admin o Camilo" required autocomplete="username">
+                </div>
+                <div class="field">
+                    <label for="passwordInput">Contraseña</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="passwordInput" name="password" class="custom-input" placeholder="••••••••" required autocomplete="current-password">
+                        <button type="button" id="togglePasswordBtn" class="toggle-password-btn" aria-label="Mostrar contraseña">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="loginError" class="login-error" role="alert">Usuario o contraseña incorrectos.</div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Ingresar al workspace</button>
+                
+                <div class="login-hint">
+                    El acceso se gestiona de forma segura mediante Supabase Auth.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="appContainer" class="main-container" style="display: none;">
+        <header class="app-header">
+            <div class="header-content">
+                <h1 class="mixed-title">
+                    <span class="logo-typographic">Design</span>
+                </h1>
+                <p class="header-subtitle">Gestión de Solicitudes<br>y Entregables de Diseño</p>
+            </div>
+            
+            <div class="top-actions">
+                <div class="connection-status" id="connectionStatus" title="Estado de sincronización">
+                    <span class="status-dot"></span> <span id="statusText">Modo Local</span>
+                </div>
+
+                <div class="user-profile" id="userProfileBtn" title="Configurar Perfil" tabindex="0" role="button">
+                    <img id="userAvatar" src="" alt="Avatar del usuario" class="user-avatar">
+                    <span id="currentUserName">Usuario</span>
+                </div>
+                
+                <div class="header-divider hide-mobile"></div>
+                
+                <button type="button" id="btnToggleNotes" class="btn-icon position-relative" aria-label="Notas del Equipo" title="Notas del Equipo">
+                    <i data-lucide="message-square"></i>
+                </button>
+
+                <button type="button" id="btnLogout" class="btn-icon header-logout-btn" aria-label="Cerrar sesión" title="Cerrar sesión">
+                    <i data-lucide="log-out"></i>
+                </button>
+                
+                <button type="button" id="btnNewTask" class="btn btn-primary">
+                    <i data-lucide="plus-circle"></i> <span class="hide-mobile">Nueva Solicitud</span>
+                </button>
+                <button type="button" id="btnManageTeam" class="btn btn-secondary admin-only">
+                    <i data-lucide="users"></i> <span class="hide-mobile">Equipo</span>
+                </button>
+                <button type="button" id="btnManageReq" class="btn btn-secondary admin-only">
+                    <i data-lucide="building-2"></i> <span class="hide-mobile">Solicitantes</span>
+                </button>
+            </div>
+        </header>
+
+        <section class="dashboard-summary" aria-label="Resumen de trabajo">
+            <article class="summary-card summary-total is-interactive" data-summary="total" role="button" tabindex="0" aria-label="Mostrar todas las tareas activas">
+                <div class="summary-icon"><i data-lucide="inbox"></i></div>
+                <div><span class="summary-label">Activas</span><strong id="summaryTotal">0</strong></div>
+            </article>
+            <article class="summary-card summary-course is-interactive" data-summary="course" role="button" tabindex="0" aria-label="Mostrar tareas en curso">
+                <div class="summary-icon"><i data-lucide="play-circle"></i></div>
+                <div><span class="summary-label">En curso</span><strong id="summaryCourse">0</strong></div>
+            </article>
+            <article class="summary-card summary-queue is-interactive" data-summary="queue" role="button" tabindex="0" aria-label="Mostrar tareas en cola">
+                <div class="summary-icon"><i data-lucide="clock-3"></i></div>
+                <div><span class="summary-label">En cola</span><strong id="summaryQueue">0</strong></div>
+            </article>
+            <article class="summary-card summary-adjustment is-interactive" data-summary="adjustment" role="button" tabindex="0" aria-label="Mostrar tareas con ajuste solicitado">
+                <div class="summary-icon"><i data-lucide="message-square-warning"></i></div>
+                <div><span class="summary-label">Ajustes</span><strong id="summaryAdjustment">0</strong></div>
+            </article>
+            <article class="summary-card summary-overdue is-interactive" data-summary="overdue" role="button" tabindex="0" aria-label="Mostrar tareas vencidas">
+                <div class="summary-icon"><i data-lucide="triangle-alert"></i></div>
+                <div><span class="summary-label">Vencidas</span><strong id="summaryOverdue">0</strong></div>
+            </article>
+            <article class="summary-card summary-starred is-interactive" data-summary="starred" role="button" tabindex="0" aria-label="Mostrar tareas prioritarias">
+                <div class="summary-icon"><i data-lucide="star"></i></div>
+                <div><span class="summary-label">Prioridad</span><strong id="summaryStarred">0</strong></div>
+            </article>
+        </section>
+
+        <div class="layout-grid">
+            
+            <aside class="sidebar-col" id="sidebarCol">
+<div class="card sidebar-card card-accent-primary">
+                    <div class="card-header">
+                        <h2><i data-lucide="user-round" class="icon-primary"></i> Mis Tareas <span class="badge-count badge-primary" aria-label="Tareas asignadas">0</span></h2>
+                    </div>
+                    <div class="sidebar-content">
+                        <ul id="sidebarList" class="request-list"></ul>
+                    </div>
+                </div>
+
+                <div class="card sidebar-card card-accent-primary" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h2><i data-lucide="bar-chart-2" class="icon-primary"></i> Carga de Trabajo</h2>
+                    </div>
+                    <div class="sidebar-content" id="workloadContainer" style="padding: 16px;">
+                        <!-- Gráfica inyectada vía JS -->
+                    </div>
+                </div>
+
+
+
+            </aside>
+
+            <main class="main-board" id="mainContent">
+                <section class="card board-section card-accent-primary">
+                    <div class="card-header card-header-flex">
+                        <div>
+                            <h2>
+                                <i data-lucide="clock" class="icon-primary"></i> Gestión de solicitudes 
+                                <span class="badge-count badge-primary" id="countPrioridades" aria-label="Solicitudes visibles">0</span>
+                            </h2>
+                            <p class="subtitle">Trabajo activo · prioritarias primero · solicitudes más antiguas primero.</p>
+                        </div>
+                        <nav class="workspace-tabs" aria-label="Secciones de solicitudes">
+                            <button type="button" class="workspace-tab is-active" id="boardWorkspaceTab" aria-controls="mainContent" aria-current="page">Gestión</button>
+                            <button type="button" class="workspace-tab" id="boardWorkspaceRequests" aria-controls="historyView">Solicitudes realizadas</button>
+                            <button type="button" class="workspace-tab" id="boardWorkspaceChanges" aria-controls="changeHistoryView">Historial de cambios</button>
+                        </nav>
+                    </div>
+
+                    <div class="inline-filters-bar">
+                        <div class="filter-search">
+                            <i data-lucide="search" aria-hidden="true"></i>
+                            <input type="search" id="taskSearch" class="custom-input" placeholder="Buscar solicitud, solicitante o responsable..." aria-label="Buscar solicitudes">
+                        </div>
+
+                        <div class="quick-filters" role="group" aria-label="Filtros rápidos">
+                            <button type="button" class="quick-filter active" data-quick-filter="all">Todas</button>
+                            <button type="button" class="quick-filter" data-quick-filter="mine">Mis tareas</button>
+                            <button type="button" class="quick-filter" data-quick-filter="unassigned">Sin asignar</button>
+                            <button type="button" class="quick-filter" data-quick-filter="starred"><i data-lucide="star" aria-hidden="true"></i> Prioridad</button>
+                            <button type="button" class="quick-filter" data-quick-filter="overdue"><i data-lucide="triangle-alert" aria-hidden="true"></i> Vencidas</button>
+                            <button type="button" class="quick-filter" data-quick-filter="today">Hoy</button>
+                            <button type="button" class="quick-filter" data-quick-filter="course">En curso</button>
+                            <button type="button" class="quick-filter" data-quick-filter="adjustment">Ajustes</button>
+                            <button type="button" class="quick-filter" data-quick-filter="queue">En cola</button>
+                        </div>
+
+                        <details class="advanced-task-filters">
+                            <summary>
+                                <span class="advanced-filters-label"><i data-lucide="sliders-horizontal" aria-hidden="true"></i> Más filtros</span>
+                                <span class="advanced-filters-summary" id="advancedFiltersSummary">Sin filtros adicionales</span>
+                                <i data-lucide="chevron-down" class="advanced-filters-chevron" aria-hidden="true"></i>
+                            </summary>
+                            <div class="advanced-task-filters-grid">
+                                <div class="inline-filter-item">
+                                    <div class="input-with-icon">
+                                        <i data-lucide="calendar" aria-hidden="true"></i>
+                                        <input type="text" id="filterDate" name="filterDate" class="date-range-picker custom-input" placeholder="Fecha de entrega..." aria-label="Filtrar por fecha">
+                                    </div>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterRequester" name="filterRequester" class="native-select-hidden" aria-label="Filtrar por solicitante">
+                                        <option value="Todos">Solicitante: Todos</option>
+                                    </select>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterAssignee" name="filterAssignee" class="native-select-hidden" aria-label="Filtrar por asignado">
+                                        <option value="Todos">Asignación: Todos</option>
+                                    </select>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterStatus" name="filterStatus" class="native-select-hidden" aria-label="Filtrar por estado">
+                                        <option value="Todos">Estado: Todos</option>
+                                        <option value="En cola">En cola</option>
+                                        <option value="En curso">En curso</option>
+                                        <option value="Ajuste solicitado">Ajuste solicitado</option>
+                                    </select>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterCompletion" name="filterCompletion" class="native-select-hidden" aria-label="Mostrar tareas">
+                                        <option value="Pendientes" selected>Pendientes</option>
+                                        <option value="Realizadas">Realizadas</option>
+                                        <option value="Todas">Todas</option>
+                                    </select>
+                                </div>
+                                <div class="inline-filter-item">
+                                    <select id="filterSort" name="filterSort" class="native-select-hidden" aria-label="Ordenar tareas">
+                                        <option value="received_asc" selected>Orden: más antiguas primero</option>
+                                        <option value="received_desc">Orden: más recientes primero</option>
+                                        <option value="asc">Orden: entrega más próxima</option>
+                                        <option value="desc">Orden: entrega más lejana</option>
+                                    </select>
+                                </div>
+                                <button type="button" id="clearFilters" class="btn-text clear-filters-button" title="Limpiar filtros" aria-label="Limpiar filtros">
+                                    <i data-lucide="x-circle" aria-hidden="true"></i>
+                                    <span>Limpiar</span>
+                                </button>
+                            </div>
+                        </details>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table class="task-table" role="table">
+                            <thead>
+                                <tr role="row">
+                                    <th role="columnheader">Solicitud</th>
+                                    <th role="columnheader">Asignación</th>
+                                    <th role="columnheader">Fechas (Rec - Ent)</th>
+                                    <th role="columnheader">Estado</th>
+                                    <th role="columnheader">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablePrioridades" role="rowgroup"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+
+        </div>
+
+        <!-- Vista adicional: historial de solicitudes realizadas -->
+        <section id="historyView" class="history-view" hidden aria-labelledby="historyViewTitle">
+            <div class="card history-section card-accent-primary">
+                <div class="history-header">
+                    <div>
+                        <div class="history-title-row">
+                            <i data-lucide="archive" class="icon-primary" aria-hidden="true"></i>
+                            <h2 id="historyViewTitle">Solicitudes realizadas</h2>
+                            <span id="historyCount" class="badge-count badge-primary">0</span>
+                        </div>
+                        <p class="subtitle">Entregas registradas y solicitudes que han pasado por revisión.</p>
+                    </div>
+                    <nav class="history-view-tabs" aria-label="Navegación del workspace">
+                        <button type="button" id="historyTabBoard" class="history-view-tab history-tab-board" aria-controls="mainContent">Gestión</button>
+                        <button type="button" id="historyTabRequests" class="history-view-tab" aria-controls="historyView">Solicitudes realizadas</button>
+                        <button type="button" id="historyTabChanges" class="history-view-tab" aria-controls="changeHistoryView">Historial de cambios</button>
+                    </nav>
+                </div>
+
+                <div class="history-summary-grid" aria-label="Resumen del historial">
+                    <article class="history-stat">
+                        <span>Este mes</span>
+                        <strong id="historyStatMonth">0</strong>
+                    </article>
+                    <article class="history-stat">
+                        <span>En curso</span>
+                        <strong id="historyStatCourse">0</strong>
+                    </article>
+                    <article class="history-stat">
+                        <span>Ajustes pendientes</span>
+                        <strong id="historyStatAdjustments">0</strong>
+                    </article>
+                </div>
+
+                <section class="history-filter-panel" aria-labelledby="historyFiltersTitle">
+                    <div class="history-filter-heading">
+                        <div>
+                            <h3 id="historyFiltersTitle">Filtrar</h3>
+                            <p>Busca por fecha, persona, estado o texto.</p>
+                        </div>
+                        <span id="historyFilterResult" class="history-filter-result" aria-live="polite">0 resultados</span>
+                    </div>
+                    <div class="history-filters" aria-label="Filtros del historial">
+                    <label class="history-search">
+                        <span>Buscar en solicitudes</span>
+                        <div class="history-search-control">
+                            <i data-lucide="search" aria-hidden="true"></i>
+                            <input type="search" id="historySearch" class="custom-input" placeholder="Buscar solicitud..." aria-label="Buscar en solicitudes realizadas">
+                        </div>
+                    </label>
+
+                    <label class="history-field">
+                        <span>Mes</span>
+                        <input type="month" id="historyMonth" class="custom-input" aria-label="Filtrar por mes">
+                    </label>
+
+                    <label class="history-field">
+                        <span>Solicitante</span>
+                        <select id="historyRequester" class="history-select" aria-label="Filtrar por solicitante">
+                            <option value="Todos">Todos</option>
+                        </select>
+                    </label>
+
+                    <label class="history-field">
+                        <span>Responsable</span>
+                        <select id="historyAssignee" class="history-select" aria-label="Filtrar por responsable">
+                            <option value="Todos">Todos</option>
+                        </select>
+                    </label>
+
+                    <label class="history-field">
+                        <span>Estado</span>
+                        <select id="historyStatus" class="history-select" aria-label="Filtrar por estado">
+                            <option value="Todos">Todos</option>
+                            <option value="En cola">En cola</option>
+                            <option value="En curso">En curso</option>
+                            <option value="Ajuste solicitado">Ajuste solicitado</option>
+                            <option value="Entregado">Entregado</option>
+                        </select>
+                    </label>
+
+                        <button type="button" id="clearHistoryFilters" class="btn-text history-clear">
+                            <i data-lucide="x-circle" aria-hidden="true"></i> Limpiar filtros
+                        </button>
+                    </div>
+                </section>        
+                <div class="history-table-wrap">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Solicitud</th>
+                                <th>Solicitante</th>
+                                <th>Responsable</th>
+                                <th>Fecha solicitud</th>
+                                <th>Entrega</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Historial general de cambios -->
+        <section id="changeHistoryView" class="history-view change-history-view" hidden aria-labelledby="changeHistoryViewTitle">
+            <div class="card history-section card-accent-primary">
+                <div class="history-header">
+                    <div>
+                        <div class="history-title-row">
+                            <i data-lucide="history" class="icon-primary" aria-hidden="true"></i>
+                            <h2 id="changeHistoryViewTitle">Historial de cambios</h2>
+                            <span id="changeHistoryCount" class="badge-count badge-primary">0</span>
+                        </div>
+                        <p class="subtitle">Actividad y versiones de las solicitudes.</p>
+                    </div>
+                    <nav class="history-view-tabs" aria-label="Navegación del workspace">
+                        <button type="button" id="changeHistoryTabBoard" class="history-view-tab history-tab-board" aria-controls="mainContent">Gestión</button>
+                        <button type="button" id="changeHistoryTabRequests" class="history-view-tab" aria-controls="historyView">Solicitudes realizadas</button>
+                        <button type="button" id="changeHistoryTabChanges" class="history-view-tab" aria-controls="changeHistoryView" aria-current="page">Historial de cambios</button>
+                    </nav>
+                </div>
+
+                <section class="change-history-filter-panel" aria-labelledby="changeHistoryFiltersTitle">
+                    <div class="history-filter-heading">
+                        <div>
+                            <h3 id="changeHistoryFiltersTitle">Filtrar actividad</h3>
+                            <p>Busca cambios por solicitud, usuario, acción o fecha.</p>
+                        </div>
+                        <span id="changeHistoryResult" class="history-filter-result" aria-live="polite">0 cambios</span>
+                    </div>
+                    <div class="change-history-filters">
+                        <label class="history-search">
+                            <span>Buscar</span>
+                            <div class="history-search-control">
+                                <i data-lucide="search" aria-hidden="true"></i>
+                                <input type="search" id="changeHistorySearch" class="custom-input" placeholder="Solicitud, usuario o cambio..." aria-label="Buscar en el historial de cambios">
+                            </div>
+                        </label>
+                        <label class="history-field"><span>Usuario</span><select id="changeHistoryUser" class="history-select" aria-label="Filtrar por usuario"><option value="Todos">Todos</option></select></label>
+                        <label class="history-field"><span>Acción</span><select id="changeHistoryOperation" class="history-select" aria-label="Filtrar por acción"><option value="Todos">Todas</option><option value="INSERT">Creación</option><option value="UPDATE">Modificación</option><option value="DELETE">Eliminación</option></select></label>
+                        <details class="change-history-more-filters">
+                            <summary><i data-lucide="sliders-horizontal" aria-hidden="true"></i> Fechas</summary>
+                            <div class="change-history-date-fields">
+                                <label class="history-field"><span>Desde</span><input type="date" id="changeHistoryFrom" class="custom-input" aria-label="Filtrar cambios desde una fecha"></label>
+                                <label class="history-field"><span>Hasta</span><input type="date" id="changeHistoryTo" class="custom-input" aria-label="Filtrar cambios hasta una fecha"></label>
+                            </div>
+                        </details>
+                        <button type="button" id="clearChangeHistoryFilters" class="btn-text history-clear"><i data-lucide="x-circle" aria-hidden="true"></i> Limpiar</button>
+                    </div>
+                </section>
+
+                <div class="change-history-list-wrap">
+                    <div class="change-history-empty" id="changeHistoryEmpty" hidden>
+                        <i data-lucide="history" aria-hidden="true"></i>
+                        <strong>No hay cambios que mostrar</strong>
+                        <span>Cuando se registren cambios en las solicitudes aparecerán aquí.</span>
+                    </div>
+                    <div id="changeHistoryTableBody" class="change-history-list" role="list" aria-label="Lista general de cambios"></div>
+                    <div class="change-history-load-more-wrap" id="changeHistoryLoadMoreWrap" hidden>
+                        <button type="button" id="changeHistoryLoadMore" class="btn btn-secondary">
+                            <i data-lucide="chevrons-down" aria-hidden="true"></i> Cargar más cambios
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+    </div>
+
+    <!-- PANEL LATERAL DE NOTAS Y CHAT DE EQUIPO -->
+    <div id="notesPanelOverlay" class="notes-overlay"></div>
+    <div id="notesPanel" class="notes-panel">
+        <div class="notes-header">
+            <h2><i data-lucide="message-square" class="icon-primary"></i> Anotaciones del Equipo</h2>
+            <button type="button" id="btnCloseNotes" class="btn-icon" aria-label="Cerrar notas" title="Cerrar notas"><i data-lucide="x"></i></button>
+        </div>
+        <div class="notes-body" id="notesList">
+            <!-- Notas renderizadas dinámicamente aquí -->
+        </div>
+        <div class="notes-footer" style="position: relative;">
+            
+            <div id="emojiPickerWrapper" style="display: none; position: absolute; bottom: 100%; right: 20px; z-index: 10000; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
+                <emoji-picker class="light"></emoji-picker>
+            </div>
+
+            <form id="noteForm" style="display:flex; gap: 8px;">
+                <button type="button" id="btnToggleEmoji" class="btn-icon" title="Añadir Emoji" aria-label="Añadir Emoji" style="flex-shrink: 0; background: var(--bg-subtle);">
+                    <i data-lucide="smile"></i>
+                </button>
+                <input type="text" id="noteInput" name="team_chat_input_unique" autocomplete="off" spellcheck="false" class="custom-input" placeholder="Escribe un mensaje al equipo..." required>
+                <button type="submit" id="btnSendNote" class="btn-send-note" aria-label="Enviar"><i data-lucide="send"></i></button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Barra de cambios pendientes -->
+    <div id="unsavedChangesBar" class="unsaved-bar" role="region" aria-label="Cambios pendientes" aria-live="polite" aria-hidden="true" inert>
+        <div class="unsaved-bar-content">
+            <span class="unsaved-text">
+                <i data-lucide="alert-circle" aria-hidden="true"></i>
+                <span>Cambios sin guardar</span>
+            </span>
+            <div class="unsaved-actions">
+                <button type="button" id="btnUndo" class="btn btn-secondary">Deshacer</button>
+                <button type="button" id="btnSave" class="btn btn-success">Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nueva Tarea -->
+    <div id="modalTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTaskTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTaskTitle"><i data-lucide="file-plus" class="icon-primary"></i> Nueva Solicitud</h2>
+                <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="taskForm" class="task-form">
+                <div class="form-intro">
+                    <p>Registra la solicitud con la información mínima necesaria para que el equipo pueda gestionarla sin perder contexto.</p>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-heading">
+                        <span class="form-section-index">01</span>
+                        <div>
+                            <h3>Solicitud</h3>
+                            <p>Describe claramente qué necesita el solicitante.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="field full-width">
+                            <label for="taskName">Nombre de la solicitud <span class="required-mark" aria-hidden="true">*</span></label>
+                            <input type="text" id="taskName" name="taskName" class="custom-input" placeholder="Ej. Banner para redes — Jornada de Asistencia Técnica" maxlength="180" autocomplete="off" required aria-describedby="taskNameHelp">
+                            <div id="taskNameHelp" class="field-help"><span>Usa un título específico y fácil de identificar.</span><span id="taskNameCount">0/180</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-heading">
+                        <span class="form-section-index">02</span>
+                        <div>
+                            <h3>Personas y planificación</h3>
+                            <p>Define quién solicita, quién atiende y los tiempos.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="requesterSelect">Solicitante <span class="required-mark" aria-hidden="true">*</span></label>
+                            <select id="requesterSelect" name="requester" class="native-select-hidden" required></select>
+                        </div>
+                        <div class="field">
+                            <label for="assignee">Asignar a <span class="required-mark" aria-hidden="true">*</span></label>
+                            <select id="assignee" name="assignee" class="native-select-hidden" required></select>
+                        </div>
+                        <div class="field">
+                            <label id="dateReceived-label" for="dateReceived">Fecha de solicitud</label>
+                            <div class="input-with-icon">
+                                <i data-lucide="calendar" aria-hidden="true"></i>
+                                <input type="text" id="dateReceived" name="dateReceived" class="date-picker modal-date custom-input" placeholder="Seleccionar..." autocomplete="off" aria-describedby="dateReceivedHelp">
+                            </div>
+                            <div id="dateReceivedHelp" class="field-help">Si la dejas vacía, se usará hoy.</div>
+                        </div>
+                        <div class="field">
+                            <label id="dateDelivered-label" for="dateDelivered">Fecha de entrega esperada <span class="required-mark" aria-hidden="true">*</span></label>
+                            <div class="input-with-icon">
+                                <i data-lucide="calendar-check" aria-hidden="true"></i>
+                                <input type="text" id="dateDelivered" name="dateDelivered" class="date-picker modal-date custom-input" placeholder="Seleccionar..." autocomplete="off" required aria-describedby="dateDeliveredHelp">
+                            </div>
+                            <div id="dateDeliveredHelp" class="field-help">Debe ser igual o posterior a la fecha de solicitud.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-heading">
+                        <span class="form-section-index">03</span>
+                        <div>
+                            <h3>Contexto</h3>
+                            <p>Añade instrucciones o información que ayude a producir la pieza.</p>
+                        </div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="field full-width">
+                            <label for="taskNotes">Notas de la solicitud</label>
+                            <textarea id="taskNotes" name="taskNotes" class="custom-input task-notes-input" rows="4" maxlength="2000" placeholder="Añade contexto, instrucciones, referencias, formatos o enlaces..." autocomplete="off" aria-describedby="taskNotesHelp"></textarea>
+                            <div id="taskNotesHelp" class="field-help"><span>Opcional.</span><span id="taskNotesCount">0/2000</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <span class="form-required-note"><span class="required-mark" aria-hidden="true">*</span> Campo obligatorio</span>
+                    <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Añadir Solicitud</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Devolver para ajuste -->
+    <div id="modalAdjustment" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalAdjustmentTitle">
+        <div class="modal-content adjustment-modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalAdjustmentTitle"><i data-lucide="rotate-ccw" class="icon-primary"></i> Devolver para ajuste</h2>
+                    <p class="modal-subtitle">La solicitud volverá a gestión y se conservará el motivo del ajuste en sus notas.</p>
+                </div>
+                <button type="button" class="close-modal" aria-label="Cerrar devolución para ajuste"><i data-lucide="x"></i></button>
+            </div>
+            <form id="adjustmentForm" class="task-form">
+                <div class="adjustment-task-context">
+                    <span>Solicitud</span>
+                    <strong id="adjustmentTaskTitle"></strong>
+                </div>
+                <div class="field full-width">
+                    <label for="adjustmentReason">¿Qué ajuste solicitó el solicitante? <span class="required-mark" aria-hidden="true">*</span></label>
+                    <textarea id="adjustmentReason" name="adjustmentReason" class="custom-input task-notes-input" rows="5" maxlength="1000" required placeholder="Ej. Cambiar el título, actualizar la fecha y entregar una versión en formato vertical..." aria-describedby="adjustmentReasonHelp"></textarea>
+                    <div id="adjustmentReasonHelp" class="field-help"><span>Este motivo quedará registrado en las notas de la solicitud.</span><span id="adjustmentReasonCount">0/1000</span></div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i data-lucide="rotate-ccw"></i> Devolver a gestión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar entrega -->
+    <div id="modalDeliveryConfirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalDeliveryConfirmTitle" aria-describedby="modalDeliveryConfirmDescription">
+        <div class="modal-content delivery-confirm-modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalDeliveryConfirmTitle"><i data-lucide="check-circle-2" class="icon-primary"></i> Confirmar entrega</h2>
+                    <p class="modal-subtitle">La solicitud pasará a «Solicitudes realizadas» y quedará disponible para futuros ajustes.</p>
+                </div>
+                <button type="button" class="close-modal" aria-label="Cancelar entrega"><i data-lucide="x"></i></button>
+            </div>
+            <div class="delivery-confirm-body">
+                <div class="delivery-confirm-icon" aria-hidden="true"><i data-lucide="send"></i></div>
+                <p id="modalDeliveryConfirmDescription">¿Confirmas que esta solicitud ya está lista para entregar?</p>
+                <strong id="deliveryConfirmTaskTitle" class="delivery-confirm-task"></strong>
+                <div class="delivery-confirm-summary">
+                    <span><i data-lucide="calendar-check" aria-hidden="true"></i><span id="deliveryConfirmDate"></span></span>
+                    <span><i data-lucide="user" aria-hidden="true"></i><span id="deliveryConfirmAssignee"></span></span>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+                <button type="button" id="confirmDeliveryBtn" class="btn btn-success"><i data-lucide="check-circle-2" aria-hidden="true"></i> Confirmar entrega</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Tarea -->
+    <div id="modalEditTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalEditTaskTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalEditTaskTitle"><i data-lucide="edit-3" class="icon-primary"></i> Editar Solicitud</h2>
+                <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <form id="editTaskForm" class="task-form">
+                <input type="hidden" id="editTaskId" name="editTaskId">
+                <div class="form-grid">
+                    <div class="field full-width">
+                        <label for="editTaskName">Nombre de la solicitud</label>
+                        <input type="text" id="editTaskName" name="editTaskName" class="custom-input" required>
+                    </div>
+                    <div class="field">
+                        <label for="editRequesterSelect">Solicitante</label>
+                        <select id="editRequesterSelect" name="editRequester" class="native-select-hidden" required></select>
+                    </div>
+                    <div class="field">
+                        <label for="editDateReceived" id="editDateReceived-label">Fecha de recepción</label>
+                        <div class="input-with-icon">
+                            <i data-lucide="calendar"></i>
+                            <input type="text" id="editDateReceived" name="editDateReceived" class="date-picker modal-date custom-input" required>
+                        </div>
+                    </div>
+                    <div class="field full-width">
+                        <label for="editTaskNotes">Notas de la solicitud</label>
+                        <textarea id="editTaskNotes" name="editTaskNotes" class="custom-input task-notes-input" rows="4" placeholder="Añade contexto, instrucciones o referencias..." autocomplete="off"></textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Guardar Edición</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Equipo -->
+    <div id="modalTeam" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalTeamTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTeamTitle"><i data-lucide="users" class="icon-primary"></i> Gestión de Equipo</h2>
+                <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                    Los colaboradores deben existir como usuarios de acceso en Supabase. Aquí puedes gestionar el catálogo de personas disponibles para asignación.
+                </p>
+                <form id="addMemberForm" class="input-group">
+                    <label for="newMemberInput" class="visually-hidden">Nombre del colaborador</label>
+                    <input type="text" id="newMemberInput" name="memberName" class="custom-input" placeholder="Nombre del colaborador..." required>
+                    <button type="submit" id="addMemberBtn" class="btn btn-primary">Añadir</button>
+                </form>
+                <div id="membersList" class="members-tags"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Solicitantes -->
+    <div id="modalRequesters" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalReqTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalReqTitle"><i data-lucide="building-2" class="icon-primary"></i> Áreas Solicitantes</h2>
+                <button type="button" class="close-modal" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                <form id="addRequesterForm" class="input-group">
+                    <label for="newRequesterInput" class="visually-hidden">Nombre o área</label>
+                    <input type="text" id="newRequesterInput" name="requesterName" class="custom-input" placeholder="Nombre o área..." required>
+                    <button type="submit" id="addRequesterBtn" class="btn btn-primary">Añadir</button>
+                </form>
+                <div id="requestersList" class="members-tags"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Mi Perfil -->
+    <div id="modalProfile" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalProfileTitle">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h2 id="modalProfileTitle"><i data-lucide="user-cog" class="icon-primary"></i> Personalizar Perfil</h2>
+                <button type="button" class="close-modal" id="closeProfileModalBtn" aria-label="Cerrar modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="profile-controls">
+                
+                <div id="avatarPreviewContainer" style="text-align: center; margin-bottom: 10px;">
+                    <img id="previewAvatar" src="" alt="Previsualización de avatar" class="user-avatar" style="width: 80px; height: 80px; border-width: 3px;">
+                    <div style="margin-top: 8px;">
+                        <button type="button" id="btnRemoveAvatar" class="btn-text" style="color: var(--danger); font-size: 0.75rem;">
+                            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i> Eliminar foto
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="cropperWrapper" style="display: none; width: 100%; max-height: 350px; margin-bottom: 16px; text-align: center; border-radius: 8px; overflow: hidden;">
+                    <img id="cropperImage" src="" alt="Recortar imagen" style="max-width: 100%; max-height: 350px; display: block;">
+                </div>
+
+                <form id="profileForm" style="display: flex; flex-direction: column; gap: 16px;">
+                    
+                    <div class="field" style="border-bottom: 1px solid var(--border-light); padding-bottom: 16px;">
+                        <span id="colorPickerLabel" style="display:block; font-size:0.8rem; font-weight:600; color:var(--primary-cold); margin-bottom:8px;">Tu color de perfil exclusivo</span>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; margin-bottom: 12px;">Elige el color con el que verás tus tareas.</p>
+                        <div class="color-picker-group" id="colorPickerGroup" role="radiogroup" aria-labelledby="colorPickerLabel">
+                            <div class="color-swatch" data-color="#4f46e5" style="background-color: #4f46e5;" role="radio" aria-label="Color #4f46e5" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#2563eb" style="background-color: #2563eb;" role="radio" aria-label="Color #2563eb" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#0284c7" style="background-color: #0284c7;" role="radio" aria-label="Color #0284c7" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#0891b2" style="background-color: #0891b2;" role="radio" aria-label="Color #0891b2" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#0d9488" style="background-color: #0d9488;" role="radio" aria-label="Color #0d9488" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#059669" style="background-color: #059669;" role="radio" aria-label="Color #059669" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#16a34a" style="background-color: #16a34a;" role="radio" aria-label="Color #16a34a" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#84cc16" style="background-color: #84cc16;" role="radio" aria-label="Color #84cc16" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#f59e0b" style="background-color: #f59e0b;" role="radio" aria-label="Color #f59e0b" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#ea580c" style="background-color: #ea580c;" role="radio" aria-label="Color #ea580c" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#dc2626" style="background-color: #dc2626;" role="radio" aria-label="Color #dc2626" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#e11d48" style="background-color: #e11d48;" role="radio" aria-label="Color #e11d48" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#db2777" style="background-color: #db2777;" role="radio" aria-label="Color #db2777" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#c026d3" style="background-color: #c026d3;" role="radio" aria-label="Color #c026d3" tabindex="0"></div>
+                            <div class="color-swatch" data-color="#7c3aed" style="background-color: #7c3aed;" role="radio" aria-label="Color #7c3aed" tabindex="0"></div>
+                        </div>
+                    </div>
+
+                    <div class="field" id="fileFieldGroup">
+                        <label for="avatarFileInput">Subir foto desde tu PC</label>
+                        <input type="file" id="avatarFileInput" name="avatarFile" class="custom-input" accept="image/png, image/jpeg, image/webp">
+                    </div>
+                    
+                    <div id="urlDivider" style="text-align: center; color: var(--text-muted); font-size: 0.8rem; font-weight: 600;">O</div>
+                    
+                    <div class="field" id="urlFieldGroup">
+                        <label for="avatarUrlInput">Usar enlace (URL)</label>
+                        <input type="url" id="avatarUrlInput" name="avatarUrl" class="custom-input" placeholder="https://ejemplo.com/mifoto.jpg">
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 10px;">
+                        <button type="button" id="btnCancelCrop" class="btn btn-secondary" style="display: none; flex: 1; justify-content: center;">Cancelar Recorte</button>
+                        <button type="submit" id="btnSaveProfile" class="btn btn-primary" style="flex: 2; justify-content: center;">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/es.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
