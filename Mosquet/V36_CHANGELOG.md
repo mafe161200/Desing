@@ -1,14 +1,27 @@
-# Design Hub V36 — Stabilización
+# Design Hub V36 — Stabilization
 
-## Correcciones
-- Restauración protegida por `version` para evitar sobrescrituras silenciosas.
-- Acciones de ciclo de vida unificadas con la máquina de estados.
-- Persistencia de eventos y ajustes preparada mediante `task_events` y `task_adjustments`.
-- Filtro de vencidas basado en `due_at`/`dueAt`, no en fecha de entrega.
-- Persistencia de campos relacionales, timestamps y versión cuando el esquema los soporte.
-- Helper SQL para restauración atómica con concurrencia optimista.
-- Índices adicionales para historial y ajustes.
-- Estados de controles deshabilitados y foco de modales reforzados.
+## Cambios de esta entrega
 
-## Nota
-La autorización definitiva sigue dependiendo de las políticas RLS reales de Supabase. No se inventan políticas genéricas.
+- Se conserva la base funcional V36 actual sin reconstruir el proyecto desde versiones anteriores.
+- Se elimina del paquete el catálogo local `users.js` con credenciales de demostración; la autenticación vigente usa Supabase Auth + `public.profiles`.
+- Se consolidan las migraciones V34/V35 en `SUPABASE_V36_FINAL.sql`.
+- La restauración de historial usa concurrencia optimista cuando la tarea tiene `version`.
+- La restauración pasa la versión actual de la tarea como `expectedVersion`, evitando restauraciones que sobrescriban cambios posteriores.
+- Se mantiene `task_change_history` porque el frontend actual lo utiliza.
+- Se mantienen `task_events` y `task_adjustments` como entidades de auditoría/ciclo de vida.
+- Se conservan los estados y transiciones centralizados del frontend.
+- Se mantienen las mejoras actuales de accesibilidad y foco de modales.
+- Se añade una prueba de humo con Node.js para detectar regresiones estructurales del paquete.
+
+## Archivos retirados
+
+- `SUPABASE_V34_MIGRATION.sql`
+- `SUPABASE_V35_MIGRATION.sql`
+- `V35_CHANGELOG.md`
+- `supabase.sql`
+- `users.js`
+- `desktop.ini`
+
+## Nota de producción
+
+La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea policies genéricas que puedan conceder permisos incorrectos en una instancia real.

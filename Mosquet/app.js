@@ -642,14 +642,63 @@ const DataService = {
         }
     },
 
-    async restoreTaskVersion(taskId, snapshot) {
+    async restoreTaskVersion(taskId, snapshot, expectedVersion = null) {
         if (!supabaseClient || !taskId || !snapshot) return { cloudSaved: false };
+
         try {
-            const payload = { name:snapshot.name??'', requester:snapshot.requester??'', assignee:snapshot.assignee??'No asignado', status:snapshot.status??'En cola', dateReceived:snapshot.dateReceived??'', dateDelivered:snapshot.dateDelivered??'', isStarred:Boolean(snapshot.isStarred), notes:snapshot.notes??'' };
-            const { data, error } = await supabaseClient.from('tasks').update(payload).eq('id',taskId).select('id').single();
-            if(error) throw error;
-            return { cloudSaved:Boolean(data) };
-        } catch(error) { console.error('Supabase: no se pudo restaurar la versión.',error); return {cloudSaved:false,error}; }
+            const expectedVersion = Number(expectedVersion ?? snapshot.version);
+            const canUseOptimisticRestore = Number.isFinite(expectedVersion) && expectedVersion > 0;
+
+            // V36: la restauración debe respetar concurrencia optimista.
+            // La RPC aplica UPDATE ... WHERE id AND version dentro de PostgreSQL,
+            // evitando sobrescribir cambios hechos por otra sesión.
+            if (canUseOptimisticRestore) {
+                const { data, error } = await supabaseClient.rpc('design_hub_restore_task', {
+                    p_task_id: String(taskId),
+                    p_expected_version: expectedVersion,
+                    p_name: snapshot.name ?? '',
+                    p_requester: snapshot.requester ?? '',
+                    p_assignee: snapshot.assignee ?? 'No asignado',
+                    p_status: snapshot.status ?? 'En cola',
+                    p_date_received: snapshot.dateReceived ?? '',
+                    p_date_delivered: snapshot.dateDelivered ?? '',
+                    p_notes: snapshot.notes ?? ''
+                });
+
+                if (error) throw error;
+                return { cloudSaved: Array.isArray(data) ? data.length === 1 : Boolean(data), data };
+            }
+
+            // Compatibilidad temporal con instalaciones antiguas que todavía no
+            // tienen version. No se usa cuando la tarea ya expone version.
+            const payload = {
+                name: snapshot.name ?? '',
+                requester: snapshot.requester ?? '',
+                assignee: snapshot.assignee ?? 'No asignado',
+                status: snapshot.status ?? 'En cola',
+                dateReceived: snapshot.dateReceived ?? '',
+                dateDelivered: snapshot.dateDelivered ?? '',
+                isStarred: Boolean(snapshot.isStarred),
+                notes: snapshot.notes ?? ''
+            };
+            const { data, error } = await supabaseClient
+                .from('tasks')
+                .update(payload)
+                .eq('id', taskId)
+                .select('id')
+                .single();
+            if (error) throw error;
+            return { cloudSaved: Boolean(data), data };
+        } catch (error) {
+            const result = { cloudSaved: false, error };
+            if (error?.code === 'P0001' || String(error?.message || '').includes('DH_CONFLICT')) {
+                const conflict = new Error('La tarea cambió en otra sesión antes de restaurar esta versión.');
+                conflict.code = 'DH_CONFLICT';
+                return { ...result, error: conflict };
+            }
+            console.error('Supabase: no se pudo restaurar la versión.', error);
+            return result;
+        }
     },
 
     async recordTaskEvent(event) {
@@ -2836,10 +2885,14 @@ const App = {
                 if (!confirmed) return;
                 restore.disabled = true;
                 try {
-                    const result = await DataService.restoreTaskVersion(entry.task_id, before);
+                    const result = await DataService.restoreTaskVersion(entry.task_id, before, task.version);
                     if (!result?.cloudSaved) {
                         restore.disabled = false;
-                        UI.showToast('No se pudo restaurar el estado anterior.', 'error');
+                        if (result?.error?.code === 'DH_CONFLICT') {
+                            UI.showToast('La tarea cambió en otra sesión. Recarga el historial antes de volver a restaurar.', 'warning', 9000);
+                        } else {
+                            UI.showToast('No se pudo restaurar el estado anterior.', 'error');
+                        }
                         return;
                     }
                     closeViewer();
