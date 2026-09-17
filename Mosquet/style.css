@@ -4675,9 +4675,10 @@ html body div.flatpickr-calendar .flatpickr-day:focus-visible {
    y deja de quedar recortado por el contenedor con scroll. */
 .select-options-portal {
     position: fixed !important;
-    z-index: 20000 !important;
+    z-index: 11000 !important;
     box-sizing: border-box;
     margin: 0;
+    max-width: calc(100vw - 16px);
 }
 .select-options-portal.open {
     display: block !important;
@@ -6140,4 +6141,142 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
     }
     .task-table .status-switch-adjustment,
     .task-table .status-switch-completed { width: 100%; }
+}
+
+/* =========================================
+   V36.7 — Consolidación UX / flujo
+   ========================================= */
+.task-table .status-cell {
+    min-width: 218px;
+    padding-inline: 12px;
+}
+
+.task-table .actions-cell {
+    min-width: 118px;
+    padding-inline: 12px;
+}
+
+.task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) {
+    width: max-content;
+    max-width: 100%;
+}
+
+.task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) .status-switch-btn {
+    min-width: 78px;
+    padding-inline: 10px;
+    white-space: nowrap;
+}
+
+.task-table .status-switch-adjustment,
+.task-table .status-switch-completed {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: min(100%, 188px);
+    gap: 4px;
+    padding: 4px;
+}
+
+.task-table .status-switch-adjustment .status-switch-btn,
+.task-table .status-switch-completed .status-switch-btn {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+    padding-inline: 10px;
+    white-space: nowrap;
+}
+
+.task-table .status-switch-adjustment .status-switch-btn.is-current,
+.task-table .status-switch-completed .status-switch-btn.is-current {
+    cursor: default;
+}
+
+.task-table .status-switch-completed .status-switch-btn.is-reopen {
+    border-color: rgba(34, 211, 238, .28);
+}
+
+.task-table .status-switch-completed .status-switch-btn.is-reopen:hover,
+.task-table .status-switch-completed .status-switch-btn.is-reopen:focus-visible {
+    border-color: rgba(34, 211, 238, .55);
+    background: rgba(34, 211, 238, .08);
+    color: var(--accent-cyan, #22d3ee);
+}
+
+.req-date-line {
+    font-size: .72rem;
+}
+
+.req-date-deadline {
+    margin-top: 3px;
+}
+
+.workload-item.is-unassigned {
+    border-color: rgba(245, 158, 11, .38);
+    background: rgba(245, 158, 11, .055);
+}
+
+.workload-item.is-unassigned .workload-name,
+.workload-item.is-unassigned .workload-count {
+    color: #fbbf24;
+}
+
+@media (max-width: 900px) {
+    .task-table .status-cell,
+    .task-table .actions-cell {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 560px) {
+    .task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) {
+        width: 100%;
+    }
+
+    .task-table .status-switch:not(.status-switch-completed):not(.status-switch-adjustment) .status-switch-btn {
+        min-width: 0;
+        flex: 1 1 0;
+        padding-inline: 8px;
+        font-size: .7rem;
+    }
+
+    .task-table .status-switch-btn span {
+        display: inline;
+    }
+
+    .task-table .status-switch-adjustment,
+    .task-table .status-switch-completed {
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+
+/* =========================================================
+   DESIGN HUB V36.8 — SELECTS DEL FORMULARIO
+   ========================================================= */
+.task-form .select-wrapper,
+.task-form .select-trigger {
+    width: 100%;
+}
+
+.task-form .select-trigger {
+    min-height: 42px;
+}
+
+.select-options-portal {
+    z-index: 11000 !important;
+}
+
+.select-options-portal .select-option {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+@media (max-width: 560px) {
+    .select-options-portal {
+        max-width: calc(100vw - 16px);
+    }
 }

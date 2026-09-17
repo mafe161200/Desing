@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "36.6.0",
+  "version": "36.8.0",
   "private": true,
-  "description": "Design Hub V36.6 — workspace colaborativo",
+  "description": "Design Hub V36.7 — workspace colaborativo",
   "engines": {
     "node": ">=18"
   }

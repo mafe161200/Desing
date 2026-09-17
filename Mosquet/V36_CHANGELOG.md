@@ -101,3 +101,17 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 - KPI de atención con señal visual cuando tienen contenido.
 - `No asignado` priorizado visualmente en Carga de trabajo.
 - Sin cambios en Supabase ni SQL.
+
+
+## V36.7 — Saneamiento funcional y UX
+- Los eventos de ciclo de vida quedan pendientes hasta que el guardado de la tarea se confirma correctamente.
+- Archivo de entregas se limita a solicitudes con estado `Entregado`; las reabiertas regresan a Gestión.
+- Mis tareas usa “Rec.” y “Límite” para distinguir fechas.
+- Se refuerza la disposición y legibilidad del switch en escritorio y móvil.
+- **SQL: no requerido.**
+
+
+## V36.8 — Selectores del formulario de nueva solicitud
+- Los selectores personalizados de Solicitud y Asignación se renderizan como menús portaled al `body`, evitando recortes por modales/overflow.
+- Los menús se reconstruyen al abrir Nueva solicitud para mantener sincronizadas las opciones de solicitantes y colaboradores.
+- No requiere cambios SQL.

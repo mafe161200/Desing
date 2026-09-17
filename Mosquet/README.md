@@ -61,3 +61,18 @@
 - Los KPI con atención (ajustes, vencidas y prioridad) reciben una señal visual discreta y siguen siendo clicables.
 - `No asignado` aparece primero en Carga de trabajo cuando existe trabajo sin responsable y queda visualmente identificado.
 - No requiere cambios SQL.
+
+
+## V36.7 — Saneamiento funcional y UX
+
+- Los eventos de ciclo de vida se encolan mientras hay cambios sin guardar y se persisten después de confirmar el guardado, evitando eventos de auditoría huérfanos.
+- La vista Archivo de entregas muestra únicamente solicitudes actualmente entregadas; una solicitud reabierta vuelve a Gestión hasta que tenga una nueva entrega.
+- Las tarjetas de Mis tareas distinguen “Rec.” y “Límite” para evitar confundir la fecha límite con una fecha de entrega real.
+- Se refuerza el espacio de Estado y Acciones y se conserva el texto de los controles de estado en móvil.
+- No requiere cambios en Supabase ni ejecución de SQL.
+
+
+## V36.8 — Selectores del formulario de nueva solicitud
+- Los selectores personalizados de Solicitud y Asignación se renderizan como menús portaled al `body`, evitando recortes por modales/overflow.
+- Los menús se reconstruyen al abrir Nueva solicitud para mantener sincronizadas las opciones de solicitantes y colaboradores.
+- No requiere cambios SQL.

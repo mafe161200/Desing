@@ -1165,10 +1165,11 @@ function buildCustomSelects(container = document) {
         optionsDiv.dataset.triggerId = triggerId;
         optionsDiv.dataset.selectId = select.id;
 
-        // Los selectores dentro de la tabla se portan al body para evitar que
-        // overflow-x/scroll de la tabla los recorte o tape el bloque Archivo.
-        const isTableSelect = select.classList.contains('table-select');
-        if (isTableSelect) {
+        // Todos los selectores personalizados se portan al body. Así funcionan
+        // igual dentro de modales, tablas y paneles con overflow/scroll, sin quedar
+        // recortados por contenedores padres.
+        const shouldPortal = true;
+        if (shouldPortal) {
             optionsDiv.classList.add('select-options-portal');
             document.body.appendChild(optionsDiv);
         }
@@ -1241,7 +1242,7 @@ function buildCustomSelects(container = document) {
                 trigger.setAttribute('aria-expanded', 'false');
                 return;
             }
-            if (isTableSelect) positionPortal(trigger, optionsDiv);
+            if (shouldPortal) positionPortal(trigger, optionsDiv);
             optionsDiv.classList.add('open');
             trigger.classList.add('active');
             trigger.setAttribute('aria-expanded', 'true');
@@ -1304,6 +1305,7 @@ const App = {
     selectedTaskId: null,
     adjustmentTaskId: null,
     lifecycleRuntime: new Map(),
+    pendingLifecycleEvents: [],
     currentView: 'board',
     changeHistory: [],
     changeHistoryPageSize: 300,
@@ -1608,6 +1610,7 @@ const App = {
             return;
         }
 
+        await this.flushPendingLifecycleEvents();
         const freshTasks = await DataService.getTasks();
         this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
         this.tasks = JSON.parse(JSON.stringify(freshTasks));
@@ -1694,6 +1697,13 @@ const App = {
             const requesterSelect = document.getElementById('requesterSelect');
             const assigneeSelect = document.getElementById('assignee');
 
+            if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
+            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
+
+            // Recalcula los menús del formulario cada vez que se abre. Esto evita
+            // que una renderización previa deje triggers sin opciones o referencias
+            // antiguas, especialmente después de actualizar solicitantes/equipo.
+            buildCustomSelects(document.querySelector('#taskForm'));
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
             if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
 
@@ -2346,14 +2356,25 @@ const App = {
         this.lifecycleRuntime.set(id, current);
     },
 
-    async persistLifecycleEvent(taskId, type, metadata = {}) {
+    queueLifecycleEvent(taskId, type, metadata = {}) {
+        const id = String(taskId || '');
+        if (!id) return;
+        this.pendingLifecycleEvents.push({ task_id: id, type, metadata: { ...metadata } });
+    },
+
+    async flushPendingLifecycleEvents() {
+        if (!this.pendingLifecycleEvents.length) return;
         const actorId = this.user?.id || this.user?.user_id || null;
-        await DataService.recordTaskEvent({
-            task_id: taskId,
-            type,
-            actor_id: actorId,
-            metadata
-        });
+        const pending = [...this.pendingLifecycleEvents];
+        this.pendingLifecycleEvents = [];
+        for (const event of pending) {
+            await DataService.recordTaskEvent({
+                task_id: event.task_id,
+                type: event.type,
+                actor_id: actorId,
+                metadata: event.metadata
+            });
+        }
     },
 
     setTaskStatus(taskId, newStatus) {
@@ -2371,7 +2392,7 @@ const App = {
         task.updatedAt = new Date().toISOString();
         this.selectedTaskId = String(taskId);
         this.recordLifecycleEvent(taskId, 'status', { from: previousStatus, to: normalizedNewStatus });
-        this.persistLifecycleEvent(taskId, 'STATUS_CHANGED', { from: previousStatus, to: normalizedNewStatus });
+        this.queueLifecycleEvent(taskId, 'STATUS_CHANGED', { from: previousStatus, to: normalizedNewStatus });
         this.markAsUnsaved();
         this.renderBoard();
         return true;
@@ -2432,7 +2453,7 @@ const App = {
         task.delivered_at = `${today}T12:00:00`;
         if (!this.setTaskStatus(taskId, TASK_STATUS.DELIVERED)) return;
         this.recordLifecycleEvent(taskId, 'delivery');
-        this.persistLifecycleEvent(taskId, TASK_EVENT.DELIVERED, { delivered_at: task.delivered_at });
+        this.queueLifecycleEvent(taskId, TASK_EVENT.DELIVERED, { delivered_at: task.delivered_at });
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         modal?.classList.remove('active');
@@ -2471,7 +2492,7 @@ const App = {
         task.delivered_at = null;
         if (!this.setTaskStatus(taskId, TASK_STATUS.IN_PROGRESS)) return;
         this.recordLifecycleEvent(taskId, 'restore', { from: previousStatus, to: TASK_STATUS.IN_PROGRESS });
-        this.persistLifecycleEvent(taskId, TASK_EVENT.RESTORED, { from: previousStatus, to: TASK_STATUS.IN_PROGRESS, reason: 'reapertura manual' });
+        this.queueLifecycleEvent(taskId, TASK_EVENT.RESTORED, { from: previousStatus, to: TASK_STATUS.IN_PROGRESS, reason: 'reapertura manual' });
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         modal?.classList.remove('active');
@@ -2520,7 +2541,7 @@ const App = {
 
         if (!this.setTaskStatus(taskId, TASK_STATUS.ADJUSTMENT)) return;
         this.recordLifecycleEvent(taskId, 'adjustment');
-        this.persistLifecycleEvent(taskId, TASK_EVENT.ADJUSTMENT_REQUESTED, { reason: cleanReason });
+        this.queueLifecycleEvent(taskId, TASK_EVENT.ADJUSTMENT_REQUESTED, { reason: cleanReason });
         task.notes = previousNotes
             ? `${adjustmentNote}\n${previousNotes}`
             : adjustmentNote;
@@ -2538,7 +2559,7 @@ const App = {
         if (!task || task.status !== 'Ajuste solicitado') return;
 
         if (!this.setTaskStatus(taskId, TASK_STATUS.IN_PROGRESS)) return;
-        this.persistLifecycleEvent(taskId, TASK_EVENT.ADJUSTMENT_STARTED);
+        this.queueLifecycleEvent(taskId, TASK_EVENT.ADJUSTMENT_STARTED);
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         this.renderBoard();
@@ -3371,7 +3392,7 @@ const App = {
         };
 
         const allTasks = (Array.isArray(this.tasks) ? this.tasks : [])
-            .filter(task => this.getTaskLifecycle(task).deliveries > 0);
+            .filter(task => normalizeText(task.status) === 'Entregado');
 
         const filtered = allTasks
             .filter(task => {
@@ -4239,9 +4260,9 @@ const App = {
                         <span class="req-name-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                     </span>
                     <div class="req-dates">
-                        <span style="white-space: nowrap;">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
-                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
-                            <span class="${dateClass}" style="display:flex; align-items:center; white-space:nowrap;">E: <strong style="display:inline-flex; align-items:center; margin-left:4px;">${dateAlertIcon}${getTaskDeadline(t) ? getTaskDeadline(t).split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
+                        <span class="req-date-line" style="white-space: nowrap;">Rec.: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
+                        <div class="req-date-line req-date-deadline" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                            <span class="${dateClass}" style="display:flex; align-items:center; white-space:nowrap;">Límite: <strong style="display:inline-flex; align-items:center; margin-left:4px;">${dateAlertIcon}${getTaskDeadline(t) ? getTaskDeadline(t).split('-').reverse().join('/') : 'Seleccionar'}</strong></span>
                             ${overDueBadge}
                         </div>
                     </div>
