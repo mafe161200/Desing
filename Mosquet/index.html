@@ -461,7 +461,7 @@
         <div class="unsaved-bar-content">
             <span class="unsaved-text">
                 <i data-lucide="alert-circle" aria-hidden="true"></i>
-                <span>Cambios sin guardar</span>
+                <span id="unsavedChangesText">Cambios sin guardar</span>
             </span>
             <div class="unsaved-actions">
                 <button type="button" id="btnUndo" class="btn btn-secondary">Deshacer</button>
@@ -619,7 +619,7 @@
         <div class="modal-content reopen-task-modal">
             <div class="modal-header">
                 <div>
-                    <h2 id="modalReopenTaskTitle"><i data-lucide="undo-2" class="icon-primary"></i> Devolver a gestión</h2>
+                    <h2 id="modalReopenTaskTitle"><i data-lucide="undo-2" class="icon-primary"></i> Reabrir solicitud</h2>
                     <p class="modal-subtitle">La solicitud volverá a «En curso» sin perder su historial.</p>
                 </div>
                 <button type="button" class="close-modal" aria-label="Cancelar devolución a gestión"><i data-lucide="x"></i></button>
@@ -636,7 +636,7 @@
             </div>
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
-                <button type="button" id="confirmReopenBtn" class="btn btn-primary"><i data-lucide="undo-2" aria-hidden="true"></i> Devolver a gestión</button>
+                <button type="button" id="confirmReopenBtn" class="btn btn-primary"><i data-lucide="undo-2" aria-hidden="true"></i> Reabrir solicitud</button>
             </div>
         </div>
     </div>

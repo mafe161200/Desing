@@ -52,3 +52,25 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 ### Robustez
 - Se corrigió el guardado de valores `null` en campos opcionales para que `delivered_at` pueda limpiarse sin convertirlo en una cadena vacía.
 - Se corrigió la llamada de confirmación de entrega para usar el método de estado centralizado de `App`.
+
+
+## V36.3 — Flujo de producción y pulido operativo
+
+### UX/UI
+- Se conserva el switch contextual como interacción principal de estados.
+- `Ajuste solicitado` y `Entregado` pasan a disposición vertical para evitar que las acciones se monten entre sí.
+- En móvil las etiquetas de estado permanecen visibles.
+- Se elimina la fecha duplicada del control de fechas del tablero.
+- La acción de reapertura se presenta visualmente como **Reabrir**; el modal conserva la explicación completa de devolver la solicitud a gestión.
+
+### Funcionalidad
+- Corregidas las transiciones de ajuste para utilizar `this.setTaskStatus(...)`.
+- Reapertura conserva la fecha límite y limpia `delivered_at`.
+- Historial de entregas usa la fecha real `delivered_at` cuando está disponible.
+- Concurrencia optimista incorpora `due_at` y `delivered_at` en la comparación previa al guardado.
+- Los eventos de ciclo de vida se envían de forma best-effort a `task_events`.
+- El guardado muestra estado `Guardando…` y bloquea doble envío.
+
+### Validación
+- Se mantiene la base V36.2 como único punto de partida.
+- Se añade una prueba de regresión para el flujo de ajustes y la semántica de fechas.

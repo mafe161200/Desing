@@ -1560,12 +1560,22 @@ const App = {
     },
 
     async saveChanges() {
+        if (this.isSavingChanges) return;
+        this.isSavingChanges = true;
+        const saveButton = document.getElementById('btnSave');
+        const saveButtonLabel = saveButton?.textContent || 'Guardar cambios';
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.setAttribute('aria-busy', 'true');
+            saveButton.textContent = 'Guardando…';
+        }
+        try {
         // Control de concurrencia optimista: si Supabase cambió desde la última
         // carga, no sobrescribimos silenciosamente el trabajo de otro usuario.
         const cloudBeforeSave = await DataService.getTasks();
         const originalById = new Map(this.originalTasks.map(task => [String(task.id), task]));
         const cloudById = new Map(cloudBeforeSave.map(task => [String(task.id), task]));
-        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
+        const fields = ['name', 'requester', 'assignee', 'assignee_id', 'requester_id', 'status', 'dateReceived', 'dateDelivered', 'due_at', 'delivered_at', 'isStarred', 'notes'];
         const changedRemotely = cloudBeforeSave.some(cloudTask => {
             const original = originalById.get(String(cloudTask.id));
             if (!original) return false;
@@ -1610,6 +1620,14 @@ const App = {
         }
         UI.showToast('Cambios guardados con éxito', 'success');
         this.renderAll();
+        } finally {
+            this.isSavingChanges = false;
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.removeAttribute('aria-busy');
+                saveButton.textContent = saveButtonLabel;
+            }
+        }
     },
 
     undoChanges() {
@@ -2343,6 +2361,16 @@ const App = {
         this.lifecycleRuntime.set(id, current);
     },
 
+    async persistLifecycleEvent(taskId, type, metadata = {}) {
+        const actorId = this.user?.id || this.user?.user_id || null;
+        await DataService.recordTaskEvent({
+            task_id: taskId,
+            type,
+            actor_id: actorId,
+            metadata
+        });
+    },
+
     setTaskStatus(taskId, newStatus) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task) return;
@@ -2358,6 +2386,7 @@ const App = {
         task.updatedAt = new Date().toISOString();
         this.selectedTaskId = String(taskId);
         this.recordLifecycleEvent(taskId, 'status', { from: previousStatus, to: normalizedNewStatus });
+        this.persistLifecycleEvent(taskId, 'STATUS_CHANGED', { from: previousStatus, to: normalizedNewStatus });
         this.markAsUnsaved();
         this.renderBoard();
         return true;
@@ -2418,6 +2447,7 @@ const App = {
         task.delivered_at = `${today}T12:00:00`;
         if (!this.setTaskStatus(taskId, TASK_STATUS.DELIVERED)) return;
         this.recordLifecycleEvent(taskId, 'delivery');
+        this.persistLifecycleEvent(taskId, TASK_EVENT.DELIVERED, { delivered_at: task.delivered_at });
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         modal?.classList.remove('active');
@@ -2456,6 +2486,7 @@ const App = {
         task.delivered_at = null;
         if (!this.setTaskStatus(taskId, TASK_STATUS.IN_PROGRESS)) return;
         this.recordLifecycleEvent(taskId, 'restore', { from: previousStatus, to: TASK_STATUS.IN_PROGRESS });
+        this.persistLifecycleEvent(taskId, TASK_EVENT.RESTORED, { from: previousStatus, to: TASK_STATUS.IN_PROGRESS, reason: 'reapertura manual' });
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         modal?.classList.remove('active');
@@ -2502,8 +2533,9 @@ const App = {
         const adjustmentNote = `[AJUSTE SOLICITADO — ${stamp} — ${author}] ${cleanReason}`;
         const previousNotes = normalizeText(task.notes);
 
-        if (!setTaskStatus(task, TASK_STATUS.ADJUSTMENT)) return;
+        if (!this.setTaskStatus(taskId, TASK_STATUS.ADJUSTMENT)) return;
         this.recordLifecycleEvent(taskId, 'adjustment');
+        this.persistLifecycleEvent(taskId, TASK_EVENT.ADJUSTMENT_REQUESTED, { reason: cleanReason });
         task.notes = previousNotes
             ? `${adjustmentNote}\n${previousNotes}`
             : adjustmentNote;
@@ -2520,7 +2552,8 @@ const App = {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task || task.status !== 'Ajuste solicitado') return;
 
-        if (!setTaskStatus(task, TASK_STATUS.IN_PROGRESS)) return;
+        if (!this.setTaskStatus(taskId, TASK_STATUS.IN_PROGRESS)) return;
+        this.persistLifecycleEvent(taskId, TASK_EVENT.ADJUSTMENT_STARTED);
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         this.renderBoard();
@@ -3446,8 +3479,9 @@ const App = {
             receivedCell.textContent = formatTaskDate(task.dateReceived);
 
             const deliveryCell = document.createElement('td');
-            deliveryCell.textContent = task.dateDelivered
-                ? `${formatTaskDate(task.dateDelivered)} · Entrega ${Math.max(1, lifecycle.deliveries)}`
+            const actualDeliveryDate = getTaskDeliveredDate(task);
+            deliveryCell.textContent = actualDeliveryDate
+                ? `${formatTaskDate(actualDeliveryDate)} · Entrega ${Math.max(1, lifecycle.deliveries)}`
                 : '—';
 
             const statusCell = document.createElement('td');
@@ -4255,7 +4289,7 @@ const App = {
                 ],
                 'Entregado': [
                     ['Entregado', 'Entregada', 'check-circle-2'],
-                    ['__REOPEN__', 'Devolver a gestión', 'undo-2']
+                    ['__REOPEN__', 'Reabrir', 'undo-2']
                 ]
             };
             const actionsForStatus = statusActions[t.status] || statusActions['En cola'];
@@ -4263,7 +4297,7 @@ const App = {
                 ${actionsForStatus.map(([value, label, icon], index) => {
                     const isCurrent = value === t.status;
                     const isReopen = value === '__REOPEN__';
-                    const actionLabel = isReopen ? 'Devolver a gestión' : label;
+                    const actionLabel = isReopen ? 'Reabrir solicitud y devolver a gestión' : label;
                     return `<button type="button" class="status-switch-btn ${isCurrent ? 'is-current' : ''} ${isReopen ? 'is-reopen' : ''}" data-action="${isReopen ? 'reopen-task' : 'set-status'}" data-task-id="${taskId}" data-status="${isReopen ? '' : escapeHTML(value)}" aria-label="${escapeHTML(actionLabel)}" title="${escapeHTML(actionLabel)}" ${isCurrent ? 'aria-current="true"' : ''}><i data-lucide="${icon}" aria-hidden="true"></i><span>${escapeHTML(label)}</span></button>`;
                 }).join('')}
             </div>`;
@@ -4292,7 +4326,6 @@ const App = {
                         <span class="date-label date-label-primary">${t.status === 'Entregado' ? 'Entregada' : 'Fecha límite'}</span>
                         <input type="text" id="delivery-date-${taskId}" name="delivery-date-${taskId}" class="inline-date-picker ${dateClass}" data-id="${taskId}" aria-label="${t.status === 'Entregado' ? 'Fecha de entrega' : 'Cambiar fecha límite'}" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar" ${t.status === 'Entregado' ? 'disabled' : ''}>
                     </div>
-                    <span class="delivery-date-meta ${dateClass}">${boardDate ? escapeHTML(this.formatBusinessDate(boardDate)) : 'Sin fecha'}</span>
                 </td>
                 <td class="status-cell" data-label="Estado">${statusButtons}</td>
                 <td class="actions-cell" data-label="Acciones">
