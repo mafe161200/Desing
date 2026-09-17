@@ -4987,3 +4987,236 @@ section.history-view[hidden] {
     .workspace-tab,
     .workload-item-interactive { transition: none; }
 }
+
+/* =========================================================
+   DESIGN HUB V34 — ROBUSTEZ UX / ACCESIBILIDAD / FECHAS
+   ========================================================= */
+
+.delivery-confirm-modal {
+    max-width: 620px;
+}
+
+.delivery-confirm-body {
+    display: grid;
+    gap: 12px;
+    padding: 6px 0 8px;
+}
+
+.delivery-confirm-icon {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--success, #22c55e) 12%, transparent);
+    color: var(--success, #22c55e);
+}
+
+.delivery-confirm-task {
+    display: block;
+    font-size: 1rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.delivery-confirm-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    padding: 12px 14px;
+    border: 1px solid var(--border, #20334e);
+    border-radius: 12px;
+    background: var(--bg-subtle, rgba(255,255,255,.02));
+    color: var(--text-muted);
+    font-size: .78rem;
+}
+
+.delivery-confirm-summary span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.delivery-date-meta {
+    display: block;
+    margin-top: 4px;
+    font-size: .68rem;
+    line-height: 1.25;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.delivery-date-meta.text-danger {
+    color: var(--danger, #ef4444);
+}
+
+.delivery-date-meta.text-warning {
+    color: var(--warning, #f59e0b);
+}
+
+.modal-overlay[role="dialog"]:focus,
+.modal-content:focus {
+    outline: none;
+}
+
+@media (max-width: 760px) {
+    .delivery-confirm-summary {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .delivery-confirm-modal,
+    .delivery-confirm-icon {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ---------- Historial por solicitud ---------- */
+.task-timeline-card {
+    width: min(720px, calc(100vw - 28px));
+    max-height: min(82vh, 760px);
+    overflow: hidden;
+    background: var(--bg-card, #0d1728);
+    border: 1px solid var(--border, #20334e);
+    border-radius: 18px;
+    box-shadow: 0 24px 70px rgba(0,0,0,.42);
+    display: flex;
+    flex-direction: column;
+}
+
+.task-timeline-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px 22px 16px;
+    border-bottom: 1px solid var(--border, #20334e);
+}
+
+.task-timeline-header h2 {
+    margin: 0;
+}
+
+.task-timeline-subtitle {
+    margin: 6px 0 0;
+    color: var(--text-muted);
+    font-size: .8rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.task-timeline-body {
+    overflow: auto;
+    padding: 18px 22px 24px;
+}
+
+.task-timeline-list {
+    position: relative;
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 22px;
+}
+
+.task-timeline-list::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: var(--border, #20334e);
+}
+
+.task-timeline-event {
+    position: relative;
+    padding: 0 0 20px 16px;
+}
+
+.task-timeline-event:last-child {
+    padding-bottom: 0;
+}
+
+.task-timeline-marker {
+    position: absolute;
+    left: -1px;
+    top: 5px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid var(--bg-card, #0d1728);
+    background: var(--text-muted, #60748f);
+    box-shadow: 0 0 0 1px var(--border, #20334e);
+}
+
+.event-delivery .task-timeline-marker { background: var(--success, #22c55e); }
+.event-adjustment .task-timeline-marker { background: var(--warning, #f59e0b); }
+.event-started .task-timeline-marker { background: var(--primary-cold, #22d3ee); }
+.event-assignment .task-timeline-marker { background: #8b5cf6; }
+.event-deleted .task-timeline-marker { background: var(--danger, #ef4444); }
+
+.task-timeline-content {
+    min-width: 0;
+}
+
+.task-timeline-event-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.task-timeline-event-header strong {
+    font-size: .82rem;
+}
+
+.task-timeline-event-header time {
+    color: var(--text-muted);
+    font-size: .68rem;
+    white-space: nowrap;
+}
+
+.task-timeline-actor {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: .7rem;
+}
+
+.task-timeline-detail {
+    margin: 7px 0 0;
+    padding: 9px 11px;
+    border-left: 2px solid var(--border, #20334e);
+    color: var(--text-secondary, #9fb0c7);
+    background: var(--bg-subtle, rgba(255,255,255,.025));
+    border-radius: 0 8px 8px 0;
+    font-size: .74rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.task-timeline-empty {
+    margin: 10px 0;
+    color: var(--text-muted);
+    text-align: center;
+    font-size: .82rem;
+}
+
+@media (max-width: 560px) {
+    .task-timeline-card {
+        width: calc(100vw - 18px);
+        max-height: 88vh;
+    }
+    .task-timeline-header,
+    .task-timeline-body {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    .task-timeline-event-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+    }
+}

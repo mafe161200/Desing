@@ -41,6 +41,29 @@ const clearLegacyLocalData = () => {
 
 const normalizeText = (value) => String(value ?? '').trim();
 
+// Normaliza una tarea recibida desde Supabase/Realtime. Mantiene los campos
+// opcionales de control de concurrencia cuando la base de datos ya dispone
+// de ellos, sin romper instalaciones anteriores de Design Hub.
+const normalizeTask = (task) => {
+    const source = task && typeof task === 'object' ? task : {};
+    const normalized = {
+        ...source,
+        id: source.id ?? createId(),
+        name: normalizeText(source.name),
+        requester: normalizeText(source.requester),
+        assignee: normalizeText(source.assignee) || 'No asignado',
+        status: normalizeText(source.status) || 'En cola',
+        dateReceived: normalizeText(source.dateReceived),
+        dateDelivered: normalizeText(source.dateDelivered),
+        isStarred: Boolean(source.isStarred),
+        notes: normalizeText(source.notes)
+    };
+    if (source.version !== undefined && source.version !== null) normalized.version = Number(source.version) || 1;
+    if (source.updated_at !== undefined) normalized.updated_at = source.updated_at;
+    if (source.updated_by !== undefined) normalized.updated_by = source.updated_by;
+    return normalized;
+};
+
 // Fechas de negocio: se interpretan siempre en hora local para evitar
 // desplazamientos por UTC al comparar valores YYYY-MM-DD.
 const parseLocalDate = (value) => {
@@ -190,11 +213,70 @@ class UI {
             txt.textContent = 'En línea (Nube)';
         } else {
             el.classList.remove('online');
-            txt.textContent = 'Modo Local';
+            txt.textContent = 'Sin conexión';
             if (errMessage) console.error("Conexión rechazada:", errMessage);
         }
     }
 }
+
+// ----------------------------------------------------------------------
+// GESTOR GLOBAL DE MODALES / FOCO
+// ----------------------------------------------------------------------
+const ModalManager = {
+    initialized: false,
+    states: new WeakMap(),
+
+    init() {
+        if (this.initialized || !document.body) return;
+        this.initialized = true;
+
+        const captureState = (overlay) => {
+            if (this.states.has(overlay)) return;
+            const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            this.states.set(overlay, { previousFocus });
+            window.requestAnimationFrame(() => {
+                if (!overlay.classList.contains('active')) return;
+                const focusable = this.getFocusable(overlay);
+                (focusable[0] || overlay.querySelector('.modal-content') || overlay).focus?.({ preventScroll: true });
+            });
+        };
+
+        const observer = new MutationObserver((records) => {
+            records.forEach(record => {
+                if (record.type !== 'attributes' || record.attributeName !== 'class') return;
+                const overlay = record.target;
+                if (!(overlay instanceof HTMLElement) || !overlay.classList.contains('modal-overlay')) return;
+                const wasActive = record.oldValue?.includes('active');
+                const isActive = overlay.classList.contains('active');
+                if (!wasActive && isActive) captureState(overlay);
+                if (wasActive && !isActive) {
+                    const state = this.states.get(overlay);
+                    this.states.delete(overlay);
+                    if (state?.previousFocus?.isConnected) state.previousFocus.focus({ preventScroll: true });
+                }
+            });
+        });
+        observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], attributeOldValue: true });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Tab') return;
+            const overlays = [...document.querySelectorAll('.modal-overlay.active')];
+            const overlay = overlays.at(-1);
+            if (!overlay) return;
+            const focusable = this.getFocusable(overlay);
+            if (!focusable.length) { event.preventDefault(); return; }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+        }, true);
+    },
+
+    getFocusable(root) {
+        return [...root.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+            .filter(el => el.offsetParent !== null || el === document.activeElement);
+    }
+};
 
 // ----------------------------------------------------------------------
 // SERVICIO DE NOTIFICACIONES (Clean Architecture)
@@ -280,7 +362,7 @@ const DataService = {
         try {
             const { data, error } = await supabaseClient
                 .from('profiles')
-                .select('id, username, email, name, role, avatar, theme, created_at')
+                .select('id, username, name, role, avatar, theme, created_at')
                 .order('username', { ascending: true });
 
             if (error) {
@@ -292,8 +374,7 @@ const DataService = {
             return (data || []).map(profile => ({
                 id: profile.id,
                 username: normalizeUsername(profile.username),
-                email: normalizeText(profile.email),
-                name: normalizeText(profile.name),
+                                name: normalizeText(profile.name),
                 role: profile.role === 'admin' ? 'admin' : 'editor',
                 avatar: sanitizeAvatarUrl(profile.avatar),
                 theme: sanitizeThemeColor(profile.theme),
@@ -312,7 +393,7 @@ const DataService = {
         try {
             const { data, error } = await supabaseClient
                 .from('profiles')
-                .select('id, username, email, name, role, avatar, theme, created_at')
+                .select('id, username, name, role, avatar, theme, created_at')
                 .eq('id', authId)
                 .maybeSingle();
 
@@ -326,8 +407,7 @@ const DataService = {
             return {
                 id: data.id,
                 username: normalizeUsername(data.username),
-                email: normalizeText(data.email),
-                name: normalizeText(data.name),
+                                name: normalizeText(data.name),
                 role: data.role === 'admin' ? 'admin' : 'editor',
                 avatar: sanitizeAvatarUrl(data.avatar),
                 theme: sanitizeThemeColor(data.theme),
@@ -384,7 +464,7 @@ const DataService = {
             }
 
             UI.updateConnectionStatus(true);
-            return Array.isArray(data) ? data : [];
+            return Array.isArray(data) ? data.map(normalizeTask) : [];
         } catch (error) {
             UI.updateConnectionStatus(false, error.message);
             console.error('Supabase: error cargando tareas.', error);
@@ -433,26 +513,42 @@ const DataService = {
             }
 
             for (const task of updated) {
-                const { data, error } = await supabaseClient
+                const oldTask = byId.get(String(task.id));
+                let query = supabaseClient
                     .from('tasks')
                     .update(buildPayload(task))
-                    .eq('id', task.id)
-                    .select('id');
+                    .eq('id', task.id);
+
+                // Si la tabla ya tiene version, la actualización queda protegida
+                // contra sobrescrituras entre usuarios. En instalaciones V33 sin
+                // esta columna, se conserva el comportamiento anterior.
+                const hasVersion = oldTask?.version !== undefined && oldTask?.version !== null;
+                if (hasVersion) query = query.eq('version', Number(oldTask.version));
+
+                const { data, error } = await query.select(hasVersion ? 'id, version, updated_at' : 'id');
                 if (error) throw error;
                 if (!data || data.length !== 1) {
-                    throw new Error(`Supabase no confirmó la actualización de la tarea ${task.id}.`);
+                    const conflict = new Error(`La tarea ${task.id} cambió en otra sesión antes de guardar.`);
+                    conflict.code = 'DH_CONFLICT';
+                    throw conflict;
                 }
             }
 
             for (const task of deleted) {
-                const { data, error } = await supabaseClient
+                const oldTask = byId.get(String(task.id));
+                let query = supabaseClient
                     .from('tasks')
                     .delete()
-                    .eq('id', task.id)
-                    .select('id');
+                    .eq('id', task.id);
+                const hasVersion = oldTask?.version !== undefined && oldTask?.version !== null;
+                if (hasVersion) query = query.eq('version', Number(oldTask.version));
+
+                const { data, error } = await query.select('id');
                 if (error) throw error;
                 if (!data || data.length !== 1) {
-                    throw new Error(`Supabase no confirmó la eliminación de la tarea ${task.id}.`);
+                    const conflict = new Error(`La tarea ${task.id} cambió en otra sesión antes de eliminarse.`);
+                    conflict.code = 'DH_CONFLICT';
+                    throw conflict;
                 }
             }
 
@@ -486,6 +582,24 @@ const DataService = {
         }
     },
 
+    async getTaskChangeHistory(taskId, limit = 1000) {
+        if (!supabaseClient || !taskId) return [];
+        try {
+            const safeLimit = Math.max(1, Math.min(Number(limit) || 1000, 2000));
+            const { data, error } = await supabaseClient
+                .from('task_change_history')
+                .select('id, task_id, operation, before_data, after_data, changed_by, created_at')
+                .eq('task_id', taskId)
+                .order('created_at', { ascending: true })
+                .limit(safeLimit);
+            if (error) throw error;
+            return Array.isArray(data) ? data : [];
+        } catch (error) {
+            console.error('Supabase: no se pudo cargar la trazabilidad de la solicitud.', error);
+            return [];
+        }
+    },
+
     async restoreTaskVersion(taskId, snapshot) {
         if (!supabaseClient || !taskId || !snapshot) return { cloudSaved: false };
         try {
@@ -503,14 +617,15 @@ const DataService = {
             const { data, error } = await supabaseClient
                 .from('notes')
                 .select('*')
-                .order('created_at', { ascending: true });
+                .order('created_at', { ascending: false })
+                .limit(100);
 
             if (error) {
                 console.error('Supabase: no se pudieron cargar las notas.', error);
                 return [];
             }
 
-            return Array.isArray(data) ? data : [];
+            return Array.isArray(data) ? data.reverse() : [];
         } catch (error) {
             console.error('Supabase: error cargando notas.', error);
             return [];
@@ -1073,6 +1188,7 @@ const App = {
 
     async init() {
         clearLegacyLocalData();
+        ModalManager.init();
         this.user = await AuthService.getUser();
         
         if (!this.user) {
@@ -1319,7 +1435,10 @@ const App = {
         const changedRemotely = cloudBeforeSave.some(cloudTask => {
             const original = originalById.get(String(cloudTask.id));
             if (!original) return false;
-            return fields.some(field => String(cloudTask[field] ?? '') !== String(original[field] ?? ''));
+            const fieldsChanged = fields.some(field => String(cloudTask[field] ?? '') !== String(original[field] ?? ''));
+            const versionChanged = cloudTask.version !== undefined && original.version !== undefined
+                && Number(cloudTask.version) !== Number(original.version);
+            return fieldsChanged || versionChanged;
         }) || this.originalTasks.some(original => !cloudById.has(String(original.id)));
 
         if (changedRemotely) {
@@ -1337,7 +1456,11 @@ const App = {
             if (Array.isArray(recoveredTasks) && recoveredTasks.length) {
                 this.originalTasks = JSON.parse(JSON.stringify(recoveredTasks));
             }
-            UI.showToast(`No se pudieron guardar todos los cambios${detail}`, 'error', 7000);
+            if (result.error?.code === 'DH_CONFLICT') {
+                UI.showToast('Otra persona modificó una solicitud mientras trabajabas. Tus cambios no se sobrescribieron.', 'warning', 9000);
+            } else {
+                UI.showToast(`No se pudieron guardar todos los cambios${detail}`, 'error', 7000);
+            }
             return;
         }
 
@@ -1469,6 +1592,11 @@ const App = {
                     if (overlay?.id === 'modalAdjustment') this.adjustmentTaskId = null;
                 });
             }
+        });
+
+        document.getElementById('confirmDeliveryBtn')?.addEventListener('click', () => {
+            const taskId = document.getElementById('modalDeliveryConfirm')?.dataset.taskId;
+            if (taskId) this.confirmTaskDelivery(taskId);
         });
 
         const adjustmentForm = document.getElementById('adjustmentForm');
@@ -1636,19 +1764,39 @@ const App = {
 
         document.getElementById('editTaskForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            const id = document.getElementById('editTaskId').value;
+            const editForm = document.getElementById('editTaskForm');
+            const nameInput = document.getElementById('editTaskName');
+            const requesterInput = document.getElementById('editRequesterSelect');
+            const receivedInput = document.getElementById('editDateReceived');
+            const nameRaw = normalizeText(nameInput?.value);
+            const requesterRaw = normalizeText(requesterInput?.value);
+            const receivedRaw = normalizeText(receivedInput?.value);
+            const taskIdInput = document.getElementById('editTaskId');
+
+            nameInput?.setCustomValidity(nameRaw.length < 3 ? 'Escribe un título de al menos 3 caracteres.' : '');
+            requesterInput?.setCustomValidity(requesterRaw ? '' : 'Selecciona un solicitante.');
+            receivedInput?.setCustomValidity(receivedRaw ? '' : 'Indica la fecha de recepción.');
+
+            if (!editForm.checkValidity()) {
+                editForm.reportValidity();
+                return;
+            }
+
+            const id = taskIdInput.value;
             const task = this.tasks.find(t => t.id === id);
             
             if (task) {
                 const newRecDate = normalizeText(document.getElementById('editDateReceived').value);
                 
                 if (task.dateDelivered && isDateBefore(task.dateDelivered, newRecDate)) {
-                    UI.showToast("La solicitud no puede superar la entrega.", "error"); 
+                    receivedInput.setCustomValidity('La fecha de recepción no puede ser posterior a la fecha de entrega.');
+                    editForm.reportValidity();
                     return;
                 }
+                receivedInput.setCustomValidity('');
 
-                task.name = normalizeText(document.getElementById('editTaskName').value);
-                task.requester = normalizeText(document.getElementById('editRequesterSelect').value);
+                task.name = nameRaw;
+                task.requester = requesterRaw;
                 task.dateReceived = newRecDate;
                 task.notes = normalizeText(document.getElementById('editTaskNotes')?.value);
                 
@@ -1755,7 +1903,7 @@ const App = {
 
                 case 'set-status':
                     if (taskId) {
-                        this.handleTaskStatusAction(taskId, target.dataset.status);
+                        this.handleTaskStatusAction(taskId, target.dataset.status, target);
                     }
                     break;
 
@@ -1773,6 +1921,10 @@ const App = {
 
                 case 'view-task-notes':
                     if (taskId) this.openTaskNotes(taskId);
+                    break;
+
+                case 'view-task-history':
+                    if (taskId) this.openTaskTimeline(taskId, target);
                     break;
 
                 case 'edit-task':
@@ -2023,22 +2175,12 @@ const App = {
         this.renderBoard();
     },
 
-    handleTaskStatusAction(taskId, newStatus) {
+    handleTaskStatusAction(taskId, newStatus, sourceButton = null) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task) return;
 
         if (newStatus === 'Entregado') {
-            const confirmed = window.confirm('¿Confirmas que deseas entregar esta tarea? Quedará en Solicitudes realizadas y podrá recibir ajustes posteriormente.');
-            if (!confirmed) return;
-            const task = this.tasks.find(t => String(t.id) === String(taskId));
-            if (task) {
-                const now = new Date();
-                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                task.dateDelivered = today;
-                this.recordLifecycleEvent(taskId, 'delivery');
-            }
-            this.setTaskStatus(taskId, 'Entregado');
-            UI.showToast('Tarea entregada y enviada a Solicitudes realizadas', 'success');
+            this.openDeliveryConfirmation(taskId, sourceButton);
             return;
         }
 
@@ -2051,6 +2193,48 @@ const App = {
                     : 'Tarea devuelta a En cola',
             'info'
         );
+    },
+
+    openDeliveryConfirmation(taskId, sourceButton = null) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        const modal = document.getElementById('modalDeliveryConfirm');
+        if (!task || !modal) return;
+
+        const title = document.getElementById('deliveryConfirmTaskTitle');
+        const date = document.getElementById('deliveryConfirmDate');
+        const assignee = document.getElementById('deliveryConfirmAssignee');
+        const confirmButton = document.getElementById('confirmDeliveryBtn');
+
+        if (title) title.textContent = normalizeText(task.name);
+        if (date) date.textContent = task.dateDelivered ? this.formatBusinessDate(task.dateDelivered) : 'Se registrará hoy';
+        if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
+
+        modal.dataset.taskId = String(taskId);
+        if (sourceButton instanceof HTMLElement && sourceButton.id) {
+            modal.dataset.sourceButtonId = sourceButton.id;
+        } else {
+            delete modal.dataset.sourceButtonId;
+        }
+        if (confirmButton) confirmButton.dataset.taskId = String(taskId);
+        modal.classList.add('active');
+        lucide.createIcons();
+    },
+
+    confirmTaskDelivery(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        const modal = document.getElementById('modalDeliveryConfirm');
+        if (!task) return;
+
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        task.dateDelivered = today;
+        task.status = 'Entregado';
+        this.recordLifecycleEvent(taskId, 'delivery');
+        this.selectedTaskId = String(taskId);
+        this.markAsUnsaved();
+        modal?.classList.remove('active');
+        this.renderBoard();
+        UI.showToast('Entrega confirmada. Guarda los cambios para sincronizarla.', 'success');
     },
 
     requestTaskAdjustment(taskId) {
@@ -2380,7 +2564,7 @@ const App = {
             this.renderHistory();
         });
 
-        window.addEventListener('hashchange', () => this.applyViewFromHash());
+        window.addEventListener('popstate', () => this.applyViewFromHash());
     },
 
     setupChangeHistoryView() {
@@ -3091,6 +3275,7 @@ const App = {
     renderDropdowns() {
         const buildOptions = (select, options, placeholder, emptyOption = false) => {
             if (!select) return;
+            const currentValue = select.value;
             const fragment = document.createDocumentFragment();
 
             if (placeholder) {
@@ -3110,6 +3295,9 @@ const App = {
             });
 
             select.replaceChildren(fragment);
+            if ([...select.options].some(option => option.value === currentValue)) {
+                select.value = currentValue;
+            }
         };
 
         ['assignee', 'filterAssignee'].forEach(id => {
@@ -3275,6 +3463,135 @@ const App = {
         }
     },
 
+    async openTaskTimeline(taskId, sourceButton = null) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task) return;
+
+        const entries = await DataService.getTaskChangeHistory(taskId);
+        const existing = document.getElementById('taskTimelineDialog');
+        existing?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'taskTimelineDialog';
+        overlay.className = 'modal-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'taskTimelineTitle');
+
+        const card = document.createElement('div');
+        card.className = 'task-timeline-card';
+
+        const header = document.createElement('div');
+        header.className = 'task-timeline-header';
+        const titleWrap = document.createElement('div');
+        const title = document.createElement('h2');
+        title.id = 'taskTimelineTitle';
+        title.textContent = 'Historial de la solicitud';
+        const subtitle = document.createElement('p');
+        subtitle.className = 'task-timeline-subtitle';
+        subtitle.textContent = normalizeText(task.name);
+        titleWrap.append(title, subtitle);
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'btn-icon';
+        close.setAttribute('aria-label', 'Cerrar historial de la solicitud');
+        close.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
+        header.append(titleWrap, close);
+
+        const body = document.createElement('div');
+        body.className = 'task-timeline-body';
+        const events = [];
+        let deliveryNumber = 0;
+        let adjustmentNumber = 0;
+
+        const parse = value => this.parseChangeHistoryData(value);
+        const actorName = entry => {
+            const user = (this.usersList || []).find(u => String(u.id) === String(entry.changed_by));
+            return normalizeText(user?.name || user?.username || 'Usuario');
+        };
+        const addEvent = (entry, kind, label, detail = '') => events.push({ entry, kind, label, detail, actor: actorName(entry) });
+
+        entries.forEach(entry => {
+            const before = parse(entry.before_data);
+            const after = parse(entry.after_data);
+            const beforeStatus = normalizeText(before.status);
+            const afterStatus = normalizeText(after.status);
+            if (entry.operation === 'INSERT') {
+                addEvent(entry, 'created', 'Solicitud creada');
+                return;
+            }
+            if (entry.operation === 'DELETE') {
+                addEvent(entry, 'deleted', 'Solicitud eliminada');
+                return;
+            }
+            if (afterStatus === 'Entregado' && beforeStatus !== 'Entregado') {
+                deliveryNumber += 1;
+                addEvent(entry, 'delivery', `Entrega #${deliveryNumber}`);
+            } else if (afterStatus === 'Ajuste solicitado' && beforeStatus !== 'Ajuste solicitado') {
+                adjustmentNumber += 1;
+                const reason = this.getLatestAdjustmentReason({ notes: after.notes });
+                addEvent(entry, 'adjustment', `Ajuste #${adjustmentNumber}`, reason);
+            } else if (afterStatus === 'En curso' && beforeStatus !== 'En curso') {
+                addEvent(entry, 'started', 'Trabajo iniciado');
+            } else if (String(before.assignee ?? '') !== String(after.assignee ?? '')) {
+                const assignee = normalizeText(after.assignee) || 'No asignado';
+                addEvent(entry, 'assignment', 'Asignación actualizada', `Responsable: ${assignee}`);
+            } else {
+                addEvent(entry, 'update', 'Solicitud actualizada');
+            }
+        });
+
+        if (!events.length) {
+            const empty = document.createElement('p');
+            empty.className = 'task-timeline-empty';
+            empty.textContent = 'Todavía no hay eventos históricos disponibles para esta solicitud.';
+            body.appendChild(empty);
+        } else {
+            const list = document.createElement('ol');
+            list.className = 'task-timeline-list';
+            events.forEach(event => {
+                const item = document.createElement('li');
+                item.className = `task-timeline-event event-${event.kind}`;
+                const marker = document.createElement('span');
+                marker.className = 'task-timeline-marker';
+                marker.setAttribute('aria-hidden', 'true');
+                const content = document.createElement('div');
+                content.className = 'task-timeline-content';
+                const eventHeader = document.createElement('div');
+                eventHeader.className = 'task-timeline-event-header';
+                const label = document.createElement('strong');
+                label.textContent = event.label;
+                const date = document.createElement('time');
+                date.dateTime = event.entry.created_at || '';
+                date.textContent = this.formatChangeHistoryDate(event.entry.created_at);
+                eventHeader.append(label, date);
+                const meta = document.createElement('span');
+                meta.className = 'task-timeline-actor';
+                meta.textContent = event.actor;
+                content.append(eventHeader, meta);
+                if (event.detail) {
+                    const detail = document.createElement('p');
+                    detail.className = 'task-timeline-detail';
+                    detail.textContent = event.detail;
+                    content.appendChild(detail);
+                }
+                item.append(marker, content);
+                list.appendChild(item);
+            });
+            body.appendChild(list);
+        }
+
+        card.append(header, body);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        lucide.createIcons();
+
+        close.addEventListener('click', () => overlay.classList.remove('active'));
+        overlay.addEventListener('click', event => { if (event.target === overlay) overlay.classList.remove('active'); });
+        overlay.dataset.sourceButtonId = sourceButton?.id || '';
+        overlay.classList.add('active');
+    },
+
     openTaskNotes(taskId) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         if (!task) return;
@@ -3384,6 +3701,21 @@ const App = {
             const target = row.querySelector('.req-title-text') || row.querySelector('button, input, select');
             target?.focus({ preventScroll: true });
         }, 80);
+    },
+
+    formatBusinessDate(value) {
+        const normalized = normalizeText(value);
+        if (!normalized) return 'Sin fecha';
+        const date = parseLocalDate(normalized);
+        if (!date) return normalized;
+        const formatted = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
+        const diff = Math.round((date.getTime() - today.getTime()) / 86400000);
+        if (diff === 0) return `${formatted} · HOY`;
+        if (diff === 1) return `${formatted} · MAÑANA`;
+        if (diff < 0) return `${formatted} · VENCIDA ${Math.abs(diff)} día${Math.abs(diff) === 1 ? '' : 's'}`;
+        return formatted;
     },
 
     renderBoard() {
@@ -3679,11 +4011,13 @@ const App = {
                 <td class="date-info" data-label="Fechas (Rec - Ent)">
                     <span class="date-req">R: ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
                     <input type="text" id="delivery-date-${escapeHTML(t.id)}" name="delivery-date-${escapeHTML(t.id)}" class="inline-date-picker ${dateClass}" data-id="${escapeHTML(t.id)}" aria-label="Cambiar fecha de entrega" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar">
+                    <span class="delivery-date-meta ${dateClass}">${t.dateDelivered ? escapeHTML(this.formatBusinessDate(t.dateDelivered)) : 'Sin fecha de entrega'}</span>
                 </td>
                 <td class="status-cell" data-label="Estado">${statusButtons}</td>
                 <td class="actions-cell" data-label="Acciones">
                     <div class="action-buttons">
                         <button type="button" class="btn-icon task-notes-button ${t.notes ? 'has-notes' : ''}" aria-label="${t.notes ? 'Ver notas de la solicitud' : 'Ver notas de la solicitud (sin notas)'}" title="${t.notes ? 'Ver notas' : 'Sin notas'}" data-action="view-task-notes" data-task-id="${escapeHTML(t.id)}"><i data-lucide="message-square-text" aria-hidden="true"></i>${t.notes ? '<span class="task-notes-dot" aria-hidden="true"></span>' : ''}</button>
+                        <button type="button" class="btn-icon" aria-label="Ver historial de la solicitud" title="Ver historial" data-action="view-task-history" data-task-id="${escapeHTML(t.id)}"><i data-lucide="history" aria-hidden="true"></i></button>
                         <button type="button" class="btn-icon edit" aria-label="Editar tarea" title="Editar tarea" data-action="edit-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="edit-3" aria-hidden="true"></i></button>
                         <button type="button" class="btn-icon delete" aria-label="Eliminar tarea" title="Eliminar tarea" data-action="delete-task" data-task-id="${escapeHTML(t.id)}"><i data-lucide="trash-2" aria-hidden="true"></i></button>
                     </div>

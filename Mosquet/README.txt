@@ -1,44 +1,37 @@
-DESIGN HUB V31
+DESIGN HUB V34
 
-Versión basada exclusivamente en Design Hub V29.
+Versión basada exclusivamente en Design Hub V33.
 
-V31 refina la navegación y el historial general de cambios sin alterar la lógica principal de Gestión ni la trazabilidad de Solicitudes realizadas.
+V34 mantiene la interfaz y el flujo de trabajo de V33 y refuerza la robustez de la aplicación sin introducir una nueva navegación ni sobrecargar el dashboard.
 
-Cambios principales:
-- Navegación conjunta entre Solicitudes realizadas e Historial de cambios.
-- Historial de cambios con el mismo ancho de la vista de gestión.
-- Tipografía y densidad visual reducidas para mostrar más actividad en menos espacio.
-- Categorías de auditoría: Creación, Cambio de estado, Asignación, Cambio de fecha, Ajuste solicitado, Modificación y Eliminación.
-- El nombre de la solicitud se obtiene preferentemente del snapshot histórico, no solo del registro actual.
-- Filtros de fecha normalizados a la fecha local mostrada por la interfaz.
-- Filtro de usuario por ID interno, manteniendo el nombre visible.
-- Contador que distingue cambios registrados y solicitudes afectadas.
-- Carga incremental del historial cuando supera el primer bloque de registros.
-- Detalle de cambio accesible con foco controlado, Escape y retorno del foco al botón de origen.
-- Restauración renombrada como “Restaurar estado anterior” y presentada como acción secundaria.
-- Fechas de campos de tareas formateadas de manera consistente en el detalle.
-- Eliminado user-scalable=no del viewport para permitir zoom accesible.
-- Etiquetado explícito del campo de fecha de recepción en edición.
-- Mantiene la trazabilidad de entregas y ajustes de Solicitudes realizadas.
+MEJORAS V34
+- Confirmación accesible antes de marcar una solicitud como Entregada.
+- Gestor global de foco para los modales: foco inicial, navegación por Tab y retorno al control que abrió el diálogo.
+- Navegación Back/Forward del navegador corregida mediante popstate.
+- Filtro de estado incluye explícitamente En cola.
+- Los filtros principales conservan su selección cuando se reconstruyen los dropdowns.
+- Edición de solicitudes con validación consistente de título, solicitante y fecha.
+- Fechas de entrega muestran contexto HOY, MAÑANA o VENCIDA cuando corresponde.
+- Estado de conexión corregido: cuando Supabase no está disponible se muestra “Sin conexión”, no “Modo Local”.
+- Normalización de tareas recibidas por Realtime añadida para evitar referencias a una función inexistente.
+- Consultas de perfiles reducidas a los campos que necesita el frontend.
+- Notas del equipo limitadas a las 100 más recientes para evitar crecimiento indefinido de la consulta; se mantienen en orden cronológico visual.
+- Protección de concurrencia compatible con columna opcional `version`: si la instancia la tiene, las actualizaciones/eliminaciones se condicionan a la versión leída.
+- Mensaje específico ante conflicto de edición entre usuarios.
+- Se eliminó la referencia a una contraseña ficticia en Gestión de Equipo; el catálogo de miembros no crea cuentas de Supabase Auth.
 
-Validación V30:
+ARQUITECTURA / BACKEND
+- Se incluye `SUPABASE_V34_MIGRATION.sql` como migración opcional para añadir control de versión y preparar eventos de auditoría.
+- La migración no modifica ni elimina políticas RLS existentes automáticamente.
+- La autorización real debe continuar residiendo en RLS / funciones de Supabase, no en controles visuales del navegador.
+- No se inventa un esquema de RLS porque la instancia real de Supabase no fue entregada como SQL en este proyecto.
+
+VALIDACIÓN
 - app.js: node --check OK.
-- IDs HTML duplicados: ninguno.
-- ZIP íntegro: OK.
+- IDs HTML duplicados: debe ser ninguno.
+- ZIP: se valida con unzip -t.
+- Se revisan referencias a funciones y elementos críticos mediante búsquedas estáticas.
+- No se afirma una prueba E2E completa contra Supabase porque no se dispone de un navegador automatizado ni de un entorno de base de datos de prueba de la instancia real.
 
-Nota técnica:
-La persistencia transaccional/RPC y la validación definitiva de RLS de Supabase requieren el esquema SQL real de la instancia y no se inventan en esta versión.
-
-
-V31 — ajustes adicionales:
-- Eliminado el acceso contextual duplicado a Solicitudes realizadas al final de Gestión.
-- Archivo queda como único acceso desde la gestión; se eliminaron flechas redundantes del menú.
-- Solicitudes realizadas e Historial de cambios se mantienen como vistas hermanas mediante pestañas.
-- Dropdowns de asignación de la tabla se renderizan sobre el body para evitar recortes por overflow y solapamiento con Archivo.
-- Dropdowns personalizados mejorados con semántica combobox/listbox, aria-expanded, aria-selected y navegación por teclado.
-- Distribución de columnas de Gestión ajustada para dar más espacio a la solicitud.
-- Historial general compactado para reducir densidad vertical y espacio vacío.
-- Fechas de Solicitudes realizadas normalizadas para evitar mostrar timestamps ISO como texto.
-- Entrega mostrada como “Entrega 1”, “Entrega 2”, etc.
-- Eliminada la restricción accidental del viewport que podía dificultar el zoom.
-- Eliminado confirm() genérico para borrar solicitudes y reemplazado por diálogo accesible con foco controlado.
+NOTA
+Para activar el control de concurrencia de V34 en Supabase debe aplicarse la migración SQL incluida y comprobar las políticas RLS de la instancia antes de producción.

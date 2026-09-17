@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://npmcdn.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://gbltrfqxohrmkopanghx.supabase.co wss://gbltrfqxohrmkopanghx.supabase.co; worker-src 'self' blob:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://gbltrfqxohrmkopanghx.supabase.co wss://gbltrfqxohrmkopanghx.supabase.co; worker-src 'self' blob:;">
     <title>Design Hub | Plataforma Colaborativa</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%234f46e5%27/%3E%3Ctext x=%2732%27 y=%2744%27 text-anchor=%27middle%27 font-size=%2738%27 font-family=%27Georgia%27 font-style=%27italic%27 fill=%27white%27%3ED%3C/text%3E%3C/svg%3E">
         
@@ -199,7 +199,8 @@
                         <div class="inline-filter-item">
                             <select id="filterStatus" name="filterStatus" class="native-select-hidden" aria-label="Filtrar por estado">
                                 <option value="Todos">Estado: Todos</option>
-                                    <option value="En curso">En curso</option>
+                                    <option value="En cola">En cola</option>
+                                <option value="En curso">En curso</option>
                                 <option value="Ajuste solicitado">Ajuste solicitado</option>
                             </select>
                         </div>
@@ -316,6 +317,7 @@
                         <span>Estado</span>
                         <select id="historyStatus" class="history-select" aria-label="Filtrar por estado">
                             <option value="Todos">Todos</option>
+                            <option value="En cola">En cola</option>
                             <option value="En curso">En curso</option>
                             <option value="Ajuste solicitado">Ajuste solicitado</option>
                             <option value="Entregado">Entregado</option>
@@ -571,6 +573,32 @@
         </div>
     </div>
 
+    <!-- Modal Confirmar entrega -->
+    <div id="modalDeliveryConfirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalDeliveryConfirmTitle" aria-describedby="modalDeliveryConfirmDescription">
+        <div class="modal-content delivery-confirm-modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalDeliveryConfirmTitle"><i data-lucide="check-circle-2" class="icon-primary"></i> Confirmar entrega</h2>
+                    <p class="modal-subtitle">La solicitud pasará a «Solicitudes realizadas» y quedará disponible para futuros ajustes.</p>
+                </div>
+                <button type="button" class="close-modal" aria-label="Cancelar entrega"><i data-lucide="x"></i></button>
+            </div>
+            <div class="delivery-confirm-body">
+                <div class="delivery-confirm-icon" aria-hidden="true"><i data-lucide="send"></i></div>
+                <p id="modalDeliveryConfirmDescription">¿Confirmas que esta solicitud ya está lista para entregar?</p>
+                <strong id="deliveryConfirmTaskTitle" class="delivery-confirm-task"></strong>
+                <div class="delivery-confirm-summary">
+                    <span><i data-lucide="calendar-check" aria-hidden="true"></i><span id="deliveryConfirmDate"></span></span>
+                    <span><i data-lucide="user" aria-hidden="true"></i><span id="deliveryConfirmAssignee"></span></span>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+                <button type="button" id="confirmDeliveryBtn" class="btn btn-success"><i data-lucide="check-circle-2" aria-hidden="true"></i> Confirmar entrega</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Editar Tarea -->
     <div id="modalEditTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalEditTaskTitle">
         <div class="modal-content">
@@ -617,7 +645,7 @@
             </div>
             <div class="profile-controls">
                 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
-                    Contraseña por defecto al añadir: <strong>Nombre_DH2026!</strong>
+                    Los colaboradores deben existir como usuarios de acceso en Supabase. Aquí puedes gestionar el catálogo de personas disponibles para asignación.
                 </p>
                 <form id="addMemberForm" class="input-group">
                     <label for="newMemberInput" class="visually-hidden">Nombre del colaborador</label>
