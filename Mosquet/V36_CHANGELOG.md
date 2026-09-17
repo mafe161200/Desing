@@ -35,3 +35,20 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 - “No asignado” conservado como filtro accionable desde Carga de Trabajo.
 - Semántica visual de fechas: Recibida / Fecha límite / Entregada.
 - Separación de `due_at` y `delivered_at` cuando están disponibles.
+
+
+## V36.2 — Switch de estado y reapertura segura
+
+### UX/UI
+- Restaurado el control de estado tipo switch/segmentado en la tabla.
+- Se eliminó el desplegable de estado de las filas para reducir pasos y mejorar la lectura rápida.
+- El switch usa acciones contextuales según el estado actual y conserva iconos, color y foco visible.
+
+### Flujo de producción
+- `Entregado` ahora permite `Devolver a gestión` mediante confirmación.
+- La reapertura lleva la tarea a `En curso`, conserva `due_at`/fecha límite y elimina `delivered_at`.
+- La entrega anterior no se borra del historial: el trigger de `task_change_history` registra el UPDATE y el cambio de estado.
+
+### Robustez
+- Se corrigió el guardado de valores `null` en campos opcionales para que `delivered_at` pueda limpiarse sin convertirlo en una cadena vacía.
+- Se corrigió la llamada de confirmación de entrega para usar el método de estado centralizado de `App`.

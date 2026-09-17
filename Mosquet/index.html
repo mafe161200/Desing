@@ -614,6 +614,33 @@
         </div>
     </div>
 
+    <!-- Modal Devolver a gestión -->
+    <div id="modalReopenTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalReopenTaskTitle" aria-describedby="modalReopenTaskDescription">
+        <div class="modal-content reopen-task-modal">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalReopenTaskTitle"><i data-lucide="undo-2" class="icon-primary"></i> Devolver a gestión</h2>
+                    <p class="modal-subtitle">La solicitud volverá a «En curso» sin perder su historial.</p>
+                </div>
+                <button type="button" class="close-modal" aria-label="Cancelar devolución a gestión"><i data-lucide="x"></i></button>
+            </div>
+            <div class="reopen-task-body">
+                <div class="reopen-task-icon" aria-hidden="true"><i data-lucide="undo-2"></i></div>
+                <p id="modalReopenTaskDescription">¿Quieres reabrir esta solicitud porque se finalizó por error?</p>
+                <strong id="reopenTaskTitle" class="reopen-task-title"></strong>
+                <div class="reopen-task-summary">
+                    <span><i data-lucide="calendar-clock" aria-hidden="true"></i><span><small>Fecha límite</small><strong id="reopenTaskDeadline"></strong></span></span>
+                    <span><i data-lucide="user" aria-hidden="true"></i><span><small>Responsable</small><strong id="reopenTaskAssignee"></strong></span></span>
+                </div>
+                <p class="reopen-task-note"><i data-lucide="info" aria-hidden="true"></i> La entrega anterior quedará registrada en el historial. La fecha límite se conservará.</p>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+                <button type="button" id="confirmReopenBtn" class="btn btn-primary"><i data-lucide="undo-2" aria-hidden="true"></i> Devolver a gestión</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Editar Tarea -->
     <div id="modalEditTask" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modalEditTaskTitle">
         <div class="modal-content">

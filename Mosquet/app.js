@@ -382,7 +382,7 @@ const TASK_STATUS_TRANSITIONS = Object.freeze({
     [TASK_STATUS.QUEUED]: Object.freeze([TASK_STATUS.IN_PROGRESS]),
     [TASK_STATUS.IN_PROGRESS]: Object.freeze([TASK_STATUS.DELIVERED, TASK_STATUS.QUEUED]),
     [TASK_STATUS.ADJUSTMENT]: Object.freeze([TASK_STATUS.IN_PROGRESS]),
-    [TASK_STATUS.DELIVERED]: Object.freeze([TASK_STATUS.ADJUSTMENT])
+    [TASK_STATUS.DELIVERED]: Object.freeze([TASK_STATUS.ADJUSTMENT, TASK_STATUS.IN_PROGRESS])
 });
 
 const TASK_EVENT = Object.freeze({
@@ -544,6 +544,10 @@ const DataService = {
                 const value = task[field];
                 const optional = ['assignee_id','requester_id','due_at','delivered_at'].includes(field);
                 if (optional && value === undefined) return;
+                if (optional && value === null) {
+                    payload[field] = null;
+                    return;
+                }
                 payload[field] = value ?? (field === 'isStarred' ? false : '');
             });
             return payload;
@@ -1729,6 +1733,11 @@ const App = {
             if (taskId) this.confirmTaskDelivery(taskId);
         });
 
+        document.getElementById('confirmReopenBtn')?.addEventListener('click', () => {
+            const taskId = document.getElementById('modalReopenTask')?.dataset.taskId;
+            if (taskId) this.confirmTaskReopen(taskId);
+        });
+
         const adjustmentForm = document.getElementById('adjustmentForm');
         const adjustmentReason = document.getElementById('adjustmentReason');
         const adjustmentCounter = document.getElementById('adjustmentReasonCount');
@@ -2089,6 +2098,10 @@ const App = {
                     if (taskId) this.openDeleteConfirmation(taskId, target);
                     break;
 
+                case 'reopen-task':
+                    if (taskId) this.openReopenConfirmation(taskId, target);
+                    break;
+
                 default:
                     break;
             }
@@ -2115,8 +2128,8 @@ const App = {
                     break;
 
                 case 'set-status': {
-                    const selectedStatus = target.value;
-                    const currentStatus = target.dataset.currentStatus || this.tasks.find(t => String(t.id) === String(taskId))?.status;
+                    const selectedStatus = target.dataset.status;
+                    const currentStatus = this.tasks.find(t => String(t.id) === String(taskId))?.status;
                     if (!taskId || !selectedStatus) break;
                     if (selectedStatus === 'Ajuste solicitado') {
                         this.requestTaskAdjustment(taskId);
@@ -2125,10 +2138,6 @@ const App = {
                     } else {
                         this.handleTaskStatusAction(taskId, selectedStatus, target);
                     }
-                    window.setTimeout(() => {
-                        const task = this.tasks.find(t => String(t.id) === String(taskId));
-                        if (task) updateCustomSelectUI(target, task.status);
-                    }, 0);
                     break;
                 }
 
@@ -2407,13 +2416,51 @@ const App = {
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         task.delivered_at = `${today}T12:00:00`;
-        if (!setTaskStatus(task, TASK_STATUS.DELIVERED)) return;
+        if (!this.setTaskStatus(taskId, TASK_STATUS.DELIVERED)) return;
         this.recordLifecycleEvent(taskId, 'delivery');
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         modal?.classList.remove('active');
         this.renderBoard();
         UI.showToast('Entrega confirmada. Guarda los cambios para sincronizarla.', 'success');
+    },
+
+    openReopenConfirmation(taskId, sourceButton = null) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        const modal = document.getElementById('modalReopenTask');
+        if (!task || task.status !== TASK_STATUS.DELIVERED || !modal) return;
+
+        const title = document.getElementById('reopenTaskTitle');
+        const deadline = document.getElementById('reopenTaskDeadline');
+        const assignee = document.getElementById('reopenTaskAssignee');
+        if (title) title.textContent = normalizeText(task.name);
+        if (deadline) deadline.textContent = getTaskDeadline(task) ? this.formatBusinessDate(getTaskDeadline(task)) : 'Sin fecha límite';
+        if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
+
+        modal.dataset.taskId = String(taskId);
+        if (sourceButton instanceof HTMLElement && sourceButton.id) {
+            modal.dataset.sourceButtonId = sourceButton.id;
+        } else {
+            delete modal.dataset.sourceButtonId;
+        }
+        modal.classList.add('active');
+        lucide.createIcons();
+    },
+
+    confirmTaskReopen(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        const modal = document.getElementById('modalReopenTask');
+        if (!task || task.status !== TASK_STATUS.DELIVERED) return;
+
+        const previousStatus = task.status;
+        task.delivered_at = null;
+        if (!this.setTaskStatus(taskId, TASK_STATUS.IN_PROGRESS)) return;
+        this.recordLifecycleEvent(taskId, 'restore', { from: previousStatus, to: TASK_STATUS.IN_PROGRESS });
+        this.selectedTaskId = String(taskId);
+        this.markAsUnsaved();
+        modal?.classList.remove('active');
+        this.renderBoard();
+        UI.showToast('Solicitud devuelta a gestión. Quedó En curso y conserva su fecha límite.', 'success', 7000);
     },
 
     requestTaskAdjustment(taskId) {
@@ -4186,35 +4233,40 @@ const App = {
             
             const taskId = escapeHTML(t.id);
             const taskNameEscaped = escapeHTML(t.name);
-            const statusOptions = {
-                'En cola': [
-                    ['En cola', 'En cola'],
-                    ['En curso', 'En curso']
-                ],
-                'En curso': [
-                    ['En curso', 'En curso'],
-                    ['En cola', 'En cola'],
-                    ['Entregado', 'Entregar']
-                ],
-                'Ajuste solicitado': [
-                    ['Ajuste solicitado', 'Ajuste solicitado'],
-                    ['En curso', 'Iniciar ajuste']
-                ],
-                'Entregado': [
-                    ['Entregado', 'Entregada'],
-                    ['Ajuste solicitado', 'Solicitar ajuste']
-                ]
-            };
-            const optionsForStatus = statusOptions[t.status] || statusOptions['En cola'];
             const statusClass = {
                 'En cola': 'status-select-queue',
                 'En curso': 'status-select-progress',
                 'Ajuste solicitado': 'status-select-adjustment',
                 'Entregado': 'status-select-completed'
             }[t.status] || 'status-select-queue';
-            const statusButtons = `<select class="native-select-hidden table-select table-status-select ${statusClass}" data-action="set-status" data-task-id="${taskId}" data-current-status="${escapeHTML(t.status)}" aria-label="Cambiar estado de ${taskNameEscaped}">
-                ${optionsForStatus.map(([value, label]) => `<option value="${escapeHTML(value)}"${value === t.status ? ' selected' : ''}>${escapeHTML(label)}</option>`).join('')}
-            </select>`;
+            const statusActions = {
+                'En cola': [
+                    ['En cola', 'En cola', 'pause-circle'],
+                    ['En curso', 'En curso', 'play-circle']
+                ],
+                'En curso': [
+                    ['En cola', 'En cola', 'pause-circle'],
+                    ['En curso', 'En curso', 'play-circle'],
+                    ['Entregado', 'Entregar', 'check-circle-2']
+                ],
+                'Ajuste solicitado': [
+                    ['Ajuste solicitado', 'Ajuste solicitado', 'message-square-warning'],
+                    ['En curso', 'Iniciar ajuste', 'play']
+                ],
+                'Entregado': [
+                    ['Entregado', 'Entregada', 'check-circle-2'],
+                    ['__REOPEN__', 'Devolver a gestión', 'undo-2']
+                ]
+            };
+            const actionsForStatus = statusActions[t.status] || statusActions['En cola'];
+            const statusButtons = `<div class="status-switch status-switch-${statusClass.replace('status-select-', '')}" role="group" aria-label="Acciones de estado para ${taskNameEscaped}">
+                ${actionsForStatus.map(([value, label, icon], index) => {
+                    const isCurrent = value === t.status;
+                    const isReopen = value === '__REOPEN__';
+                    const actionLabel = isReopen ? 'Devolver a gestión' : label;
+                    return `<button type="button" class="status-switch-btn ${isCurrent ? 'is-current' : ''} ${isReopen ? 'is-reopen' : ''}" data-action="${isReopen ? 'reopen-task' : 'set-status'}" data-task-id="${taskId}" data-status="${isReopen ? '' : escapeHTML(value)}" aria-label="${escapeHTML(actionLabel)}" title="${escapeHTML(actionLabel)}" ${isCurrent ? 'aria-current="true"' : ''}><i data-lucide="${icon}" aria-hidden="true"></i><span>${escapeHTML(label)}</span></button>`;
+                }).join('')}
+            </div>`;
 
             tr.innerHTML = `
                 <td data-label="Solicitud">
