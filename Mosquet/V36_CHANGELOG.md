@@ -157,3 +157,23 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 - Se pulieron los botones `Solicitar ajuste` y `Devolver al flujo`.
 - El texto del Archivo aclara sus acciones disponibles.
 - No se modificó SQL.
+
+## V37.4 — Jerarquía de atención y contraste
+
+- Se reforzó el contraste de fechas límite que requieren atención.
+- `Para Hoy` ahora utiliza un fondo ámbar sutil con texto de mayor contraste.
+- `No asignado` conserva el ámbar como señal de atención, con menor intensidad que una fecha urgente.
+- Las tareas vencidas mantienen prioridad visual mediante el estado de peligro, evitando mezclar semánticas.
+- No se modificó la lógica de Supabase ni se requiere SQL adicional.
+
+
+
+## V37.5 — Escala y proporciones
+
+- Ajuste fino de escala tipográfica en tabla y acciones.
+- Acciones del Archivo de entregas más compactas y horizontales en escritorio.
+- Modal de entrega más compacto y con jerarquía tipográfica consistente.
+- Footer del modal estabilizado para evitar solapamiento/corte del botón Cancelar.
+- Botones con altura y tamaños tipográficos coherentes.
+- Responsive ajustado para conservar legibilidad en pantallas pequeñas.
+- No se modificó la lógica ni Supabase; no requiere SQL.

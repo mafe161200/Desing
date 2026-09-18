@@ -6701,3 +6701,372 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
         padding: 10px !important;
     }
 }
+
+/* =========================================================
+   DESIGN HUB V37.4 — JERARQUÍA DE ATENCIÓN Y CONTRASTE
+   ========================================================= */
+
+:root {
+    --warning-strong: #ffd166;
+    --warning-bright: #ffe08a;
+    --warning-soft-bg: rgba(255, 209, 102, 0.10);
+    --warning-soft-border: rgba(255, 209, 102, 0.42);
+}
+
+/* La atención se comunica con contraste, no con texto amarillo pequeño. */
+.text-warning {
+    color: var(--warning-bright) !important;
+    font-weight: 750 !important;
+}
+
+/* Fechas límite: etiqueta neutra + fecha enfatizada solo cuando requiere atención. */
+.req-date-line {
+    color: var(--text-muted) !important;
+}
+
+.req-date-deadline {
+    color: var(--text-dark) !important;
+    font-weight: 650 !important;
+}
+
+.req-date-deadline.text-warning,
+.req-date-deadline.is-today,
+.delivery-date-meta.text-warning {
+    color: var(--warning-strong) !important;
+    font-weight: 800 !important;
+}
+
+/* Refuerzo visual para la fecha que vence hoy. */
+.req-date-deadline.is-today {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    padding: 2px 7px !important;
+    margin-top: 4px !important;
+    border-radius: 6px !important;
+    background: var(--warning-soft-bg) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 209, 102, 0.12) !important;
+}
+
+/* Si la app usa text-warning directamente sobre el input/fecha. */
+.deadline-control.text-warning,
+.deadline-control.is-today,
+input.deadline-control.text-warning {
+    color: var(--warning-bright) !important;
+    border-color: var(--warning-soft-border) !important;
+    background: rgba(255, 209, 102, 0.055) !important;
+    font-weight: 750 !important;
+}
+
+.deadline-control.text-warning:focus,
+.deadline-control.is-today:focus,
+input.deadline-control.text-warning:focus {
+    border-color: var(--warning-strong) !important;
+    box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.10) !important;
+}
+
+/* Badge de atención: más legible que el amarillo anterior. */
+.time-alert-badge.warning {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    min-height: 24px !important;
+    padding: 3px 8px !important;
+    border: 1px solid var(--warning-soft-border) !important;
+    border-radius: 7px !important;
+    background: var(--warning-soft-bg) !important;
+    color: var(--warning-bright) !important;
+    font-size: .70rem !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    letter-spacing: .01em !important;
+}
+
+/* “Para Hoy” en Mis Tareas: aumenta contraste sin convertirlo en una alarma. */
+.task-card .time-alert-badge.warning,
+.my-task-card .time-alert-badge.warning {
+    color: var(--warning-bright) !important;
+    border-color: rgba(255, 209, 102, 0.52) !important;
+    background: rgba(255, 209, 102, 0.11) !important;
+}
+
+/* No asignado: sigue siendo atención, pero no compite con las fechas urgentes. */
+.workload-item.is-unassigned .workload-name,
+.workload-item.is-unassigned .workload-count,
+.workload-item-interactive.is-unassigned .workload-name,
+.workload-item-interactive.is-unassigned .workload-count {
+    color: var(--warning-strong) !important;
+}
+
+.workload-item.is-unassigned,
+.workload-item-interactive.is-unassigned {
+    border-color: rgba(255, 209, 102, 0.30) !important;
+    background: rgba(255, 209, 102, 0.045) !important;
+}
+
+.workload-item-interactive.is-unassigned {
+    box-shadow: inset 2px 0 0 rgba(255, 209, 102, 0.72) !important;
+}
+
+/* Vencidas: el rojo mantiene prioridad semántica sobre el amarillo. */
+.summary-card.summary-overdue,
+.summary-card.summary-overdue.has-attention {
+    border-color: rgba(251, 113, 133, 0.34) !important;
+}
+
+.summary-card.summary-overdue .summary-label,
+.summary-card.summary-overdue .summary-value {
+    color: var(--text-dark) !important;
+}
+
+/* El texto secundario de fecha no debe competir con la fecha límite. */
+.delivery-date-meta.text-warning {
+    color: var(--warning-bright) !important;
+}
+
+/* Foco accesible conservando la nueva jerarquía de atención. */
+.req-date-deadline.is-today:focus-visible,
+.time-alert-badge.warning:focus-visible,
+.workload-item-interactive.is-unassigned:focus-visible {
+    outline: 2px solid var(--primary-cold) !important;
+    outline-offset: 2px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .summary-card.is-interactive:hover {
+        transform: none !important;
+    }
+}
+
+/* =========================================================
+   DESIGN HUB V37.5 — ESCALA Y PROPORCIONES
+   Ajuste fino sobre V37.4. Sin cambios de lógica ni SQL.
+   ========================================================= */
+
+/* ---------- Escala tipográfica: tabla y acciones ---------- */
+.task-table td,
+.task-table th {
+    font-size: .82rem;
+}
+
+.task-table .request-title,
+.task-table .req-title-text {
+    font-size: .88rem !important;
+    line-height: 1.35 !important;
+    font-weight: 700 !important;
+}
+
+.task-table .history-lifecycle-meta,
+.task-table .task-lifecycle-meta,
+.task-table .requester-meta {
+    font-size: .72rem !important;
+    line-height: 1.35 !important;
+}
+
+.task-table .action-buttons .btn-icon {
+    width: 30px !important;
+    height: 30px !important;
+}
+
+/* ---------- Archivo de entregas: acciones compactas ---------- */
+.history-delivery-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+}
+
+.history-actions-cell:has(.history-delivery-actions) {
+    min-width: 278px !important;
+}
+
+.history-return-button,
+.history-flow-return-button {
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 6px 10px !important;
+    border-radius: 9px !important;
+    font-size: .76rem !important;
+    line-height: 1 !important;
+    font-weight: 700 !important;
+    flex: 0 0 auto !important;
+}
+
+.history-return-button {
+    min-width: 106px !important;
+}
+
+.history-flow-return-button {
+    min-width: 150px !important;
+}
+
+.history-flow-return-button svg,
+.history-return-button svg {
+    width: 14px !important;
+    height: 14px !important;
+}
+
+/* ---------- Modal de entrega: escala y footer estable ---------- */
+.delivery-confirm-modal {
+    width: min(620px, calc(100vw - 32px)) !important;
+    max-width: 620px !important;
+}
+
+.delivery-confirm-modal .modal-header {
+    min-height: 64px !important;
+    padding: 17px 20px 15px 24px !important;
+}
+
+.delivery-confirm-modal .modal-header h2 {
+    font-size: 1.2rem !important;
+    line-height: 1.25 !important;
+}
+
+.delivery-confirm-modal .modal-header p,
+.delivery-confirm-modal .modal-description {
+    font-size: .94rem !important;
+    line-height: 1.45 !important;
+}
+
+.delivery-confirm-body {
+    gap: 13px !important;
+    padding: 20px 24px 21px !important;
+}
+
+.delivery-confirm-icon {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 12px !important;
+}
+
+.delivery-confirm-task {
+    max-width: 100% !important;
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3 !important;
+    overflow: hidden !important;
+    font-size: 1rem !important;
+    line-height: 1.42 !important;
+    font-weight: 700 !important;
+}
+
+.delivery-confirm-summary {
+    gap: 7px 18px !important;
+    padding: 12px 14px !important;
+    border-radius: 11px !important;
+    font-size: .8rem !important;
+    line-height: 1.35 !important;
+}
+
+.delivery-confirm-summary span {
+    gap: 7px !important;
+}
+
+.delivery-confirm-modal .modal-footer,
+.delivery-confirm-modal .form-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    padding: 15px 24px 18px !important;
+}
+
+.delivery-confirm-modal .modal-footer .btn,
+.delivery-confirm-modal .form-actions .btn {
+    flex: 0 0 auto !important;
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 16px !important;
+    border-radius: 10px !important;
+    font-size: .88rem !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+
+.delivery-confirm-modal .modal-footer .btn-secondary,
+.delivery-confirm-modal .form-actions .btn-secondary {
+    min-width: 92px !important;
+}
+
+.delivery-confirm-modal .modal-footer .btn-success,
+.delivery-confirm-modal .form-actions .btn-success {
+    min-width: 178px !important;
+}
+
+/* ---------- X del modal: proporción con el nuevo header ---------- */
+.delivery-confirm-modal .close-modal {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+}
+
+/* ---------- Formularios: botones con la misma escala ---------- */
+.modal-content .btn {
+    font-size: .86rem;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 980px) {
+    .history-delivery-actions {
+        flex-wrap: wrap !important;
+        white-space: normal !important;
+    }
+
+    .history-actions-cell:has(.history-delivery-actions) {
+        min-width: 180px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .delivery-confirm-modal {
+        width: calc(100vw - 24px) !important;
+    }
+
+    .delivery-confirm-modal .modal-header {
+        padding: 15px 16px 14px 18px !important;
+    }
+
+    .delivery-confirm-body {
+        padding: 18px !important;
+    }
+
+    .delivery-confirm-modal .modal-footer,
+    .delivery-confirm-modal .form-actions {
+        justify-content: stretch !important;
+        padding: 14px 18px 18px !important;
+    }
+
+    .delivery-confirm-modal .modal-footer .btn,
+    .delivery-confirm-modal .form-actions .btn {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+    }
+
+    .history-delivery-actions {
+        gap: 6px !important;
+    }
+
+    .history-return-button,
+    .history-flow-return-button {
+        min-height: 34px !important;
+        height: 34px !important;
+        font-size: .72rem !important;
+    }
+}
+
+@media (max-width: 430px) {
+    .delivery-confirm-modal .modal-footer,
+    .delivery-confirm-modal .form-actions {
+        flex-direction: column-reverse !important;
+        align-items: stretch !important;
+    }
+
+    .delivery-confirm-modal .modal-footer .btn,
+    .delivery-confirm-modal .form-actions .btn {
+        width: 100% !important;
+        flex: 0 0 auto !important;
+    }
+}
