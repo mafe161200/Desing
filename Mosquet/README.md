@@ -161,3 +161,10 @@
 - El historial previo de la solicitud no se elimina.
 - Metadatos de `package.json` actualizados a V37.5.3.
 - Sin SQL, sin migraciones y sin tests nuevos.
+
+## V37.5.4 — STABLE
+- Eliminado el icono grande redundante dentro del modal «Devolver al flujo».
+- Footer del modal ajustado para mantener `Cancelar` completamente visible.
+- Separación entre botones aumentada y botón principal ligeramente más compacto.
+- Responsive preservado: en pantallas pequeñas los botones se apilan.
+- Sin cambios funcionales, sin SQL y sin tests nuevos.

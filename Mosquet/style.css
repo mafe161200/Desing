@@ -7354,3 +7354,56 @@ input.deadline-control.text-warning:focus {
         transform: none !important;
     }
 }
+
+
+/* =========================================================
+   DESIGN HUB V37.5.4 — MODAL DEVOLVER AL FLUJO
+   Ajuste visual quirúrgico:
+   - elimina icono redundante del cuerpo;
+   - separa y protege los botones del footer;
+   - mantiene el botón principal compacto;
+   - evita que "Cancelar" se recorte.
+   ========================================================= */
+
+.reopen-task-modal .form-actions {
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 14px !important;
+    flex-wrap: nowrap !important;
+}
+
+.reopen-task-modal .form-actions .btn {
+    flex: 0 0 auto !important;
+    min-height: 40px !important;
+    height: 40px !important;
+    padding: 0 14px !important;
+    font-size: .84rem !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+
+.reopen-task-modal .form-actions .btn-secondary {
+    min-width: 76px !important;
+    width: auto !important;
+}
+
+.reopen-task-modal .form-actions .btn-primary {
+    min-width: 166px !important;
+    width: auto !important;
+}
+
+@media (max-width: 640px) {
+    .reopen-task-modal .form-actions {
+        flex-direction: column-reverse !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+
+    .reopen-task-modal .form-actions .btn,
+    .reopen-task-modal .form-actions .btn-secondary,
+    .reopen-task-modal .form-actions .btn-primary {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
+

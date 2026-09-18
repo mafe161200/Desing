@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.3",
+  "version": "37.5.4",
   "private": true,
-  "description": "Design Hub V37.5.3 — versión estable de corrección de fechas de entrega",
+  "description": "Design Hub V37.5.4 — ajuste visual del modal Devolver al flujo",
   "engines": {
     "node": ">=18"
   }
