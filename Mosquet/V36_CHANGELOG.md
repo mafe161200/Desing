@@ -125,3 +125,13 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 - Sincronización posterior al guardado tolera un fallo de refresco sin presentar un guardado exitoso como fallido.
 - Selectores personalizados reconstruidos como un conjunto global para evitar wrappers anidados y menús desconectados en Nueva solicitud y edición.
 - No se realizaron cambios SQL.
+
+
+## V37 — Autosave y sincronización
+- Se reemplaza el guardado manual de cambios de solicitudes por guardado automático con una pausa breve después de cada modificación.
+- El indicador inferior comunica `Guardando…`, `Guardado`, `No se pudo sincronizar` o conflicto remoto sin interrumpir el flujo.
+- Se conserva `Deshacer` a nivel de último estado sincronizado mediante la API interna, sin botón permanente de “Guardar cambios”.
+- La concurrencia continúa protegida por `version` cuando el esquema moderno está disponible.
+- Los errores de Supabase no se convierten en listas vacías ni se presentan como guardados exitosos.
+- El esquema actual de la instalación no contiene `due_at`, `delivered_at`, `version` ni `updated_at`; para sincronización completa de fecha límite/entrega y concurrencia debe ejecutarse **una sola vez** `SUPABASE_V37_AUTOSAVE_REQUIRED.sql`.
+- No se modifica ni se requiere ejecutar `SUPABASE_V36_FINAL.sql` para esta migración específica.

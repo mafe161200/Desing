@@ -6280,3 +6280,59 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
         max-width: calc(100vw - 16px);
     }
 }
+
+/* =========================================================
+   V37 — AUTOSAVE
+   ========================================================= */
+.autosave-status {
+    width: auto;
+    max-width: min(420px, calc(100vw - 28px));
+    left: 50%;
+    right: auto;
+    bottom: 18px;
+    transform: translate(-50%, 140%);
+    pointer-events: none;
+    z-index: 9998;
+}
+.autosave-status.active {
+    transform: translate(-50%, 0);
+}
+.autosave-status.is-saved {
+    transform: translate(-50%, 140%);
+}
+.autosave-status .unsaved-bar-content {
+    width: auto;
+    min-width: 260px;
+    justify-content: center;
+    padding: 10px 16px;
+}
+.autosave-status[data-state="saving"] .unsaved-text,
+.autosave-status[data-state="pending"] .unsaved-text {
+    color: var(--primary-cold);
+}
+.autosave-status[data-state="error"] .unsaved-text,
+.autosave-status[data-state="conflict"] .unsaved-text {
+    color: var(--warning, #fbbf24);
+}
+.autosave-status[data-state="saving"] [data-lucide="loader-circle"] {
+    animation: dh-spin 1s linear infinite;
+}
+@keyframes dh-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 560px) {
+    .autosave-status {
+        bottom: 10px;
+        max-width: calc(100vw - 20px);
+    }
+    .autosave-status .unsaved-bar-content {
+        min-width: 0;
+        width: auto;
+        padding: 9px 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .autosave-status[data-state="saving"] [data-lucide="loader-circle"] {
+        animation: none;
+    }
+}

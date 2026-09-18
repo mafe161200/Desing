@@ -458,17 +458,13 @@
         </div>
     </div>
 
-    <!-- Barra de cambios pendientes -->
-    <div id="unsavedChangesBar" class="unsaved-bar" role="region" aria-label="Cambios pendientes" aria-live="polite" aria-hidden="true" inert>
+    <!-- Estado de sincronización automática -->
+    <div id="unsavedChangesBar" class="unsaved-bar autosave-status" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true" inert>
         <div class="unsaved-bar-content">
             <span class="unsaved-text">
-                <i data-lucide="alert-circle" aria-hidden="true"></i>
-                <span id="unsavedChangesText">Cambios sin guardar</span>
+                <i data-lucide="cloud-check" aria-hidden="true"></i>
+                <span id="unsavedChangesText">Todos los cambios están guardados</span>
             </span>
-            <div class="unsaved-actions">
-                <button type="button" id="btnUndo" class="btn btn-secondary">Deshacer</button>
-                <button type="button" id="btnSave" class="btn btn-success">Guardar cambios</button>
-            </div>
         </div>
     </div>
 

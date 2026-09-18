@@ -499,6 +499,25 @@ const DataService = {
         }
     },
 
+    async getTaskSchemaCapabilities() {
+        if (!supabaseClient) return { modern: false };
+        try {
+            const { data, error } = await supabaseClient
+                .from('tasks')
+                .select('due_at, delivered_at, version, updated_at')
+                .limit(1);
+            if (error) {
+                this.taskSchemaCapabilities = { modern: false, error: error.message };
+                return this.taskSchemaCapabilities;
+            }
+            this.taskSchemaCapabilities = { modern: true };
+            return this.taskSchemaCapabilities;
+        } catch (error) {
+            this.taskSchemaCapabilities = { modern: false, error: error?.message || 'Error consultando esquema' };
+            return this.taskSchemaCapabilities;
+        }
+    },
+
     async getTasks() {
         if (!supabaseClient) {
             UI.updateConnectionStatus(false);
@@ -518,7 +537,16 @@ const DataService = {
             }
 
             UI.updateConnectionStatus(true);
-            return Array.isArray(data) ? data.map(normalizeTask) : [];
+            const rows = Array.isArray(data) ? data : [];
+            if (rows.length) {
+                const first = rows[0] || {};
+                this.taskSchemaCapabilities = {
+                    modern: ['due_at', 'delivered_at', 'version', 'updated_at'].every(field => Object.prototype.hasOwnProperty.call(first, field))
+                };
+            } else if (!this.taskSchemaCapabilities) {
+                await this.getTaskSchemaCapabilities();
+            }
+            return rows.map(normalizeTask);
         } catch (error) {
             UI.updateConnectionStatus(false, error.message);
             console.error('Supabase: error cargando tareas.', error);
@@ -537,7 +565,17 @@ const DataService = {
         const byId = new Map(safeOriginal.map(task => [String(task.id), task]));
         const currentIds = new Set(safeTasks.map(task => String(task.id)));
 
-        const fields = ['name', 'requester', 'assignee', 'assignee_id', 'requester_id', 'status', 'dateReceived', 'dateDelivered', 'due_at', 'delivered_at', 'isStarred', 'notes'];
+        const requiresModernSchema = safeTasks.some(task => Object.prototype.hasOwnProperty.call(task, 'due_at') || Object.prototype.hasOwnProperty.call(task, 'delivered_at'))
+            || safeOriginal.some(task => Object.prototype.hasOwnProperty.call(task, 'due_at') || Object.prototype.hasOwnProperty.call(task, 'delivered_at'));
+        if (requiresModernSchema && this.taskSchemaCapabilities?.modern === false) {
+            const error = new Error('La base de datos necesita las columnas de fechas y concurrencia de Design Hub antes de sincronizar este cambio.');
+            error.code = 'DH_SCHEMA_UPGRADE_REQUIRED';
+            return { cloudSaved: false, error };
+        }
+
+        const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
+        const modernFields = ['assignee_id', 'requester_id', 'due_at', 'delivered_at'];
+        if (this.taskSchemaCapabilities?.modern) fields.push(...modernFields);
         const buildPayload = (task) => {
             const payload = { id: task.id };
             fields.forEach(field => {
@@ -1305,6 +1343,9 @@ const App = {
     quickFilter: 'all',
     fpInstances: [],
     hasUnsavedChanges: false,
+    autosaveTimer: null,
+    autosaveRevision: 0,
+    autosaveLastSnapshot: null,
     selectedTaskId: null,
     adjustmentTaskId: null,
     lifecycleRuntime: new Map(),
@@ -1555,93 +1596,118 @@ const App = {
         });
     },
 
+    updateAutosaveUI(state = 'saved', message = '') {
+        const bar = document.getElementById('unsavedChangesBar');
+        const text = document.getElementById('unsavedChangesText');
+        const icon = bar?.querySelector('[data-lucide]');
+        if (!bar || !text) return;
+
+        const labels = {
+            pending: 'Guardando automáticamente…',
+            saving: 'Guardando…',
+            saved: message || 'Todos los cambios están guardados',
+            error: message || 'No se pudo sincronizar',
+            conflict: message || 'Hay un cambio remoto que requiere revisión'
+        };
+        const icons = { pending: 'cloud-upload', saving: 'loader-circle', saved: 'cloud-check', error: 'cloud-off', conflict: 'triangle-alert' };
+        text.textContent = labels[state] || labels.saved;
+        if (icon) icon.setAttribute('data-lucide', icons[state] || icons.saved);
+        bar.dataset.state = state;
+        bar.classList.toggle('active', state !== 'saved');
+        bar.classList.toggle('is-saved', state === 'saved');
+        bar.setAttribute('aria-hidden', state === 'saved' ? 'true' : 'false');
+        if (state === 'saved') bar.setAttribute('inert', '');
+        else bar.removeAttribute('inert');
+        lucide.createIcons();
+    },
+
     markAsUnsaved() {
         this.hasUnsavedChanges = true;
-        const bar = document.getElementById('unsavedChangesBar');
-        if (!bar) return;
-        bar.classList.add('active');
-        bar.setAttribute('aria-hidden', 'false');
-        bar.removeAttribute('inert');
+        this.autosaveRevision += 1;
+        this.updateAutosaveUI('pending');
+        if (this.autosaveTimer) window.clearTimeout(this.autosaveTimer);
+        this.autosaveTimer = window.setTimeout(() => {
+            this.autosaveTimer = null;
+            this.saveChanges();
+        }, 750);
     },
 
     async saveChanges() {
-        if (this.isSavingChanges) return;
+        if (this.isSavingChanges || !this.hasUnsavedChanges) return;
         this.isSavingChanges = true;
-        const saveButton = document.getElementById('btnSave');
-        const saveButtonLabel = saveButton?.textContent || 'Guardar cambios';
-        if (saveButton) {
-            saveButton.disabled = true;
-            saveButton.setAttribute('aria-busy', 'true');
-            saveButton.textContent = 'Guardando…';
-        }
+        const revisionAtStart = this.autosaveRevision;
+        const snapshotAtStart = JSON.parse(JSON.stringify(this.tasks));
+        this.autosaveLastSnapshot = JSON.parse(JSON.stringify(this.originalTasks));
+        this.updateAutosaveUI('saving');
 
         try {
-            // La protección de concurrencia vive en DataService.saveTasks(),
-            // usando la columna version cuando está disponible. Evitamos una
-            // segunda consulta preventiva que podía interpretar un error de
-            // lectura como una lista vacía y bloquear el guardado.
-            const result = await DataService.saveTasks(this.tasks, this.originalTasks);
+            const result = await DataService.saveTasks(snapshotAtStart, this.originalTasks);
 
             if (!result.cloudSaved) {
                 if (result.error?.code === 'DH_CONFLICT') {
-                    UI.showToast('Otra persona modificó una solicitud mientras trabajabas. Tus cambios no se sobrescribieron. Recarga los datos antes de volver a guardar.', 'warning', 9000);
+                    this.updateAutosaveUI('conflict', 'No se guardó: otra persona modificó esta solicitud');
+                    UI.showToast('Otra persona modificó una solicitud mientras trabajabas. No se sobrescribieron sus cambios.', 'warning', 9000);
+                } else if (result.error?.code === 'DH_SCHEMA_UPGRADE_REQUIRED') {
+                    this.updateAutosaveUI('error', 'Falta actualizar la base de datos');
+                    UI.showToast('Este cambio requiere actualizar la estructura de Supabase antes de sincronizarlo. No se perdió tu cambio local.', 'error', 10000);
                 } else {
                     const detail = result.error?.message ? `: ${result.error.message}` : '';
-                    UI.showToast(`No se pudieron guardar los cambios${detail}`, 'error', 8000);
+                    this.updateAutosaveUI('error', 'No se pudo sincronizar');
+                    UI.showToast(`No se pudieron sincronizar los cambios${detail}`, 'error', 9000);
                 }
                 return;
             }
 
-            // Los eventos de ciclo de vida se persisten únicamente después de
-            // que el cambio principal fue aceptado por Supabase.
             await this.flushPendingLifecycleEvents();
 
-            // Intentamos sincronizar versiones/fechas generadas por Supabase.
-            // Si la lectura posterior falla, el guardado ya ocurrió: no
-            // presentamos el cambio como fallido ni dejamos un falso estado
-            // de "sin guardar".
             try {
                 const freshTasks = await DataService.getTasks();
-                this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
-                this.tasks = JSON.parse(JSON.stringify(freshTasks));
+                // Si el usuario cambió algo mientras guardábamos, no pisamos esos
+                // cambios locales con el refresco remoto. El siguiente ciclo los
+                // sincronizará automáticamente.
+                if (this.autosaveRevision === revisionAtStart) {
+                    this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
+                    this.tasks = JSON.parse(JSON.stringify(freshTasks));
+                    this.hasUnsavedChanges = false;
+                    this.updateAutosaveUI('saved');
+                    this.renderAll();
+                } else {
+                    this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
+                    this.hasUnsavedChanges = true;
+                    this.updateAutosaveUI('pending');
+                }
             } catch (refreshError) {
                 console.warn('Supabase: cambios guardados, pero no se pudo refrescar la copia local.', refreshError);
-                this.originalTasks = JSON.parse(JSON.stringify(this.tasks));
+                if (this.autosaveRevision === revisionAtStart) {
+                    this.originalTasks = JSON.parse(JSON.stringify(snapshotAtStart));
+                    this.tasks = JSON.parse(JSON.stringify(snapshotAtStart));
+                    this.hasUnsavedChanges = false;
+                    this.updateAutosaveUI('saved');
+                    this.renderAll();
+                }
             }
-
-            this.hasUnsavedChanges = false;
-            const bar = document.getElementById('unsavedChangesBar');
-            if (bar) {
-                bar.classList.remove('active');
-                bar.setAttribute('aria-hidden', 'true');
-                bar.setAttribute('inert', '');
-            }
-            UI.showToast('Cambios guardados con éxito', 'success');
-            this.renderAll();
         } catch (error) {
             console.error('Error inesperado al guardar cambios:', error);
-            UI.showToast(`No se pudieron guardar los cambios: ${error?.message || 'error inesperado'}`, 'error', 8000);
+            this.updateAutosaveUI('error', 'No se pudo sincronizar');
+            UI.showToast(`No se pudieron sincronizar los cambios: ${error?.message || 'error inesperado'}`, 'error', 9000);
         } finally {
             this.isSavingChanges = false;
-            if (saveButton) {
-                saveButton.disabled = false;
-                saveButton.removeAttribute('aria-busy');
-                saveButton.textContent = saveButtonLabel;
+            if (this.hasUnsavedChanges && this.autosaveRevision > revisionAtStart && !this.autosaveTimer) {
+                this.autosaveTimer = window.setTimeout(() => {
+                    this.autosaveTimer = null;
+                    this.saveChanges();
+                }, 350);
             }
         }
     },
 
     undoChanges() {
-        this.tasks = JSON.parse(JSON.stringify(this.originalTasks));
-        this.hasUnsavedChanges = false;
-        const bar = document.getElementById('unsavedChangesBar');
-        if (bar) {
-            bar.classList.remove('active');
-            bar.setAttribute('aria-hidden', 'true');
-            bar.setAttribute('inert', '');
-        }
-        UI.showToast("Cambios revertidos", "info");
+        if (!this.autosaveLastSnapshot) return;
+        this.tasks = JSON.parse(JSON.stringify(this.autosaveLastSnapshot));
+        this.autosaveLastSnapshot = null;
+        this.markAsUnsaved();
         this.renderBoard();
+        UI.showToast('Último cambio revertido. Se guardará automáticamente.', 'info');
     },
 
     toggleTaskStar(taskId) {
@@ -1684,8 +1750,6 @@ const App = {
     },
 
     setupEventListeners() {
-        document.getElementById('btnSave').addEventListener('click', () => this.saveChanges());
-        document.getElementById('btnUndo').addEventListener('click', () => this.undoChanges());
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnNewTask').addEventListener('click', () => {
@@ -1891,7 +1955,7 @@ const App = {
                 dateReceivedValue = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
             }
 
-            this.tasks.push({
+            const newTask = {
                 id: createId(),
                 name: taskNameRaw,
                 requester: requesterRaw,
@@ -1899,10 +1963,13 @@ const App = {
                 status: 'En cola',
                 dateReceived: dateReceivedValue,
                 dateDelivered: delivered,
-                due_at: delivered ? `${delivered}T12:00:00` : null,
                 isStarred: false,
                 notes: normalizeText(document.getElementById('taskNotes')?.value)
-            });
+            };
+            if (DataService.taskSchemaCapabilities?.modern) {
+                newTask.due_at = delivered ? `${delivered}T12:00:00` : null;
+            }
+            this.tasks.push(newTask);
 
             this.markAsUnsaved();
             taskForm.reset();
@@ -1919,7 +1986,7 @@ const App = {
 
             document.getElementById('modalTask')?.classList.remove('active');
             this.renderBoard();
-            UI.showToast('Solicitud creada. Recuerda guardar los cambios.', 'success');
+            UI.showToast('Solicitud creada. Se guardará automáticamente.', 'success');
         });
 
         document.getElementById('editTaskForm').addEventListener('submit', (e) => {
@@ -1962,7 +2029,7 @@ const App = {
                 
                 this.markAsUnsaved();
                 document.getElementById('modalEditTask').classList.remove('active');
-                UI.showToast("Solicitud editada", "success");
+                UI.showToast("Solicitud editada. Se guardará automáticamente.", "success");
                 this.renderBoard();
             }
         });
@@ -3293,7 +3360,7 @@ const App = {
             this.markAsUnsaved();
             close();
             this.renderBoard();
-            UI.showToast('Solicitud eliminada. Guarda los cambios para confirmar la eliminación.', 'success');
+            UI.showToast('Solicitud eliminada. Se guardará automáticamente.', 'success');
         });
         document.addEventListener('keydown', onKeyDown);
         window.requestAnimationFrame(() => cancel.focus());
@@ -3796,7 +3863,7 @@ const App = {
         const t = this.tasks.find(x => String(x.id) === String(id));
         if (t) {
             t[field] = field === 'isStarred' ? Boolean(value) : normalizeText(value);
-            if (field === 'dateDelivered' && t.status !== 'Entregado') {
+            if (field === 'dateDelivered' && t.status !== 'Entregado' && DataService.taskSchemaCapabilities?.modern) {
                 t.due_at = value ? `${normalizeText(value)}T12:00:00` : null;
             }
             this.selectedTaskId = String(id);
