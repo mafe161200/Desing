@@ -382,7 +382,7 @@ const TASK_STATUS_TRANSITIONS = Object.freeze({
     [TASK_STATUS.QUEUED]: Object.freeze([TASK_STATUS.IN_PROGRESS]),
     [TASK_STATUS.IN_PROGRESS]: Object.freeze([TASK_STATUS.DELIVERED, TASK_STATUS.QUEUED]),
     [TASK_STATUS.ADJUSTMENT]: Object.freeze([TASK_STATUS.IN_PROGRESS]),
-    [TASK_STATUS.DELIVERED]: Object.freeze([TASK_STATUS.ADJUSTMENT, TASK_STATUS.IN_PROGRESS])
+    [TASK_STATUS.DELIVERED]: Object.freeze([TASK_STATUS.ADJUSTMENT, TASK_STATUS.IN_PROGRESS, TASK_STATUS.QUEUED])
 });
 
 const TASK_EVENT = Object.freeze({
@@ -2571,16 +2571,28 @@ const App = {
         const modal = document.getElementById('modalReopenTask');
         if (!task || task.status !== TASK_STATUS.DELIVERED) return;
 
+        const selected = document.querySelector('input[name=\"reopenTargetStatus\"]:checked');
+        const targetStatus = selected?.value === TASK_STATUS.QUEUED
+            ? TASK_STATUS.QUEUED
+            : TASK_STATUS.IN_PROGRESS;
         const previousStatus = task.status;
+
         if (DataService.taskSchemaCapabilities?.modern) task.delivered_at = null;
-        if (!this.setTaskStatus(taskId, TASK_STATUS.IN_PROGRESS)) return;
-        this.recordLifecycleEvent(taskId, 'restore', { from: previousStatus, to: TASK_STATUS.IN_PROGRESS });
-        this.queueLifecycleEvent(taskId, TASK_EVENT.RESTORED, { from: previousStatus, to: TASK_STATUS.IN_PROGRESS, reason: 'reapertura manual' });
+        if (!this.setTaskStatus(taskId, targetStatus)) return;
+
+        this.recordLifecycleEvent(taskId, 'restore', { from: previousStatus, to: targetStatus });
+        this.queueLifecycleEvent(taskId, TASK_EVENT.RESTORED, {
+            from: previousStatus,
+            to: targetStatus,
+            reason: 'devolución manual al flujo'
+        });
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         modal?.classList.remove('active');
         this.renderBoard();
-        UI.showToast('Solicitud devuelta a gestión. Quedó En curso y conserva su fecha límite.', 'success', 7000);
+
+        const targetLabel = targetStatus === TASK_STATUS.QUEUED ? 'En cola' : 'En curso';
+        UI.showToast(`Solicitud devuelta a gestión. Quedó ${targetLabel}. Conserva su historial.`, 'success', 7000);
     },
 
     requestTaskAdjustment(taskId) {
@@ -3590,6 +3602,9 @@ const App = {
             const actionCell = document.createElement('td');
             actionCell.className = 'history-actions-cell';
             if (status === 'Entregado') {
+                const actionsWrap = document.createElement('div');
+                actionsWrap.className = 'history-delivery-actions';
+
                 const returnButton = document.createElement('button');
                 returnButton.type = 'button';
                 returnButton.className = 'btn-text history-return-button';
@@ -3597,7 +3612,17 @@ const App = {
                 returnButton.title = 'Registrar el motivo y devolver la solicitud a gestión';
                 returnButton.setAttribute('aria-label', `Solicitar ajuste para ${normalizeText(task.name)}`);
                 returnButton.addEventListener('click', () => this.requestTaskAdjustment(task.id));
-                actionCell.appendChild(returnButton);
+
+                const flowButton = document.createElement('button');
+                flowButton.type = 'button';
+                flowButton.className = 'btn-text history-flow-return-button';
+                flowButton.innerHTML = '<i data-lucide=\"undo-2\" aria-hidden=\"true\"></i><span>Devolver al flujo</span>';
+                flowButton.title = 'Devolver la solicitud a Gestión';
+                flowButton.setAttribute('aria-label', `Devolver al flujo ${normalizeText(task.name)}`);
+                flowButton.addEventListener('click', () => this.openReopenConfirmation(task.id, flowButton));
+
+                actionsWrap.append(returnButton, flowButton);
+                actionCell.appendChild(actionsWrap);
             } else if (status === 'Ajuste solicitado') {
                 const startButton = document.createElement('button');
                 startButton.type = 'button';
@@ -3625,6 +3650,7 @@ const App = {
         });
 
         body.replaceChildren(fragment);
+        lucide.createIcons();
     },
 
     renderAll() {

@@ -270,7 +270,7 @@
                             <h2 id="historyViewTitle">Archivo de entregas</h2>
                             <span id="historyCount" class="badge-count badge-primary">0</span>
                         </div>
-                        <p class="subtitle">Solicitudes con entregas registradas, disponibles para consulta y ajustes.</p>
+                        <p class="subtitle">Solicitudes entregadas · Puedes solicitar ajustes o devolverlas al flujo.</p>
                     </div>
                     <nav class="history-view-tabs" aria-label="Navegación del workspace">
                         <button type="button" id="historyTabBoard" class="history-view-tab history-tab-board" aria-controls="mainContent">Gestión</button>
@@ -617,24 +617,35 @@
         <div class="modal-content reopen-task-modal">
             <div class="modal-header">
                 <div>
-                    <h2 id="modalReopenTaskTitle"><i data-lucide="undo-2" class="icon-primary"></i> Reabrir solicitud</h2>
-                    <p class="modal-subtitle">La solicitud volverá a «En curso» sin perder su historial.</p>
+                    <h2 id="modalReopenTaskTitle"><i data-lucide="undo-2" class="icon-primary"></i> Devolver al flujo</h2>
+                    <p class="modal-subtitle">La solicitud volverá a «Gestión» sin perder su historial.</p>
                 </div>
                 <button type="button" class="close-modal" aria-label="Cancelar devolución a gestión"><i data-lucide="x"></i></button>
             </div>
             <div class="reopen-task-body">
                 <div class="reopen-task-icon" aria-hidden="true"><i data-lucide="undo-2"></i></div>
-                <p id="modalReopenTaskDescription">¿Quieres reabrir esta solicitud porque se finalizó por error?</p>
+                <p id="modalReopenTaskDescription">¿Quieres devolver esta solicitud al flujo de producción?</p>
                 <strong id="reopenTaskTitle" class="reopen-task-title"></strong>
                 <div class="reopen-task-summary">
                     <span><i data-lucide="calendar-clock" aria-hidden="true"></i><span><small>Fecha límite</small><strong id="reopenTaskDeadline"></strong></span></span>
                     <span><i data-lucide="user" aria-hidden="true"></i><span><small>Responsable</small><strong id="reopenTaskAssignee"></strong></span></span>
                 </div>
+                <fieldset class="reopen-target-fieldset">
+                    <legend>Estado al devolverla</legend>
+                    <label class="reopen-target-option">
+                        <input type="radio" name="reopenTargetStatus" value="En cola" checked>
+                        <span><strong>En cola</strong><small>Queda pendiente para que alguien la tome.</small></span>
+                    </label>
+                    <label class="reopen-target-option">
+                        <input type="radio" name="reopenTargetStatus" value="En curso">
+                        <span><strong>En curso</strong><small>Indica que el trabajo continúa de inmediato.</small></span>
+                    </label>
+                </fieldset>
                 <p class="reopen-task-note"><i data-lucide="info" aria-hidden="true"></i> La entrega anterior quedará registrada en el historial. La fecha límite se conservará.</p>
             </div>
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
-                <button type="button" id="confirmReopenBtn" class="btn btn-primary"><i data-lucide="undo-2" aria-hidden="true"></i> Reabrir solicitud</button>
+                <button type="button" id="confirmReopenBtn" class="btn btn-primary"><i data-lucide="undo-2" aria-hidden="true"></i> Devolver al flujo</button>
             </div>
         </div>
     </div>

@@ -6562,3 +6562,142 @@ button:disabled, input:disabled, select:disabled, textarea:disabled {
     .toast-clickable:hover,
     .summary-card.is-interactive:hover { transform: none !important; }
 }
+
+
+/* =========================================================
+   DESIGN HUB V37.3 — CIERRE DEL FLUJO DE ENTREGAS
+   ========================================================= */
+.history-delivery-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.history-return-button,
+.history-flow-return-button {
+    min-height: 34px !important;
+    padding: 7px 10px !important;
+    border-radius: 9px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    font-weight: 700 !important;
+}
+
+.history-return-button {
+    border: 1px solid rgba(34,211,238,.24) !important;
+    background: rgba(34,211,238,.035) !important;
+    color: #67e8f9 !important;
+}
+
+.history-return-button:hover,
+.history-return-button:focus-visible {
+    border-color: rgba(34,211,238,.5) !important;
+    background: rgba(34,211,238,.09) !important;
+}
+
+.history-flow-return-button {
+    border: 1px solid rgba(148,163,184,.28) !important;
+    background: rgba(148,163,184,.035) !important;
+    color: #b7c6d9 !important;
+}
+
+.history-flow-return-button:hover,
+.history-flow-return-button:focus-visible {
+    border-color: rgba(103,232,249,.4) !important;
+    background: rgba(34,211,238,.065) !important;
+    color: #e5f7ff !important;
+}
+
+.history-flow-return-button svg,
+.history-return-button svg {
+    width: 15px !important;
+    height: 15px !important;
+    flex: 0 0 auto !important;
+}
+
+.reopen-target-fieldset {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    min-width: 0 !important;
+}
+
+.reopen-target-fieldset legend {
+    margin-bottom: 9px !important;
+    color: #dbeafe !important;
+    font-size: .76rem !important;
+    font-weight: 750 !important;
+}
+
+.reopen-target-option {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    margin: 7px 0 !important;
+    padding: 11px 12px !important;
+    border: 1px solid rgba(63,91,125,.48) !important;
+    border-radius: 10px !important;
+    background: rgba(5,15,28,.48) !important;
+    cursor: pointer !important;
+}
+
+.reopen-target-option:has(input:checked) {
+    border-color: rgba(34,211,238,.46) !important;
+    background: rgba(34,211,238,.06) !important;
+    box-shadow: inset 2px 0 0 rgba(34,211,238,.72) !important;
+}
+
+.reopen-target-option input {
+    margin-top: 3px !important;
+    accent-color: #22d3ee !important;
+    flex: 0 0 auto !important;
+}
+
+.reopen-target-option span {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+}
+
+.reopen-target-option strong {
+    color: #e8f3ff !important;
+    font-size: .76rem !important;
+}
+
+.reopen-target-option small {
+    color: #8fa4bd !important;
+    font-size: .67rem !important;
+    line-height: 1.35 !important;
+}
+
+.reopen-task-modal .form-actions {
+    justify-content: flex-end !important;
+    gap: 9px !important;
+}
+
+@media (max-width: 900px) {
+    .history-delivery-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .history-return-button,
+    .history-flow-return-button {
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .history-delivery-actions {
+        width: 100%;
+    }
+    .reopen-target-option {
+        padding: 10px !important;
+    }
+}

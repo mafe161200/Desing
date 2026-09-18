@@ -106,3 +106,14 @@
 - Sidebar renombrado a Trabajo activo y fecha de filtros más clara.
 - Ajustes responsive y accesibilidad visual.
 - No requiere cambios en Supabase ni ejecución de SQL.
+
+
+## V37.3 — Cierre del flujo de entregas
+
+- Se añadió `Devolver al flujo` en el Archivo de entregas.
+- La devolución permite elegir `En cola` o `En curso`.
+- La entrega anterior permanece registrada en el historial.
+- El estado `Entregado` ahora admite devolución a Gestión sin perder el historial.
+- Se pulieron los botones `Solicitar ajuste` y `Devolver al flujo`.
+- El texto del Archivo aclara sus acciones disponibles.
+- No se modificó SQL.

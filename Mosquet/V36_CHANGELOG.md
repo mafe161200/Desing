@@ -146,3 +146,14 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 - Sidebar: Trabajo activo.
 - Responsive refinado.
 - Sin cambios de SQL.
+
+
+## V37.3 — Cierre del flujo de entregas
+
+- Se añadió `Devolver al flujo` en el Archivo de entregas.
+- La devolución permite elegir `En cola` o `En curso`.
+- La entrega anterior permanece registrada en el historial.
+- El estado `Entregado` ahora admite devolución a Gestión sin perder el historial.
+- Se pulieron los botones `Solicitar ajuste` y `Devolver al flujo`.
+- El texto del Archivo aclara sus acciones disponibles.
+- No se modificó SQL.
