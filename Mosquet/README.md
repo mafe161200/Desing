@@ -143,3 +143,13 @@
 - `No asignado` deja de utilizar amarillo y pasa a una señal neutra azul/gris.
 - Se mantienen sin cambios las demás semánticas de color: `Para Hoy`, `Vencida`, `Ajuste solicitado`, `Prioridad` y `Entregado`.
 - No se modificó la lógica de la aplicación ni se requiere SQL.
+
+
+## V37.5.2 — Microinteracciones y tabla de Archivo
+- Redistribución de columnas del Archivo de entregas para evitar acciones cortadas.
+- Acciones de Archivo más compactas y con `↶` como botón secundario.
+- Animaciones JS/CSS breves para cambios de estado, filtros, navegación entre vistas y actualización de KPI.
+- Entrada escalonada de filas en Gestión y Archivo.
+- Feedback visual de botones y acciones.
+- Respeto de `prefers-reduced-motion`.
+- Sin cambios de lógica de Supabase y sin SQL.

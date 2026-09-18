@@ -218,6 +218,24 @@ class UI {
         }
     }
 
+    static buttonFeedback(button, mode = 'success') {
+        if (!(button instanceof HTMLElement)) return;
+        button.classList.remove('is-feedback-success', 'is-feedback-active');
+        void button.offsetWidth;
+        button.classList.add(mode === 'active' ? 'is-feedback-active' : 'is-feedback-success');
+        window.setTimeout(() => {
+            button.classList.remove('is-feedback-success', 'is-feedback-active');
+        }, mode === 'active' ? 520 : 680);
+    }
+
+    static animateView(viewEl) {
+        if (!(viewEl instanceof HTMLElement)) return;
+        viewEl.classList.remove('dh-view-enter');
+        void viewEl.offsetWidth;
+        viewEl.classList.add('dh-view-enter');
+        window.setTimeout(() => viewEl.classList.remove('dh-view-enter'), 420);
+    }
+
     static updateConnectionStatus(isOnline, errMessage = null) {
         const el = document.getElementById('connectionStatus');
         const txt = document.getElementById('statusText');
@@ -1856,6 +1874,7 @@ const App = {
             const el = document.getElementById(id);
             if(el) el.addEventListener('change', () => {
                 this.updateAdvancedFiltersSummary();
+                this.animateNextBoardRender = 'filter';
                 this.renderBoard();
             });
         });
@@ -1865,7 +1884,10 @@ const App = {
             let searchTimer = null;
             taskSearch.addEventListener('input', () => {
                 window.clearTimeout(searchTimer);
-                searchTimer = window.setTimeout(() => this.renderBoard(), 120);
+                searchTimer = window.setTimeout(() => {
+                    this.animateNextBoardRender = 'filter';
+                    this.renderBoard();
+                }, 120);
             });
         }
 
@@ -1875,6 +1897,7 @@ const App = {
             document.querySelectorAll('.quick-filter').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.quickFilter === 'all');
             });
+            this.animateNextBoardRender = 'filter';
             this.renderBoard();
             UI.showToast("Filtros limpiados", "info");
         });
@@ -2471,6 +2494,8 @@ const App = {
         this.recordLifecycleEvent(taskId, 'status', { from: previousStatus, to: normalizedNewStatus });
         this.queueLifecycleEvent(taskId, 'STATUS_CHANGED', { from: previousStatus, to: normalizedNewStatus });
         this.markAsUnsaved();
+        this.animateNextBoardRender = 'status';
+        this.pendingRowAnimation = { taskId: String(taskId), kind: normalizedNewStatus === TASK_STATUS.DELIVERED ? 'delivered' : 'status' };
         this.renderBoard();
         return true;
     },
@@ -2480,10 +2505,12 @@ const App = {
         if (!task) return;
 
         if (newStatus === 'Entregado') {
+            UI.buttonFeedback(sourceButton, 'active');
             this.openDeliveryConfirmation(taskId, sourceButton);
             return;
         }
 
+        UI.buttonFeedback(sourceButton, 'success');
         this.setTaskStatus(taskId, newStatus);
         UI.showToast(
             newStatus === 'En curso'
@@ -2522,6 +2549,8 @@ const App = {
 
     confirmTaskDelivery(taskId) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
+        const confirmButton = document.getElementById('confirmDeliveryBtn');
+        UI.buttonFeedback(confirmButton, 'success');
         const modal = document.getElementById('modalDeliveryConfirm');
         if (!task) return;
 
@@ -2568,6 +2597,7 @@ const App = {
 
     confirmTaskReopen(taskId) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
+        UI.buttonFeedback(document.getElementById('confirmReopenBtn'), 'success');
         const modal = document.getElementById('modalReopenTask');
         if (!task || task.status !== TASK_STATUS.DELIVERED) return;
 
@@ -2863,7 +2893,15 @@ const App = {
 
         Object.entries(values).forEach(([id, value]) => {
             const element = document.getElementById(id);
-            if (element) element.textContent = String(value);
+            if (!element) return;
+            const previous = element.textContent;
+            element.textContent = String(value);
+            if (previous !== String(value)) {
+                element.classList.remove('kpi-value-pulse');
+                void element.offsetWidth;
+                element.classList.add('kpi-value-pulse');
+                window.setTimeout(() => element.classList.remove('kpi-value-pulse'), 460);
+            }
         });
 
         const alertStates = [
@@ -2891,6 +2929,7 @@ const App = {
                 window.clearTimeout(timer);
                 timer = window.setTimeout(() => {
                     this.historyFilters.search = normalizeText(search.value).toLowerCase();
+                    this.animateHistoryNextRender = true;
                     this.renderHistory();
                 }, 100);
             });
@@ -2898,21 +2937,25 @@ const App = {
 
         month?.addEventListener('change', () => {
             this.historyFilters.month = month.value;
+            this.animateHistoryNextRender = true;
             this.renderHistory();
         });
 
         requester?.addEventListener('change', () => {
             this.historyFilters.requester = requester.value;
+            this.animateHistoryNextRender = true;
             this.renderHistory();
         });
 
         assignee?.addEventListener('change', () => {
             this.historyFilters.assignee = assignee.value;
+            this.animateHistoryNextRender = true;
             this.renderHistory();
         });
 
         status?.addEventListener('change', () => {
             this.historyFilters.status = status.value;
+            this.animateHistoryNextRender = true;
             this.renderHistory();
         });
 
@@ -3441,9 +3484,15 @@ const App = {
         if (targetHash) window.history.pushState(null, '', targetHash);
         else if (window.location.hash) window.history.pushState(null, '', window.location.pathname + window.location.search);
 
-        if (isRequestHistory) this.renderHistory();
+        if (isRequestHistory) {
+            this.animateHistoryNextRender = true;
+            this.renderHistory();
+        }
         if (isChangeHistory) this.renderChangeHistory();
         if (isBoard) this.renderBoard();
+
+        const viewToAnimate = isRequestHistory ? requestHistory : isChangeHistory ? changeHistory : document.getElementById('mainContent');
+        UI.animateView(viewToAnimate);
 
         requestAnimationFrame(() => {
             if (window.lucide) lucide.createIcons({attrs:{'aria-hidden':'true'}});
@@ -3545,8 +3594,15 @@ const App = {
 
         const fragment = document.createDocumentFragment();
 
-        filtered.forEach(task => {
+        const animateHistoryRows = Boolean(this.animateHistoryNextRender);
+        this.animateHistoryNextRender = false;
+
+        filtered.forEach((task, index) => {
             const row = document.createElement('tr');
+            if (animateHistoryRows) {
+                row.classList.add('history-row-enter');
+                row.style.setProperty('--dh-row-delay', `${Math.min(index, 7) * 28}ms`);
+            }
 
             const requestCell = document.createElement('td');
             requestCell.className = 'history-request-cell';
@@ -4517,6 +4573,18 @@ const App = {
             activeFragment.appendChild(row);
         }
         tBody.replaceChildren(activeFragment);
+
+        if (this.animateNextBoardRender) {
+            const mode = this.animateNextBoardRender;
+            this.animateNextBoardRender = null;
+            requestAnimationFrame(() => {
+                const rows = [...tBody.querySelectorAll('tr[data-task-row]')];
+                rows.forEach((row, index) => {
+                    row.classList.add(mode === 'filter' ? 'task-row-filter-enter' : 'task-row-enter');
+                    row.style.setProperty('--dh-row-delay', `${Math.min(index, 6) * 24}ms`);
+                });
+            });
+        }
 
         buildCustomSelects(document);
         
