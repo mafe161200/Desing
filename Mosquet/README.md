@@ -153,3 +153,11 @@
 - Feedback visual de botones y acciones.
 - Respeto de `prefers-reduced-motion`.
 - Sin cambios de lógica de Supabase y sin SQL.
+
+## V37.5.3 — STABLE
+- Corrección: cada confirmación de entrega registra `dateDelivered` con la fecha real del día.
+- La misma corrección aplica después de devolver una solicitud al flujo y entregarla nuevamente.
+- Cuando existe el esquema moderno, también se conserva `delivered_at`.
+- El historial previo de la solicitud no se elimina.
+- Metadatos de `package.json` actualizados a V37.5.3.
+- Sin SQL, sin migraciones y sin tests nuevos.

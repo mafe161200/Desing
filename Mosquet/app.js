@@ -2557,9 +2557,17 @@ const App = {
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const deliveryStamp = `${today}T12:00:00`;
+
+        // `dateDelivered` is the canonical delivery date in the current
+        // production/legacy Supabase schema. Set it on every delivery,
+        // including a delivery after the task was reopened.
+        task.dateDelivered = today;
+
+        // Keep the modern timestamp when the installation supports it.
         if (DataService.taskSchemaCapabilities?.modern) {
             task.delivered_at = deliveryStamp;
         }
+
         if (!this.setTaskStatus(taskId, TASK_STATUS.DELIVERED)) return;
         this.recordLifecycleEvent(taskId, 'delivery', { delivered_at: deliveryStamp, persistedSeparately: Boolean(DataService.taskSchemaCapabilities?.modern) });
         this.queueLifecycleEvent(taskId, TASK_EVENT.DELIVERED, {
