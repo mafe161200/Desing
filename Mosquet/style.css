@@ -7070,3 +7070,30 @@ input.deadline-control.text-warning:focus {
         flex: 0 0 auto !important;
     }
 }
+
+
+/* =========================================================
+   DESIGN HUB V37.5.1 — HOTFIX VISUAL
+   No asignado deja de usar amarillo.
+   Para Hoy / Vencida / Ajuste / Prioridad / Entregado
+   conservan sus semánticas visuales existentes.
+   ========================================================= */
+
+.workload-item.is-unassigned,
+.workload-item-interactive.is-unassigned {
+    border-color: rgba(88, 116, 151, 0.42) !important;
+    background: rgba(88, 116, 151, 0.045) !important;
+    box-shadow: inset 2px 0 0 rgba(88, 116, 151, 0.72) !important;
+}
+
+.workload-item.is-unassigned .workload-name,
+.workload-item.is-unassigned .workload-count,
+.workload-item-interactive.is-unassigned .workload-name,
+.workload-item-interactive.is-unassigned .workload-count {
+    color: #a9bad0 !important;
+}
+
+.workload-item-interactive.is-unassigned .workload-bar-fill {
+    background: #60748f !important;
+    opacity: .82 !important;
+}

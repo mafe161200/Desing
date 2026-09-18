@@ -137,3 +137,9 @@
 - Botones con altura y tamaños tipográficos coherentes.
 - Responsive ajustado para conservar legibilidad en pantallas pequeñas.
 - No se modificó la lógica ni Supabase; no requiere SQL.
+
+
+## V37.5.1 — Hotfix visual
+- `No asignado` deja de utilizar amarillo y pasa a una señal neutra azul/gris.
+- Se mantienen sin cambios las demás semánticas de color: `Para Hoy`, `Vencida`, `Ajuste solicitado`, `Prioridad` y `Entregado`.
+- No se modificó la lógica de la aplicación ni se requiere SQL.
