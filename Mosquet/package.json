@@ -1,6 +1,6 @@
 {
   "name": "design-hub",
-  "version": "37.0.0",
+  "version": "37.1.0",
   "private": true,
   "description": "Design Hub V37 — autosave y sincronización",
   "engines": {

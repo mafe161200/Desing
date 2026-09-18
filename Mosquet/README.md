@@ -94,5 +94,5 @@
 - Se conserva `Deshacer` a nivel de último estado sincronizado mediante la API interna, sin botón permanente de “Guardar cambios”.
 - La concurrencia continúa protegida por `version` cuando el esquema moderno está disponible.
 - Los errores de Supabase no se convierten en listas vacías ni se presentan como guardados exitosos.
-- El esquema actual de la instalación no contiene `due_at`, `delivered_at`, `version` ni `updated_at`; para sincronización completa de fecha límite/entrega y concurrencia debe ejecutarse **una sola vez** `SUPABASE_V37_AUTOSAVE_REQUIRED.sql`.
+- La versión es compatible con el esquema actual de `tasks` sin requerir una migración SQL para el autosave básico. Las columnas modernas se usan únicamente cuando ya existen en la instalación.
 - No se modifica ni se requiere ejecutar `SUPABASE_V36_FINAL.sql` para esta migración específica.

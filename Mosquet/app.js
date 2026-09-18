@@ -500,20 +500,25 @@ const DataService = {
     },
 
     async getTaskSchemaCapabilities() {
-        if (!supabaseClient) return { modern: false };
+        // The current production schema uses the legacy tasks shape. Modern
+        // columns are detected from the actual rows returned by select('*'),
+        // so a missing column never blocks the whole workspace.
+        if (!supabaseClient) return { modern: false, legacy: true };
+        if (this.taskSchemaCapabilities) return this.taskSchemaCapabilities;
         try {
             const { data, error } = await supabaseClient
                 .from('tasks')
-                .select('due_at, delivered_at, version, updated_at')
+                .select('*')
                 .limit(1);
-            if (error) {
-                this.taskSchemaCapabilities = { modern: false, error: error.message };
-                return this.taskSchemaCapabilities;
-            }
-            this.taskSchemaCapabilities = { modern: true };
+            if (error) throw error;
+            const first = Array.isArray(data) && data.length ? data[0] : {};
+            this.taskSchemaCapabilities = {
+                modern: ['due_at', 'delivered_at', 'version', 'updated_at'].every(field => Object.prototype.hasOwnProperty.call(first, field)),
+                legacy: true
+            };
             return this.taskSchemaCapabilities;
         } catch (error) {
-            this.taskSchemaCapabilities = { modern: false, error: error?.message || 'Error consultando esquema' };
+            this.taskSchemaCapabilities = { modern: false, legacy: true, error: error?.message || 'Error consultando esquema' };
             return this.taskSchemaCapabilities;
         }
     },
@@ -564,14 +569,6 @@ const DataService = {
         const safeOriginal = Array.isArray(originalTasks) ? originalTasks : [];
         const byId = new Map(safeOriginal.map(task => [String(task.id), task]));
         const currentIds = new Set(safeTasks.map(task => String(task.id)));
-
-        const requiresModernSchema = safeTasks.some(task => Object.prototype.hasOwnProperty.call(task, 'due_at') || Object.prototype.hasOwnProperty.call(task, 'delivered_at'))
-            || safeOriginal.some(task => Object.prototype.hasOwnProperty.call(task, 'due_at') || Object.prototype.hasOwnProperty.call(task, 'delivered_at'));
-        if (requiresModernSchema && this.taskSchemaCapabilities?.modern === false) {
-            const error = new Error('La base de datos necesita las columnas de fechas y concurrencia de Design Hub antes de sincronizar este cambio.');
-            error.code = 'DH_SCHEMA_UPGRADE_REQUIRED';
-            return { cloudSaved: false, error };
-        }
 
         const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
         const modernFields = ['assignee_id', 'requester_id', 'due_at', 'delivered_at'];
@@ -1647,9 +1644,6 @@ const App = {
                 if (result.error?.code === 'DH_CONFLICT') {
                     this.updateAutosaveUI('conflict', 'No se guardó: otra persona modificó esta solicitud');
                     UI.showToast('Otra persona modificó una solicitud mientras trabajabas. No se sobrescribieron sus cambios.', 'warning', 9000);
-                } else if (result.error?.code === 'DH_SCHEMA_UPGRADE_REQUIRED') {
-                    this.updateAutosaveUI('error', 'Falta actualizar la base de datos');
-                    UI.showToast('Este cambio requiere actualizar la estructura de Supabase antes de sincronizarlo. No se perdió tu cambio local.', 'error', 10000);
                 } else {
                     const detail = result.error?.message ? `: ${result.error.message}` : '';
                     this.updateAutosaveUI('error', 'No se pudo sincronizar');
@@ -2515,15 +2509,21 @@ const App = {
 
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        task.delivered_at = `${today}T12:00:00`;
+        const deliveryStamp = `${today}T12:00:00`;
+        if (DataService.taskSchemaCapabilities?.modern) {
+            task.delivered_at = deliveryStamp;
+        }
         if (!this.setTaskStatus(taskId, TASK_STATUS.DELIVERED)) return;
-        this.recordLifecycleEvent(taskId, 'delivery');
-        this.queueLifecycleEvent(taskId, TASK_EVENT.DELIVERED, { delivered_at: task.delivered_at });
+        this.recordLifecycleEvent(taskId, 'delivery', { delivered_at: deliveryStamp, persistedSeparately: Boolean(DataService.taskSchemaCapabilities?.modern) });
+        this.queueLifecycleEvent(taskId, TASK_EVENT.DELIVERED, {
+            delivered_at: DataService.taskSchemaCapabilities?.modern ? deliveryStamp : null,
+            legacy_dateDelivered: DataService.taskSchemaCapabilities?.modern ? null : (task.dateDelivered || null)
+        });
         this.selectedTaskId = String(taskId);
         this.markAsUnsaved();
         modal?.classList.remove('active');
         this.renderBoard();
-        UI.showToast('Entrega confirmada. Guarda los cambios para sincronizarla.', 'success');
+        UI.showToast(DataService.taskSchemaCapabilities?.modern ? 'Entrega registrada. Sincronizando…' : 'Entrega registrada. Sincronizando con la estructura actual.', 'success');
     },
 
     openReopenConfirmation(taskId, sourceButton = null) {
@@ -2554,7 +2554,7 @@ const App = {
         if (!task || task.status !== TASK_STATUS.DELIVERED) return;
 
         const previousStatus = task.status;
-        task.delivered_at = null;
+        if (DataService.taskSchemaCapabilities?.modern) task.delivered_at = null;
         if (!this.setTaskStatus(taskId, TASK_STATUS.IN_PROGRESS)) return;
         this.recordLifecycleEvent(taskId, 'restore', { from: previousStatus, to: TASK_STATUS.IN_PROGRESS });
         this.queueLifecycleEvent(taskId, TASK_EVENT.RESTORED, { from: previousStatus, to: TASK_STATUS.IN_PROGRESS, reason: 'reapertura manual' });
