@@ -135,3 +135,14 @@ La autorización definitiva debe estar en Supabase/RLS. Esta entrega no crea pol
 - Los errores de Supabase no se convierten en listas vacías ni se presentan como guardados exitosos.
 - La versión es compatible con el esquema actual de `tasks` sin requerir una migración SQL para el autosave básico. Las columnas modernas se usan únicamente cuando ya existen en la instalación.
 - No se modifica ni se requiere ejecutar `SUPABASE_V36_FINAL.sql` para esta migración específica.
+
+
+## V37.2 — Consolidación UX/UI
+
+- Cards de notificaciones con mayor margen interno y cierres rediseñados.
+- Modales con mejor espaciado, jerarquía y controles de cierre.
+- Autosave mostrado como indicador compacto en lugar de barra de acción.
+- Tabla con más aire en Estado y Acciones.
+- Sidebar: Trabajo activo.
+- Responsive refinado.
+- Sin cambios de SQL.

@@ -1343,6 +1343,7 @@ const App = {
     autosaveTimer: null,
     autosaveRevision: 0,
     autosaveLastSnapshot: null,
+    autosaveHideTimer: null,
     selectedTaskId: null,
     adjustmentTaskId: null,
     lifecycleRuntime: new Map(),
@@ -1599,23 +1600,41 @@ const App = {
         const icon = bar?.querySelector('[data-lucide]');
         if (!bar || !text) return;
 
+        if (this.autosaveHideTimer) {
+            window.clearTimeout(this.autosaveHideTimer);
+            this.autosaveHideTimer = null;
+        }
+
         const labels = {
             pending: 'Guardando automáticamente…',
-            saving: 'Guardando…',
-            saved: message || 'Todos los cambios están guardados',
+            saving: 'Sincronizando…',
+            saved: message || 'Guardado',
             error: message || 'No se pudo sincronizar',
             conflict: message || 'Hay un cambio remoto que requiere revisión'
         };
-        const icons = { pending: 'cloud-upload', saving: 'loader-circle', saved: 'cloud-check', error: 'cloud-off', conflict: 'triangle-alert' };
+        const icons = {
+            pending: 'cloud-upload',
+            saving: 'loader-circle',
+            saved: 'cloud-check',
+            error: 'cloud-off',
+            conflict: 'triangle-alert'
+        };
+
         text.textContent = labels[state] || labels.saved;
         if (icon) icon.setAttribute('data-lucide', icons[state] || icons.saved);
         bar.dataset.state = state;
-        bar.classList.toggle('active', state !== 'saved');
+        bar.classList.toggle('active', true);
         bar.classList.toggle('is-saved', state === 'saved');
-        bar.setAttribute('aria-hidden', state === 'saved' ? 'true' : 'false');
-        if (state === 'saved') bar.setAttribute('inert', '');
-        else bar.removeAttribute('inert');
+        bar.setAttribute('aria-hidden', 'false');
+        bar.setAttribute('inert', '');
         lucide.createIcons();
+
+        if (state === 'saved') {
+            this.autosaveHideTimer = window.setTimeout(() => {
+                bar.classList.remove('active');
+                bar.setAttribute('aria-hidden', 'true');
+            }, 2200);
+        }
     },
 
     markAsUnsaved() {
@@ -1645,9 +1664,8 @@ const App = {
                     this.updateAutosaveUI('conflict', 'No se guardó: otra persona modificó esta solicitud');
                     UI.showToast('Otra persona modificó una solicitud mientras trabajabas. No se sobrescribieron sus cambios.', 'warning', 9000);
                 } else {
-                    const detail = result.error?.message ? `: ${result.error.message}` : '';
                     this.updateAutosaveUI('error', 'No se pudo sincronizar');
-                    UI.showToast(`No se pudieron sincronizar los cambios${detail}`, 'error', 9000);
+                    UI.showToast('No se pudo sincronizar el cambio. Tu información local permanece intacta.', 'error', 9000);
                 }
                 return;
             }
@@ -1683,7 +1701,7 @@ const App = {
         } catch (error) {
             console.error('Error inesperado al guardar cambios:', error);
             this.updateAutosaveUI('error', 'No se pudo sincronizar');
-            UI.showToast(`No se pudieron sincronizar los cambios: ${error?.message || 'error inesperado'}`, 'error', 9000);
+            UI.showToast('No se pudo sincronizar el cambio. Tu información local permanece intacta.', 'error', 9000);
         } finally {
             this.isSavingChanges = false;
             if (this.hasUnsavedChanges && this.autosaveRevision > revisionAtStart && !this.autosaveTimer) {
@@ -2523,7 +2541,7 @@ const App = {
         this.markAsUnsaved();
         modal?.classList.remove('active');
         this.renderBoard();
-        UI.showToast(DataService.taskSchemaCapabilities?.modern ? 'Entrega registrada. Sincronizando…' : 'Entrega registrada. Sincronizando con la estructura actual.', 'success');
+        UI.showToast('Entrega registrada. Sincronizando…', 'success', 4500);
     },
 
     openReopenConfirmation(taskId, sourceButton = null) {

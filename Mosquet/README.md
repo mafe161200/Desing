@@ -96,3 +96,13 @@
 - Los errores de Supabase no se convierten en listas vacías ni se presentan como guardados exitosos.
 - La versión es compatible con el esquema actual de `tasks` sin requerir una migración SQL para el autosave básico. Las columnas modernas se usan únicamente cuando ya existen en la instalación.
 - No se modifica ni se requiere ejecutar `SUPABASE_V36_FINAL.sql` para esta migración específica.
+
+
+## V37.2 — Consolidación UX/UI
+
+- Refinamiento de notificaciones, modales y controles de cierre.
+- Indicador de autosave compacto: sincronizando, guardado y error.
+- Jerarquía visual más clara para Estado y Acciones.
+- Sidebar renombrado a Trabajo activo y fecha de filtros más clara.
+- Ajustes responsive y accesibilidad visual.
+- No requiere cambios en Supabase ni ejecución de SQL.
