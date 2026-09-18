@@ -514,7 +514,7 @@ const DataService = {
             if (error) {
                 UI.updateConnectionStatus(false, error.message);
                 console.error('Supabase: no se pudieron cargar las tareas.', error);
-                return [];
+                throw error;
             }
 
             UI.updateConnectionStatus(true);
@@ -522,7 +522,7 @@ const DataService = {
         } catch (error) {
             UI.updateConnectionStatus(false, error.message);
             console.error('Supabase: error cargando tareas.', error);
-            return [];
+            throw error;
         }
     },
 
@@ -1070,8 +1070,11 @@ function ensureFlatpickrFormFieldIds(instance, prefix = 'flatpickr') {
 }
 
 function buildCustomSelects(container = document) {
-    // Limpia wrappers previos y menús portaled que pudieran pertenecer a una renderización anterior.
-    container.querySelectorAll('.select-wrapper').forEach(w => {
+    // Los selectores se reconstruyen como un conjunto único. Si se reconstruye
+    // un formulario después de los filtros, nunca anidamos wrappers anteriores.
+    // Esto evita que los dropdowns de Nueva solicitud queden desconectados.
+    const root = document;
+    root.querySelectorAll('.select-wrapper').forEach(w => {
         const select = w.querySelector('select');
         if (select) { w.parentNode.insertBefore(select, w); select.style.display = ''; }
         w.remove();
@@ -1121,7 +1124,7 @@ function buildCustomSelects(container = document) {
         menu.style.maxHeight = `${Math.max(120, Math.min(220, openAbove ? rect.top - margin - viewportPadding : window.innerHeight - rect.bottom - margin - viewportPadding))}px`;
     };
 
-    container.querySelectorAll('select.native-select-hidden').forEach(select => {
+    root.querySelectorAll('select.native-select-hidden').forEach(select => {
         const wrapper = document.createElement('div');
         wrapper.className = 'select-wrapper';
         select.parentNode.insertBefore(wrapper, select);
@@ -1571,58 +1574,53 @@ const App = {
             saveButton.setAttribute('aria-busy', 'true');
             saveButton.textContent = 'Guardando…';
         }
+
         try {
-        // Control de concurrencia optimista: si Supabase cambió desde la última
-        // carga, no sobrescribimos silenciosamente el trabajo de otro usuario.
-        const cloudBeforeSave = await DataService.getTasks();
-        const originalById = new Map(this.originalTasks.map(task => [String(task.id), task]));
-        const cloudById = new Map(cloudBeforeSave.map(task => [String(task.id), task]));
-        const fields = ['name', 'requester', 'assignee', 'assignee_id', 'requester_id', 'status', 'dateReceived', 'dateDelivered', 'due_at', 'delivered_at', 'isStarred', 'notes'];
-        const changedRemotely = cloudBeforeSave.some(cloudTask => {
-            const original = originalById.get(String(cloudTask.id));
-            if (!original) return false;
-            const fieldsChanged = fields.some(field => String(cloudTask[field] ?? '') !== String(original[field] ?? ''));
-            const versionChanged = cloudTask.version !== undefined && original.version !== undefined
-                && Number(cloudTask.version) !== Number(original.version);
-            return fieldsChanged || versionChanged;
-        }) || this.originalTasks.some(original => !cloudById.has(String(original.id)));
+            // La protección de concurrencia vive en DataService.saveTasks(),
+            // usando la columna version cuando está disponible. Evitamos una
+            // segunda consulta preventiva que podía interpretar un error de
+            // lectura como una lista vacía y bloquear el guardado.
+            const result = await DataService.saveTasks(this.tasks, this.originalTasks);
 
-        if (changedRemotely) {
-            UI.showToast('Hay cambios remotos pendientes. Se evitó sobrescribirlos. Revisa y vuelve a cargar antes de guardar.', 'warning', 9000);
-            return;
-        }
-
-        const result = await DataService.saveTasks(this.tasks, this.originalTasks);
-
-        if (!result.cloudSaved) {
-            const detail = result.error?.message ? `: ${result.error.message}` : '';
-            // Recuperamos el estado real del servidor para evitar que la interfaz
-            // muestre datos que ya no coinciden con la nube.
-            const recoveredTasks = await DataService.getTasks();
-            if (Array.isArray(recoveredTasks) && recoveredTasks.length) {
-                this.originalTasks = JSON.parse(JSON.stringify(recoveredTasks));
+            if (!result.cloudSaved) {
+                if (result.error?.code === 'DH_CONFLICT') {
+                    UI.showToast('Otra persona modificó una solicitud mientras trabajabas. Tus cambios no se sobrescribieron. Recarga los datos antes de volver a guardar.', 'warning', 9000);
+                } else {
+                    const detail = result.error?.message ? `: ${result.error.message}` : '';
+                    UI.showToast(`No se pudieron guardar los cambios${detail}`, 'error', 8000);
+                }
+                return;
             }
-            if (result.error?.code === 'DH_CONFLICT') {
-                UI.showToast('Otra persona modificó una solicitud mientras trabajabas. Tus cambios no se sobrescribieron.', 'warning', 9000);
-            } else {
-                UI.showToast(`No se pudieron guardar todos los cambios${detail}`, 'error', 7000);
-            }
-            return;
-        }
 
-        await this.flushPendingLifecycleEvents();
-        const freshTasks = await DataService.getTasks();
-        this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
-        this.tasks = JSON.parse(JSON.stringify(freshTasks));
-        this.hasUnsavedChanges = false;
-        const bar = document.getElementById('unsavedChangesBar');
-        if (bar) {
-            bar.classList.remove('active');
-            bar.setAttribute('aria-hidden', 'true');
-            bar.setAttribute('inert', '');
-        }
-        UI.showToast('Cambios guardados con éxito', 'success');
-        this.renderAll();
+            // Los eventos de ciclo de vida se persisten únicamente después de
+            // que el cambio principal fue aceptado por Supabase.
+            await this.flushPendingLifecycleEvents();
+
+            // Intentamos sincronizar versiones/fechas generadas por Supabase.
+            // Si la lectura posterior falla, el guardado ya ocurrió: no
+            // presentamos el cambio como fallido ni dejamos un falso estado
+            // de "sin guardar".
+            try {
+                const freshTasks = await DataService.getTasks();
+                this.originalTasks = JSON.parse(JSON.stringify(freshTasks));
+                this.tasks = JSON.parse(JSON.stringify(freshTasks));
+            } catch (refreshError) {
+                console.warn('Supabase: cambios guardados, pero no se pudo refrescar la copia local.', refreshError);
+                this.originalTasks = JSON.parse(JSON.stringify(this.tasks));
+            }
+
+            this.hasUnsavedChanges = false;
+            const bar = document.getElementById('unsavedChangesBar');
+            if (bar) {
+                bar.classList.remove('active');
+                bar.setAttribute('aria-hidden', 'true');
+                bar.setAttribute('inert', '');
+            }
+            UI.showToast('Cambios guardados con éxito', 'success');
+            this.renderAll();
+        } catch (error) {
+            console.error('Error inesperado al guardar cambios:', error);
+            UI.showToast(`No se pudieron guardar los cambios: ${error?.message || 'error inesperado'}`, 'error', 8000);
         } finally {
             this.isSavingChanges = false;
             if (saveButton) {
@@ -1703,7 +1701,7 @@ const App = {
             // Recalcula los menús del formulario cada vez que se abre. Esto evita
             // que una renderización previa deje triggers sin opciones o referencias
             // antiguas, especialmente después de actualizar solicitantes/equipo.
-            buildCustomSelects(document.querySelector('#taskForm'));
+            buildCustomSelects(document);
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
             if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
 
@@ -3604,10 +3602,10 @@ const App = {
             );
         });
 
-        buildCustomSelects(document.querySelector('.inline-filters-bar'));
         this.updateAdvancedFiltersSummary();
-        buildCustomSelects(document.querySelector('#taskForm'));
-        buildCustomSelects(document.querySelector('#editTaskForm'));
+        // Un solo ciclo reconstruye filtros, Nueva solicitud, edición y tabla.
+        // Evita wrappers anidados y menús duplicados.
+        buildCustomSelects(document);
     },
 
     resetBoardFilters({ keepSort = true } = {}) {
@@ -4409,7 +4407,7 @@ const App = {
         }
         tBody.replaceChildren(activeFragment);
 
-        buildCustomSelects(tBody);
+        buildCustomSelects(document);
         
         this.fpInstances = flatpickr(".inline-date-picker", {
             locale: "es",

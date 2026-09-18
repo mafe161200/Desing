@@ -76,3 +76,13 @@
 - Los selectores personalizados de Solicitud y Asignación se renderizan como menús portaled al `body`, evitando recortes por modales/overflow.
 - Los menús se reconstruyen al abrir Nueva solicitud para mantener sincronizadas las opciones de solicitantes y colaboradores.
 - No requiere cambios SQL.
+
+
+## V36.9 — Núcleo y guardado
+
+- Concurrencia optimista centralizada en `DataService.saveTasks()`; se elimina la comprobación preventiva duplicada.
+- Los errores de lectura de tareas ya no se convierten silenciosamente en una lista vacía.
+- Guardado con feedback claro y recuperación segura del botón.
+- Sincronización posterior al guardado tolera un fallo de refresco sin presentar un guardado exitoso como fallido.
+- Selectores personalizados reconstruidos como un conjunto global para evitar wrappers anidados y menús desconectados en Nueva solicitud y edición.
+- No se realizaron cambios SQL.
