@@ -126,3 +126,14 @@
 - Las tareas vencidas mantienen prioridad visual mediante el estado de peligro, evitando mezclar semánticas.
 - No se modificó la lógica de Supabase ni se requiere SQL adicional.
 
+
+
+## V37.5 — Escala y proporciones
+
+- Ajuste fino de escala tipográfica en tabla y acciones.
+- Acciones del Archivo de entregas más compactas y horizontales en escritorio.
+- Modal de entrega más compacto y con jerarquía tipográfica consistente.
+- Footer del modal estabilizado para evitar solapamiento/corte del botón Cancelar.
+- Botones con altura y tamaños tipográficos coherentes.
+- Responsive ajustado para conservar legibilidad en pantallas pequeñas.
+- No se modificó la lógica ni Supabase; no requiere SQL.
