@@ -175,3 +175,11 @@
 - Los filtros y «Mis tareas» reconocen cualquiera de los encargados.
 - No se modifican estados, fechas, entregas, Archivo, historial ni el resto del flujo.
 - Sin SQL y sin tests nuevos.
+
+## V37.5.6 — Multi-asignación UX
+- El selector de encargados ahora muestra visualmente las selecciones mediante checks.
+- `No asignado` funciona como opción especial y no cuenta dentro del máximo de 3 personas.
+- El selector vacío muestra «Selecciona hasta 3 personas» en Nueva Solicitud.
+- El cálculo de Trabajo activo contabiliza una tarea para cada encargado.
+- No se modifica ningún otro flujo.
+- Sin SQL y sin tests nuevos.

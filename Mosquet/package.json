@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.5",
+  "version": "37.5.6",
   "private": true,
-  "description": "Design Hub V37.5.5 — hasta 3 encargados por solicitud",
+  "description": "Design Hub V37.5.6 — mejora UX de multi-asignación",
   "engines": {
     "node": ">=18"
   }

@@ -7421,3 +7421,40 @@ input.deadline-control.text-warning:focus {
 .select-options .select-option.selected {
     font-weight: 700;
 }
+
+
+/* =========================================================
+   DESIGN HUB V37.5.6 — MULTI-ASIGNACIÓN UX
+   Solo mejora la claridad del selector de hasta 3 encargados.
+   ========================================================= */
+
+.multi-assignee-options .select-option {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+}
+
+.multi-option-check {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-light);
+    border-radius: 5px;
+    color: transparent;
+    font-size: 12px;
+    font-weight: 800;
+    background: transparent;
+}
+
+.multi-assignee-options .select-option.selected .multi-option-check {
+    color: var(--bg-primary);
+    background: var(--accent-cyan);
+    border-color: var(--accent-cyan);
+}
+
+.multi-assignee-options .select-option.selected {
+    background: rgba(39, 190, 242, .10) !important;
+}

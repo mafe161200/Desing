@@ -1214,7 +1214,8 @@ function buildCustomSelects(container = document) {
 
         const safeText = escapeHTML(
             select.multiple
-                ? (Array.from(select.selectedOptions).map(option => option.text).join(', ') || 'No asignado')
+                ? (Array.from(select.selectedOptions).map(option => option.text).join(', ') ||
+                    (select.id === 'assignee' ? 'Selecciona hasta 3 personas' : 'No asignado'))
                 : (select.options[select.selectedIndex]?.text || '')
         );
         trigger.innerHTML = `<span>${safeText}</span> <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
@@ -1239,6 +1240,9 @@ function buildCustomSelects(container = document) {
         optionsDiv.setAttribute('aria-label', trigger.getAttribute('aria-label'));
         optionsDiv.dataset.triggerId = triggerId;
         optionsDiv.dataset.selectId = select.id;
+        if (select.classList.contains('multi-assignee-select')) {
+            optionsDiv.classList.add('multi-assignee-options');
+        }
 
         // Todos los selectores personalizados se portan al body. Así funcionan
         // igual dentro de modales, tablas y paneles con overflow/scroll, sin quedar
@@ -1262,7 +1266,11 @@ function buildCustomSelects(container = document) {
         Array.from(select.options).forEach((opt, index) => {
             const item = document.createElement('div');
             item.className = `select-option ${opt.selected ? 'selected' : ''}`;
-            item.textContent = opt.text;
+            if (select.classList.contains('multi-assignee-select')) {
+                item.innerHTML = `<span class="multi-option-check" aria-hidden="true">✓</span><span>${escapeHTML(opt.text)}</span>`;
+            } else {
+                item.textContent = opt.text;
+            }
             item.setAttribute('role', 'option');
             item.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
             item.setAttribute('tabindex', '-1');
@@ -1273,11 +1281,18 @@ function buildCustomSelects(container = document) {
                 if (opt.disabled) return;
                 if (isMultiAssignee) {
                     const selected = Array.from(select.selectedOptions).map(option => option.value);
-                    const nextSelected = opt.selected
-                        ? selected.filter(value => value !== opt.value)
-                        : [...selected, opt.value];
+                    let nextSelected;
 
-                    if (!opt.selected && nextSelected.length > 3) {
+                    if (opt.value === 'No asignado') {
+                        nextSelected = opt.selected ? [] : ['No asignado'];
+                    } else {
+                        const withoutUnassigned = selected.filter(value => value !== 'No asignado');
+                        nextSelected = opt.selected
+                            ? withoutUnassigned.filter(value => value !== opt.value)
+                            : [...withoutUnassigned, opt.value];
+                    }
+
+                    if (opt.value !== 'No asignado' && !opt.selected && nextSelected.length > 3) {
                         UI.showToast('Puedes asignar máximo 3 personas.', 'info');
                         return;
                     }
@@ -2612,7 +2627,7 @@ const App = {
 
         if (title) title.textContent = normalizeText(task.name);
         if (date) date.textContent = 'Se registrará hoy como fecha real de entrega';
-        if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
+        if (assignee) assignee.textContent = normalizeAssignees(task.assignee).join(', ') || 'No asignado';
 
         modal.dataset.taskId = String(taskId);
         if (sourceButton instanceof HTMLElement && sourceButton.id) {
@@ -2669,7 +2684,7 @@ const App = {
         const assignee = document.getElementById('reopenTaskAssignee');
         if (title) title.textContent = normalizeText(task.name);
         if (deadline) deadline.textContent = getTaskDeadline(task) ? this.formatBusinessDate(getTaskDeadline(task)) : 'Sin fecha límite';
-        if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
+        if (assignee) assignee.textContent = normalizeAssignees(task.assignee).join(', ') || 'No asignado';
 
         modal.dataset.taskId = String(taskId);
         if (sourceButton instanceof HTMLElement && sourceButton.id) {
@@ -3807,6 +3822,9 @@ const App = {
         const buildOptions = (select, options, placeholder, emptyOption = false) => {
             if (!select) return;
             const currentValue = select.value;
+            const currentValues = select.multiple
+                ? Array.from(select.selectedOptions).map(option => option.value)
+                : [currentValue];
             const fragment = document.createDocumentFragment();
 
             if (placeholder) {
@@ -3826,7 +3844,11 @@ const App = {
             });
 
             select.replaceChildren(fragment);
-            if ([...select.options].some(option => option.value === currentValue)) {
+            if (select.multiple) {
+                Array.from(select.options).forEach(option => {
+                    option.selected = currentValues.includes(option.value);
+                });
+            } else if ([...select.options].some(option => option.value === currentValue)) {
                 select.value = currentValue;
             }
         };
@@ -4720,8 +4742,14 @@ const App = {
         workload['No asignado'] = 0;
 
         activasTasks.forEach(task => {
-            const assignee = task.assignee || 'No asignado';
-            workload[assignee] = (workload[assignee] || 0) + 1;
+            const assignees = normalizeAssignees(task.assignee);
+            if (!assignees.length) {
+                workload['No asignado'] = (workload['No asignado'] || 0) + 1;
+                return;
+            }
+            assignees.forEach(assignee => {
+                workload[assignee] = (workload[assignee] || 0) + 1;
+            });
         });
 
         const sortedWorkload = Object.entries(workload)
