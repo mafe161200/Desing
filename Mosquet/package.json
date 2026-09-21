@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.7",
+  "version": "37.5.9",
   "private": true,
-  "description": "Design Hub V37.5.7 — prioridad con color dinámico por usuario",
+  "description": "Design Hub V37.5.9 — navegación Home y logo blanco",
   "engines": {
     "node": ">=18"
   }

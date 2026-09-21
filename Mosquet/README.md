@@ -191,3 +191,18 @@
 - Al devolver una solicitud al flujo, la estrella vuelve a estar disponible.
 - No se modifican asignaciones, estados, fechas, Archivo, historial ni otros flujos.
 - Sin SQL y sin tests nuevos.
+
+## V37.5.8 — Prioridad persistente por usuario
+- La prioridad guarda en Supabase quién la activó mediante `tasks.priority_by`.
+- La estrella usa el `theme` actual del perfil de ese usuario.
+- Las solicitudes `Entregado` no muestran la estrella.
+- Se elimina la dependencia de `localStorage` para identificar al usuario.
+- Requiere ejecutar una única migración: `SUPABASE_V37_5_8_PRIORITY.sql`.
+- No se modifican otros campos ni flujos.
+
+## V37.5.9 — Home + logo
+- El logo `Design` del header ahora funciona como enlace accesible al inicio.
+- Se añadió un botón explícito `Inicio`.
+- El logo del header se presenta en blanco sin modificar su composición.
+- Se añadió foco visible para navegación por teclado.
+- No se modifican solicitudes, estados, asignaciones, prioridades ni persistencia.

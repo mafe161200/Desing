@@ -52,36 +52,14 @@ const serializeAssignees = (value) => {
     return names.length ? names.join(', ') : 'No asignado';
 };
 
-const PRIORITY_ACTOR_STORAGE_KEY = 'designHub.priorityActors';
-
-const readPriorityActors = () => {
-    try {
-        return JSON.parse(localStorage.getItem(PRIORITY_ACTOR_STORAGE_KEY) || '{}') || {};
-    } catch {
-        return {};
-    }
-};
-
-const writePriorityActor = (taskId, actorName) => {
-    try {
-        const map = readPriorityActors();
-        if (actorName) map[taskId] = actorName;
-        else delete map[taskId];
-        localStorage.setItem(PRIORITY_ACTOR_STORAGE_KEY, JSON.stringify(map));
-    } catch {
-        // Local storage is only a visual fallback; it must never block the task action.
-    }
-};
-
-const getPriorityActor = (task) =>
-    normalizeText(task?.priorityBy) || normalizeText(readPriorityActors()[task?.id]);
+const getPriorityActor = (task) => normalizeText(task?.priorityBy);
 
 const getPriorityColor = (task) => {
     const actor = getPriorityActor(task);
     const profile = (App.usersList || []).find(
         user => normalizeText(user.name).toLowerCase() === actor.toLowerCase()
     );
-    return profile?.theme || App.getColor(actor || task?.assignee || 'No asignado');
+    return profile?.theme || App.getColor(actor || 'Prioridad');
 };
 
 const isTaskActive = (task) => normalizeText(task?.status) !== 'Entregado';
@@ -105,6 +83,7 @@ const normalizeTask = (task) => {
         dateReceived: normalizeText(source.dateReceived),
         dateDelivered: normalizeText(source.dateDelivered),
         isStarred: Boolean(source.isStarred),
+        priorityBy: normalizeText(source.priorityBy),
         notes: normalizeText(source.notes)
     };
     if (!normalized.dateDelivered && source.due_at) {
@@ -579,8 +558,14 @@ const DataService = {
                 .limit(1);
             if (error) throw error;
             const first = Array.isArray(data) && data.length ? data[0] : {};
+            let priorityBy = Object.prototype.hasOwnProperty.call(first, 'priority_by') || Object.prototype.hasOwnProperty.call(first, 'priorityBy');
+            if (!priorityBy) {
+                const probe = await supabaseClient.from('tasks').select('priority_by').limit(1);
+                priorityBy = !probe.error;
+            }
             this.taskSchemaCapabilities = {
                 modern: ['due_at', 'delivered_at', 'version', 'updated_at'].every(field => Object.prototype.hasOwnProperty.call(first, field)),
+                priorityBy,
                 legacy: true
             };
             return this.taskSchemaCapabilities;
@@ -613,7 +598,8 @@ const DataService = {
             if (rows.length) {
                 const first = rows[0] || {};
                 this.taskSchemaCapabilities = {
-                    modern: ['due_at', 'delivered_at', 'version', 'updated_at'].every(field => Object.prototype.hasOwnProperty.call(first, field))
+                    modern: ['due_at', 'delivered_at', 'version', 'updated_at'].every(field => Object.prototype.hasOwnProperty.call(first, field)),
+                    priorityBy: Object.prototype.hasOwnProperty.call(first, 'priority_by') || Object.prototype.hasOwnProperty.call(first, 'priorityBy')
                 };
             } else if (!this.taskSchemaCapabilities) {
                 await this.getTaskSchemaCapabilities();
@@ -638,13 +624,15 @@ const DataService = {
         const currentIds = new Set(safeTasks.map(task => String(task.id)));
 
         const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
+        if (this.taskSchemaCapabilities?.priorityBy) fields.push('priorityBy');
         const modernFields = ['assignee_id', 'requester_id', 'due_at', 'delivered_at'];
         if (this.taskSchemaCapabilities?.modern) fields.push(...modernFields);
         const buildPayload = (task) => {
             const payload = { id: task.id };
             fields.forEach(field => {
                 const value = task[field];
-                const optional = ['assignee_id','requester_id','due_at','delivered_at'].includes(field);
+                const dbField = field === 'priorityBy' ? 'priority_by' : field;
+                const optional = ['assignee_id','requester_id','due_at','delivered_at','priorityBy'].includes(field);
                 if (optional && value === undefined) return;
                 if (optional && value === null) {
                     payload[field] = null;
@@ -1873,10 +1861,8 @@ const App = {
             task.isStarred = !task.isStarred;
             if (task.isStarred) {
                 task.priorityBy = normalizeText(this.user?.name);
-                writePriorityActor(task.id, task.priorityBy);
             } else {
                 task.priorityBy = '';
-                writePriorityActor(task.id, '');
             }
             this.markAsUnsaved();
             this.renderBoard();
@@ -4926,4 +4912,13 @@ const App = {
 document.addEventListener('DOMContentLoaded', async () => {
     try { await App.init(); } 
     catch(e) { console.error("FATAL ERROR:", e); alert("No pudimos cargar Design Hub correctamente. Recarga la página. Si el problema continúa, informa al administrador."); }
+});
+
+/* V37.5.9 — navegación accesible al Home */
+document.addEventListener('click', (event) => {
+    const trigger = event.target.closest('[data-nav-home="true"]');
+    if (!trigger) return;
+    event.preventDefault();
+    window.location.hash = '#home';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 });
