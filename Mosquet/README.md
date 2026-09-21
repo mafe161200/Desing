@@ -168,3 +168,10 @@
 - Separación entre botones aumentada y botón principal ligeramente más compacto.
 - Responsive preservado: en pantallas pequeñas los botones se apilan.
 - Sin cambios funcionales, sin SQL y sin tests nuevos.
+
+## V37.5.5 — Multi-asignación
+- Una solicitud puede tener hasta 3 encargados simultáneamente.
+- Se reutiliza el campo existente `assignee`, sin migración de base de datos.
+- Los filtros y «Mis tareas» reconocen cualquiera de los encargados.
+- No se modifican estados, fechas, entregas, Archivo, historial ni el resto del flujo.
+- Sin SQL y sin tests nuevos.

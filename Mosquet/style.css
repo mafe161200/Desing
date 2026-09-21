@@ -7407,3 +7407,17 @@ input.deadline-control.text-warning:focus {
     }
 }
 
+
+
+/* =========================================================
+   DESIGN HUB V37.5.5 — MULTI-ASIGNACIÓN
+   Único cambio funcional: hasta 3 encargados por solicitud.
+   ========================================================= */
+
+.select-trigger.multi-assignee-select {
+    min-height: 40px;
+}
+
+.select-options .select-option.selected {
+    font-weight: 700;
+}

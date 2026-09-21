@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.4",
+  "version": "37.5.5",
   "private": true,
-  "description": "Design Hub V37.5.4 — ajuste visual del modal Devolver al flujo",
+  "description": "Design Hub V37.5.5 — hasta 3 encargados por solicitud",
   "engines": {
     "node": ">=18"
   }

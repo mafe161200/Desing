@@ -512,7 +512,8 @@
                         </div>
                         <div class="field">
                             <label for="assignee">Asignar a <span class="required-mark" aria-hidden="true">*</span></label>
-                            <select id="assignee" name="assignee" class="native-select-hidden" required></select>
+                            <select id="assignee" name="assignee" class="native-select-hidden multi-assignee-select" multiple aria-describedby="assigneeHelp"></select>
+                            <div id="assigneeHelp" class="field-help">Puedes asignar hasta 3 personas.</div>
                         </div>
                         <div class="field">
                             <label id="dateReceived-label" for="dateReceived">Fecha de solicitud</label>

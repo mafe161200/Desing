@@ -40,6 +40,21 @@ const clearLegacyLocalData = () => {
 };
 
 const normalizeText = (value) => String(value ?? '').trim();
+const normalizeAssignees = (value) => {
+    const names = Array.isArray(value)
+        ? value.map(normalizeText)
+        : normalizeText(value).split(/\s*,\s*/).map(normalizeText);
+    return [...new Set(names.filter(name => name && name !== 'No asignado'))].slice(0, 3);
+};
+
+const serializeAssignees = (value) => {
+    const names = normalizeAssignees(value);
+    return names.length ? names.join(', ') : 'No asignado';
+};
+
+const taskHasAssignee = (task, name) =>
+    normalizeAssignees(task?.assignee).includes(normalizeText(name));
+
 
 // Normaliza una tarea recibida desde Supabase/Realtime. Mantiene los campos
 // opcionales de control de concurrencia cuando la base de datos ya dispone
@@ -51,7 +66,7 @@ const normalizeTask = (task) => {
         id: source.id ?? createId(),
         name: normalizeText(source.name),
         requester: normalizeText(source.requester),
-        assignee: normalizeText(source.assignee) || 'No asignado',
+        assignee: serializeAssignees(source.assignee),
         status: normalizeText(source.status) || 'En cola',
         dateReceived: normalizeText(source.dateReceived),
         dateDelivered: normalizeText(source.dateDelivered),
@@ -353,7 +368,7 @@ const NotificationService = {
             }, 100);
         };
 
-        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && getTaskDeadline(t));
+        const myPendingTasks = tasks.filter(t => taskHasAssignee(t, userName) && t.status !== 'Entregado' && getTaskDeadline(t));
         if (myPendingTasks.length > 0) {
             myPendingTasks.sort((a, b) => new Date(getTaskDeadline(a) + 'T12:00:00').getTime() - new Date(getTaskDeadline(b) + 'T12:00:00').getTime());
             const nearest = myPendingTasks[0];
@@ -368,7 +383,7 @@ const NotificationService = {
             }
         }
 
-        const unassigned = tasks.filter(t => t.assignee === 'No asignado' && t.status !== 'Entregado' && t.dateReceived);
+        const unassigned = tasks.filter(t => normalizeAssignees(t.assignee).length === 0 && t.status !== 'Entregado' && t.dateReceived);
         const oldUnassigned = unassigned.filter(t => {
             const recDate = new Date(t.dateReceived);
             const diffTime = Math.abs(now - recDate);
@@ -1197,7 +1212,11 @@ function buildCustomSelects(container = document) {
         const classNames = Array.from(select.classList).filter(c => c !== 'native-select-hidden').join(' ');
         trigger.className = `select-trigger ${classNames}`;
 
-        const safeText = escapeHTML(select.options[select.selectedIndex]?.text || '');
+        const safeText = escapeHTML(
+            select.multiple
+                ? (Array.from(select.selectedOptions).map(option => option.text).join(', ') || 'No asignado')
+                : (select.options[select.selectedIndex]?.text || '')
+        );
         trigger.innerHTML = `<span>${safeText}</span> <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
         const applyColor = (color) => {
@@ -1238,6 +1257,8 @@ function buildCustomSelects(container = document) {
             options[nextIndex].focus();
         };
 
+        const isMultiAssignee = select.classList.contains('multi-assignee-select');
+
         Array.from(select.options).forEach((opt, index) => {
             const item = document.createElement('div');
             item.className = `select-option ${opt.selected ? 'selected' : ''}`;
@@ -1250,6 +1271,42 @@ function buildCustomSelects(container = document) {
             const handleSelect = (e) => {
                 e.stopPropagation();
                 if (opt.disabled) return;
+                if (isMultiAssignee) {
+                    const selected = Array.from(select.selectedOptions).map(option => option.value);
+                    const nextSelected = opt.selected
+                        ? selected.filter(value => value !== opt.value)
+                        : [...selected, opt.value];
+
+                    if (!opt.selected && nextSelected.length > 3) {
+                        UI.showToast('Puedes asignar máximo 3 personas.', 'info');
+                        return;
+                    }
+
+                    Array.from(select.options).forEach(option => {
+                        option.selected = nextSelected.includes(option.value);
+                    });
+
+                    const labels = Array.from(select.selectedOptions).map(option => option.text);
+                    trigger.querySelector('span').textContent = labels.length ? labels.join(', ') : 'No asignado';
+
+                    optionElements.forEach((optionEl, optionIndex) => {
+                        const sourceOption = select.options[optionIndex];
+                        const isSelected = !!sourceOption?.selected;
+                        optionEl.classList.toggle('selected', isSelected);
+                        optionEl.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                    });
+
+                    if (select.classList.contains('inline-assignee')) {
+                        const colorName = labels[0] || 'No asignado';
+                        const newColor = App.getColor(colorName);
+                        select.setAttribute('data-color', newColor);
+                        applyColor(newColor);
+                    }
+
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    return;
+                }
+
                 select.value = opt.value;
                 trigger.querySelector('span').textContent = opt.text;
                 if (select.classList.contains('inline-assignee')) {
@@ -1326,6 +1383,27 @@ function buildCustomSelects(container = document) {
 }
 
 function updateCustomSelectUI(selectElement, value) {
+    if (selectElement?.multiple) {
+        const names = normalizeAssignees(value);
+        Array.from(selectElement.options).forEach(option => {
+            option.selected = names.includes(option.value);
+        });
+
+        const wrapper = selectElement.closest('.select-wrapper');
+        const triggerSpan = wrapper?.querySelector('.select-trigger span');
+        if (triggerSpan) triggerSpan.textContent = names.length ? names.join(', ') : 'No asignado';
+
+        const options = document.querySelectorAll(
+            `.select-options-portal[data-select-id="${CSS.escape(selectElement.id)}"] .select-option`
+        );
+        options.forEach((opt, index) => {
+            const selected = !!selectElement.options[index]?.selected;
+            opt.classList.toggle('selected', selected);
+            opt.setAttribute('aria-selected', selected ? 'true' : 'false');
+        });
+        return;
+    }
+
     selectElement.value = value;
     const wrapper = selectElement.closest('.select-wrapper');
     const option = Array.from(selectElement.options).find(o => o.value === value);
@@ -1790,14 +1868,14 @@ const App = {
             const assigneeSelect = document.getElementById('assignee');
 
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
-            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
+            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, []);
 
             // Recalcula los menús del formulario cada vez que se abre. Esto evita
             // que una renderización previa deje triggers sin opciones o referencias
             // antiguas, especialmente después de actualizar solicitantes/equipo.
             buildCustomSelects(document);
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
-            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
+            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, []);
 
             const taskNotes = document.getElementById('taskNotes');
             if (taskNotes) taskNotes.value = '';
@@ -1994,7 +2072,7 @@ const App = {
                 id: createId(),
                 name: taskNameRaw,
                 requester: requesterRaw,
-                assignee: normalizeText(assigneeInput?.value),
+                assignee: serializeAssignees(Array.from(assigneeInput?.selectedOptions || []).map(option => option.value)),
                 status: 'En cola',
                 dateReceived: dateReceivedValue,
                 dateDelivered: delivered,
@@ -2012,7 +2090,7 @@ const App = {
             const newRequesterSelect = document.getElementById('requesterSelect');
             const newAssigneeSelect = document.getElementById('assignee');
             if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
-            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, 'No asignado');
+            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, []);
 
             const receivedPicker = document.getElementById('dateReceived')?._flatpickr;
             const deliveredPicker = document.getElementById('dateDelivered')?._flatpickr;
@@ -2235,7 +2313,7 @@ const App = {
                     this.updateTask(
                         taskId,
                         'assignee',
-                        target.value,
+                        serializeAssignees(Array.from(target.selectedOptions || []).map(option => option.value)),
                         false
                     );
                     break;
@@ -3550,7 +3628,7 @@ const App = {
             .filter(task => {
                 if (filters.month && monthOf(task.dateReceived) !== filters.month) return false;
                 if (filters.requester !== 'Todos' && normalizeText(task.requester) !== filters.requester) return false;
-                if (filters.assignee !== 'Todos' && normalizeText(task.assignee) !== filters.assignee) return false;
+                if (filters.assignee !== 'Todos' && !taskHasAssignee(task, filters.assignee)) return false;
                 if (filters.status !== 'Todos' && normalizeText(task.status) !== filters.status) return false;
 
                 if (filters.search) {
@@ -4274,7 +4352,7 @@ const App = {
         };
 
         const matchesCommonFilters = (t) => {
-            const mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
+            const mAsig = fAssignee === 'Todos' || taskHasAssignee(t, fAssignee);
             const mReq = fRequester === 'Todos' || t.requester === fRequester;
             const mStat = fStatus === 'Todos' || t.status === fStatus;
             const mSearch = !fSearch ||
@@ -4287,9 +4365,9 @@ const App = {
             if (this.quickFilter === 'starred') {
                 mQuick = !!t.isStarred;
             } else if (this.quickFilter === 'mine') {
-                mQuick = !!this.user && t.assignee === this.user.name;
+                mQuick = !!this.user && taskHasAssignee(t, this.user.name);
             } else if (this.quickFilter === 'unassigned') {
-                mQuick = !t.assignee || t.assignee === 'No asignado';
+                mQuick = normalizeAssignees(t.assignee).length === 0;
             } else if (this.quickFilter === 'overdue') {
                 mQuick = t.status !== 'Entregado' && !!getTaskDeadline(t) && dateValue(getTaskDeadline(t)) < Date.now();
             } else if (this.quickFilter === 'today') {
@@ -4369,7 +4447,7 @@ const App = {
 
         const myTasks = this.tasks.filter(t => t.status !== TASK_STATUS.DELIVERED && (
                 (t.assignee_id && this.user?.id && String(t.assignee_id) === String(this.user.id)) ||
-                (!t.assignee_id && t.assignee === this.user.name)
+                (!t.assignee_id && taskHasAssignee(t, this.user.name))
             )).sort(sortTasks);
         const myTasksBadge = document.querySelector('.sidebar-card:first-child .badge-count');
         if (myTasksBadge) myTasksBadge.textContent = String(myTasks.length);
@@ -4456,7 +4534,7 @@ const App = {
         }
         sList.replaceChildren(sidebarFragment);
 
-        let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
+        let assigneeOpts = this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
         
         boardTasks.forEach(t => {
             const tr = document.createElement('tr');
@@ -4539,8 +4617,8 @@ const App = {
                     </div>
                 </td>
                 <td data-label="Asignación">
-                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
-                        ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
+                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee multi-assignee-select" aria-label="Cambiar asignación (hasta 3 personas)" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}" multiple>
+                        ${assigneeOpts}
                     </select>
                 </td>
                 <td class="date-info" data-label="Fechas">
@@ -4565,6 +4643,13 @@ const App = {
                     </div>
                 </td>
             `;
+            const rowAssigneeSelect = tr.querySelector('.multi-assignee-select');
+            if (rowAssigneeSelect) {
+                const currentAssignees = new Set(normalizeAssignees(t.assignee));
+                Array.from(rowAssigneeSelect.options).forEach(option => {
+                    option.selected = currentAssignees.has(option.value);
+                });
+            }
             activeFragment.appendChild(tr);
         });
         if (boardTasks.length === 0) {
