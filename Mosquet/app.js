@@ -52,6 +52,40 @@ const serializeAssignees = (value) => {
     return names.length ? names.join(', ') : 'No asignado';
 };
 
+const PRIORITY_ACTOR_STORAGE_KEY = 'designHub.priorityActors';
+
+const readPriorityActors = () => {
+    try {
+        return JSON.parse(localStorage.getItem(PRIORITY_ACTOR_STORAGE_KEY) || '{}') || {};
+    } catch {
+        return {};
+    }
+};
+
+const writePriorityActor = (taskId, actorName) => {
+    try {
+        const map = readPriorityActors();
+        if (actorName) map[taskId] = actorName;
+        else delete map[taskId];
+        localStorage.setItem(PRIORITY_ACTOR_STORAGE_KEY, JSON.stringify(map));
+    } catch {
+        // Local storage is only a visual fallback; it must never block the task action.
+    }
+};
+
+const getPriorityActor = (task) =>
+    normalizeText(task?.priorityBy) || normalizeText(readPriorityActors()[task?.id]);
+
+const getPriorityColor = (task) => {
+    const actor = getPriorityActor(task);
+    const profile = (App.usersList || []).find(
+        user => normalizeText(user.name).toLowerCase() === actor.toLowerCase()
+    );
+    return profile?.theme || App.getColor(actor || task?.assignee || 'No asignado');
+};
+
+const isTaskActive = (task) => normalizeText(task?.status) !== 'Entregado';
+
 const taskHasAssignee = (task, name) =>
     normalizeAssignees(task?.assignee).includes(normalizeText(name));
 
@@ -1837,6 +1871,13 @@ const App = {
         const task = this.tasks.find(t => t.id === taskId);
         if (task) {
             task.isStarred = !task.isStarred;
+            if (task.isStarred) {
+                task.priorityBy = normalizeText(this.user?.name);
+                writePriorityActor(task.id, task.priorityBy);
+            } else {
+                task.priorityBy = '';
+                writePriorityActor(task.id, '');
+            }
             this.markAsUnsaved();
             this.renderBoard();
         }
@@ -4527,9 +4568,9 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
+                        ${t.isStarred && isTaskActive(t) ? `<button type="button" class="btn-star active" style="color:${escapeHTML(getPriorityColor(t))};" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Quitar prioridad" title="Prioridad marcada por ${escapeHTML(getPriorityActor(t) || 'usuario')}">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
-                        </button>
+                        </button>` : ''}
                         <span class="req-name-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                     </span>
                     <div class="req-dates">
@@ -4629,9 +4670,9 @@ const App = {
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}">
+                            ${isTaskActive(t) ? `<button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" style="${t.isStarred ? `color:${escapeHTML(getPriorityColor(t))};` : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}" title="${t.isStarred ? `Prioridad marcada por ${escapeHTML(getPriorityActor(t) || 'usuario')}` : 'Marcar como prioridad'}">
                                 <i data-lucide="star" aria-hidden="true"></i>
-                            </button>
+                            </button>` : ''}
                             <span class="req-title-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                         </strong>
                         <span>${escapeHTML(t.requester)}</span>

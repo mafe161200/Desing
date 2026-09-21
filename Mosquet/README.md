@@ -183,3 +183,11 @@
 - El cálculo de Trabajo activo contabiliza una tarea para cada encargado.
 - No se modifica ningún otro flujo.
 - Sin SQL y sin tests nuevos.
+
+## V37.5.7 — Prioridad por usuario
+- La estrella de prioridad usa el color configurado actualmente del usuario que la activa.
+- Las solicitudes `Entregado` no muestran la estrella en las vistas activas.
+- El responsable visual de la prioridad se conserva localmente sin modificar el esquema de Supabase.
+- Al devolver una solicitud al flujo, la estrella vuelve a estar disponible.
+- No se modifican asignaciones, estados, fechas, Archivo, historial ni otros flujos.
+- Sin SQL y sin tests nuevos.

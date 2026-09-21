@@ -7458,3 +7458,19 @@ input.deadline-control.text-warning:focus {
 .multi-assignee-options .select-option.selected {
     background: rgba(39, 190, 242, .10) !important;
 }
+
+
+/* =========================================================
+   DESIGN HUB V37.5.7 — PRIORIDAD POR USUARIO
+   Solo cambia el color de la estrella activa.
+   ========================================================= */
+
+[data-action="toggle-star"].active {
+    color: inherit;
+}
+
+[data-action="toggle-star"].active svg,
+[data-action="toggle-star"].active i {
+    color: inherit;
+    stroke: currentColor;
+}
