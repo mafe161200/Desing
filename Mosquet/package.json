@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.10",
+  "version": "37.5.20",
   "private": true,
-  "description": "Design Hub V37.5.10 — prioridad persistente final",
+  "description": "Design Hub V37.5.20 — simplificación del portal: chat de equipo retirado",
   "engines": {
     "node": ">=18"
   }

@@ -183,10 +183,6 @@ body {
 .btn-icon.delete:hover { color: var(--danger); background: var(--danger-bg); }
 .btn-icon.edit:hover { color: var(--info); background: var(--status-curso-bg); }
 
-/* Botón específico de Enviar Nota */
-.btn-send-note { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 8px; border: none; color: #ffffff; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; flex-shrink: 0; outline: none; background-color: var(--primary-cold); }
-.btn-send-note:hover, .btn-send-note:focus-visible { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
-
 .btn-text { background: transparent; border: none; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: 0.2s;}
 .btn-text:hover { color: var(--danger); }
 
@@ -415,29 +411,7 @@ html body .native-select-hidden { display: none; }
 .remove-member { cursor: pointer; color: var(--text-muted); background: transparent; border: none; display: flex; outline: none; }
 .remove-member:hover, .remove-member:focus-visible { color: var(--danger); }
 
-/* PANEL LATERAL DE NOTAS (Off-canvas Drawer y Chat Bubbles Seguros) */
-.notes-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.4); backdrop-filter: blur(2px); z-index: 9998; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
-.notes-overlay.active { opacity: 1; pointer-events: all; }
-.notes-panel { position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100vh; background: var(--bg-main); box-shadow: -4px 0 25px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
-.notes-panel.open { right: 0; }
-.notes-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-light); background: var(--card-bg); }
-.notes-header h2 { font-size: 1rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: center; gap: 8px; margin:0;}
-.notes-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
-
-/* Burbujas de Chat Accesibles (Alto Contraste) */
-.chat-msg { display: flex; flex-direction: column; width: 100%; animation: popIn 0.2s ease-out; }
-.chat-msg.mine { align-items: flex-end; }
-.chat-msg.other { align-items: flex-start; }
-.chat-bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 0.85rem; line-height: 1.4; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-.chat-msg.mine .chat-bubble { border-bottom-right-radius: 4px; background: var(--primary-cold); color: #ffffff; }
-.chat-msg.other .chat-bubble { border-bottom-left-radius: 4px; background: var(--card-bg); border: 1px solid var(--border-light); color: var(--text-dark); }
-.chat-meta { font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px; display: flex; gap: 6px; font-weight: 500; }
-.notes-footer { padding: 16px 20px 20px 20px; border-top: 1px solid var(--border-light); background: var(--card-bg); }
-
-/* UTILIDAD ALERTAS (Badge Notificaciones) */
 .position-relative { position: relative; }
-.notification-badge { position: absolute; top: 0px; right: 0px; width: 10px; height: 10px; background-color: var(--danger); border-radius: 50%; border: 2px solid var(--card-bg); display: none; }
-.notification-badge.active { display: block; animation: popIn 0.3s ease-out; }
 
 /* MEDIA QUERIES PARA MÓVILES */
 @media (max-width: 980px) { .layout-grid { grid-template-columns: 1fr; } }
@@ -1076,7 +1050,7 @@ body {
 .app-header,
 .card,
 .modal-content,
-.notes-panel,
+
 .request-item,
 .task-table tbody,
 .table-wrapper,
@@ -1092,7 +1066,7 @@ body {
 .workload-card,
 .request-item,
 .modal-content,
-.notes-panel {
+{
     background-color: var(--card-bg);
     border-color: var(--border-light);
 }
@@ -1215,21 +1189,6 @@ select {
     border: 1px solid var(--border-light);
 }
 
-/* Drawer/chat */
-.notes-header,
-.notes-footer {
-    background: #0b1220 !important;
-}
-
-.chat-msg.other .chat-bubble {
-    background: #0e1728 !important;
-    color: #f4f7ff;
-}
-
-.chat-msg.mine .chat-bubble {
-    background: #0ea5e9 !important;
-    color: #ffffff;
-}
 
 /* Evitar cualquier barra decorativa debajo de fechas */
 .task-table td.date-info {
@@ -3533,12 +3492,6 @@ html body div.flatpickr-calendar .flatpickr-day.startRange:hover,
 html body div.flatpickr-calendar .flatpickr-day.endRange:hover {
     background: var(--primary-hover);
     color: #06121d;
-}
-
-/* Filled cyan chat/send controls also use dark text/icons. */
-.btn-send-note,
-.chat-send-btn {
-    color: #03131d;
 }
 
 /* Cyan utility surfaces use dark foreground text/icons. */
@@ -7707,19 +7660,6 @@ html body .btn-icon:focus-visible {
     box-shadow: none;
 }
 
-/* El envío de notas conserva la familia primaria, pero sin el azul eléctrico. */
-html body .btn-send-note,
-html body .chat-send-btn {
-    background: var(--dh-action-primary) !important;
-    border: 1px solid var(--dh-action-primary-border) !important;
-    color: var(--dh-action-primary-text) !important;
-}
-
-html body .btn-send-note:hover,
-html body .chat-send-btn:hover {
-    background: var(--dh-action-primary-hover) !important;
-    color: #04131b !important;
-}
 
 /* Las acciones semánticas de estado NO se sobrescriben aquí. */
 

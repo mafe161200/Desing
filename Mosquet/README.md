@@ -1,3 +1,11 @@
+## V37.5.20 — Simplificación del portal: retiro del chat de equipo
+
+- Se retiró el acceso al chat/notas generales del equipo porque no forma parte del flujo de trabajo utilizado por los usuarios.
+- Se conserva intacto el campo **Notas** de cada solicitud, ya que sí aporta contexto a la tarea y al historial operativo.
+- Se eliminó la integración del selector de emojis y la suscripción Realtime de la tabla `notes` del chat.
+- Se retiró el botón de chat del encabezado y el panel lateral asociado.
+- No se elimina ninguna tabla ni dato de Supabase; esta versión no requiere SQL.
+
 
 ## V36.1 — Consolidación UX/UI
 
