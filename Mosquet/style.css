@@ -7543,3 +7543,65 @@ input.deadline-control.text-warning:focus {
         margin-left: 6px;
     }
 }
+
+
+/* =========================================================
+   DESIGN HUB V37.5.14 — FLUJO ACTIVO + PRIORIDAD
+   - Las solicitudes En curso se muestran primero.
+   - La prioridad conserva el orden inmediatamente después.
+   - Estrella más discreta y coherente con el sistema visual.
+   ========================================================= */
+
+.task-table .btn-star,
+.request-item .btn-star {
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    padding: 0 !important;
+    margin-top: 1px !important;
+    border-radius: 4px !important;
+    color: #60738d !important;
+    background: transparent !important;
+    transform: none !important;
+    transition: color .16s ease, opacity .16s ease !important;
+}
+
+.task-table .btn-star:hover,
+.request-item .btn-star:hover {
+    color: var(--accent-cyan) !important;
+    background: transparent !important;
+    transform: none !important;
+    opacity: .95;
+}
+
+.task-table .btn-star svg,
+.request-item .btn-star svg {
+    width: 16px !important;
+    height: 16px !important;
+    stroke: currentColor !important;
+    fill: transparent !important;
+    stroke-width: 1.8 !important;
+}
+
+.task-table .btn-star.active,
+.request-item .btn-star.active {
+    color: inherit !important;
+    background: transparent !important;
+    filter: none !important;
+    opacity: 1 !important;
+}
+
+.task-table .btn-star.active svg,
+.request-item .btn-star.active svg {
+    stroke: currentColor !important;
+    fill: currentColor !important;
+    stroke-width: 1.7 !important;
+    filter: none !important;
+}
+
+.task-table .btn-star:focus-visible,
+.request-item .btn-star:focus-visible {
+    outline: 2px solid currentColor !important;
+    outline-offset: 2px !important;
+}

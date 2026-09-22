@@ -4538,8 +4538,15 @@ const App = {
         // de la más antigua a la más reciente.
         // Las estrellas solo toman prioridad en órdenes alternativos.
         const sortTasks = (a, b) => {
-            // Regla por defecto: ⭐ prioridad primero y, dentro de cada grupo,
-            // fecha de solicitud (recepción) de más antigua a más reciente.
+            // Orden de trabajo: las solicitudes que están En curso aparecen
+            // siempre primero para que el equipo tenga a mano lo que está trabajando.
+            // Dentro de cada grupo se conserva el criterio de orden elegido por el usuario.
+            const aInProgress = normalizeText(a.status) === TASK_STATUS.IN_PROGRESS || normalizeText(a.status) === 'En curso';
+            const bInProgress = normalizeText(b.status) === TASK_STATUS.IN_PROGRESS || normalizeText(b.status) === 'En curso';
+            if (aInProgress && !bInProgress) return -1;
+            if (!aInProgress && bInProgress) return 1;
+
+            // Después de En curso, las prioridades conservan su precedencia.
             if (a.isStarred && !b.isStarred) return -1;
             if (!a.isStarred && b.isStarred) return 1;
 
