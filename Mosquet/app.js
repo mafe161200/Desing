@@ -52,14 +52,36 @@ const serializeAssignees = (value) => {
     return names.length ? names.join(', ') : 'No asignado';
 };
 
-const getPriorityActor = (task) => normalizeText(task?.priorityBy);
+const getPriorityProfile = (task) => {
+    const actor = normalizeText(task?.priorityBy);
+    if (!actor) return null;
+
+    const actorClean = actor.toLowerCase();
+    const profiles = Array.isArray(App.usersList) ? App.usersList : [];
+    const currentUser = App.user || null;
+
+    return profiles.find((user) => {
+        const name = normalizeText(user?.name).toLowerCase();
+        const username = normalizeText(user?.username).toLowerCase();
+        const id = normalizeText(user?.id).toLowerCase();
+        return actorClean === name || actorClean === username || actorClean === id;
+    }) || (currentUser && (
+        actorClean === normalizeText(currentUser.name).toLowerCase() ||
+        actorClean === normalizeText(currentUser.username).toLowerCase() ||
+        actorClean === normalizeText(currentUser.id).toLowerCase()
+    ) ? currentUser : null);
+};
+
+const getPriorityActor = (task) => {
+    const rawActor = normalizeText(task?.priorityBy);
+    if (!rawActor) return '';
+    const profile = getPriorityProfile(task);
+    return normalizeText(profile?.name || rawActor);
+};
 
 const getPriorityColor = (task) => {
-    const actor = getPriorityActor(task);
-    const profile = (App.usersList || []).find(
-        user => normalizeText(user.name).toLowerCase() === actor.toLowerCase()
-    );
-    return profile?.theme || App.getColor(actor || 'Prioridad');
+    const profile = getPriorityProfile(task);
+    return profile?.theme || App.getColor(getPriorityActor(task) || 'Prioridad');
 };
 
 const isTaskActive = (task) => normalizeText(task?.status) !== 'Entregado';
@@ -609,6 +631,39 @@ const DataService = {
             UI.updateConnectionStatus(false, error.message);
             console.error('Supabase: error cargando tareas.', error);
             throw error;
+        }
+    },
+
+    async saveTaskPriority(task) {
+        if (!supabaseClient || !task?.id) {
+            return { cloudSaved: false, error: new Error('Supabase no está disponible.') };
+        }
+
+        const priorityBy = task.isStarred ? normalizeText(task.priorityBy) : null;
+
+        try {
+            // La prioridad se guarda de forma aislada. No usamos el payload
+            // completo de la tarea ni .select(), para que un cambio de estrella
+            // no dependa de permisos de lectura posteriores al UPDATE.
+            const { error, count } = await supabaseClient
+                .from('tasks')
+                .update({
+                    isStarred: Boolean(task.isStarred),
+                    priority_by: priorityBy
+                }, { count: 'exact' })
+                .eq('id', task.id);
+
+            if (error) throw error;
+            if (count !== null && count !== 1) {
+                throw new Error('Supabase no actualizó la solicitud. Verifica los permisos de actualización (RLS) de la tabla tasks.');
+            }
+
+            UI.updateConnectionStatus(true);
+            return { cloudSaved: true };
+        } catch (error) {
+            console.error('Supabase: no se pudo guardar la prioridad.', error);
+            UI.updateConnectionStatus(false, error.message);
+            return { cloudSaved: false, error };
         }
     },
 
@@ -1855,18 +1910,47 @@ const App = {
         UI.showToast('Último cambio revertido. Se guardará automáticamente.', 'info');
     },
 
-    toggleTaskStar(taskId) {
-        const task = this.tasks.find(t => t.id === taskId);
-        if (task) {
-            task.isStarred = !task.isStarred;
-            if (task.isStarred) {
-                task.priorityBy = normalizeText(this.user?.name);
-            } else {
-                task.priorityBy = '';
-            }
-            this.markAsUnsaved();
+    async toggleTaskStar(taskId) {
+        const task = this.tasks.find(t => String(t.id) === String(taskId));
+        if (!task || !isTaskActive(task) || task._prioritySaving) return;
+
+        const previousStarred = Boolean(task.isStarred);
+        const previousPriorityBy = normalizeText(task.priorityBy);
+
+        task.isStarred = !previousStarred;
+        task.priorityBy = task.isStarred
+            ? normalizeText(this.user?.username || this.user?.name)
+            : '';
+        task._prioritySaving = true;
+
+        this.renderBoard();
+        this.updateAutosaveUI('saving', 'Guardando prioridad…');
+
+        const result = await DataService.saveTaskPriority(task);
+        task._prioritySaving = false;
+
+        if (!result.cloudSaved) {
+            task.isStarred = previousStarred;
+            task.priorityBy = previousPriorityBy;
             this.renderBoard();
+            this.updateAutosaveUI('error', 'No se pudo sincronizar');
+            UI.showToast(
+                `No se pudo guardar la prioridad. ${result.error?.message || 'Revisa la conexión con Supabase.'}`,
+                'error',
+                9000
+            );
+            return;
         }
+
+        // Actualiza la copia sincronizada sin activar el guardado general.
+        const synced = this.originalTasks.find(t => String(t.id) === String(task.id));
+        if (synced) {
+            synced.isStarred = task.isStarred;
+            synced.priorityBy = task.priorityBy;
+        }
+        this.hasUnsavedChanges = false;
+        this.updateAutosaveUI('saved', 'Prioridad guardada');
+        this.renderBoard();
     },
 
     setupKeyboardShortcuts() {

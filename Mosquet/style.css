@@ -674,9 +674,9 @@ html body div.flatpickr-calendar .flatpickr-day.prevMonthDay, html body div.flat
 .task-table tr.task-starred td,
 .task-starred td { border-bottom-color:rgba(34,211,238,.13); }
 .task-table tr.task-starred .btn-star.active,
-.task-starred .btn-star.active { color:var(--cyber-cyan) !important; filter:none !important; }
+.task-starred .btn-star.active { filter:none !important; }
 .task-table tr.task-starred .btn-star.active svg,
-.task-starred .btn-star.active svg { fill:var(--cyber-cyan) !important; stroke:var(--cyber-cyan) !important; }
+.task-starred .btn-star.active svg { stroke:currentColor !important; }
 
 .btn-star { color:#61738d; }
 .btn-star:hover { color:var(--cyber-cyan); background:rgba(34,211,238,.07); transform:none; }
