@@ -206,3 +206,10 @@
 - El logo del header se presenta en blanco sin modificar su composición.
 - Se añadió foco visible para navegación por teclado.
 - No se modifican solicitudes, estados, asignaciones, prioridades ni persistencia.
+
+## V37.5.10 — Prioridad persistente final
+- Ajuste final para leer correctamente `tasks.priority_by` desde Supabase.
+- La aplicación normaliza `priority_by` a `priorityBy` internamente.
+- La prioridad usa el color `theme` del usuario que la marcó.
+- Requiere la migración `SUPABASE_V37_5_8_PRIORITY.sql`, ya aplicada por el usuario.
+- No se modifican otros flujos.

@@ -83,7 +83,7 @@ const normalizeTask = (task) => {
         dateReceived: normalizeText(source.dateReceived),
         dateDelivered: normalizeText(source.dateDelivered),
         isStarred: Boolean(source.isStarred),
-        priorityBy: normalizeText(source.priorityBy),
+        priorityBy: normalizeText(source.priorityBy || source.priority_by),
         notes: normalizeText(source.notes)
     };
     if (!normalized.dateDelivered && source.due_at) {
