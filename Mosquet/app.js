@@ -4602,10 +4602,21 @@ const App = {
         const myTasksBadge = document.querySelector('.sidebar-card:first-child .badge-count');
         if (myTasksBadge) myTasksBadge.textContent = String(myTasks.length);
         
-        myTasks.forEach(t => {
+        const inProgressTasks = myTasks.filter(t => normalizeText(t.status) === TASK_STATUS.IN_PROGRESS || normalizeText(t.status) === 'En curso');
+        const pendingTasks = myTasks.filter(t => !(normalizeText(t.status) === TASK_STATUS.IN_PROGRESS || normalizeText(t.status) === 'En curso'));
+
+        const appendSidebarSectionLabel = (label, count, icon, className) => {
+            const section = document.createElement('li');
+            section.className = `sidebar-task-section-label ${className}`;
+            section.setAttribute('aria-hidden', 'true');
+            section.innerHTML = `<span class="sidebar-task-section-title"><i data-lucide="${icon}"></i>${escapeHTML(label)}</span><span class="sidebar-task-section-count">${count}</span>`;
+            sidebarFragment.appendChild(section);
+        };
+
+        const renderMyTask = (t, sectionClass = '') => {
             const li = document.createElement('li');
             // Añadir clase de estrella para estilar en el CSS
-            li.className = `request-item ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`;
+            li.className = `request-item ${sectionClass} ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
             li.tabIndex = 0; 
             li.id = `li-${t.id}`;
             li.dataset.taskRow = String(t.id);
@@ -4674,7 +4685,17 @@ const App = {
                 </div>
             `;
             sidebarFragment.appendChild(li);
-        });
+        };
+
+        if (inProgressTasks.length) {
+            appendSidebarSectionLabel('En curso', inProgressTasks.length, 'play-circle', 'is-in-progress');
+            inProgressTasks.forEach(t => renderMyTask(t, 'my-task-in-progress'));
+        }
+        if (pendingTasks.length) {
+            appendSidebarSectionLabel('Pendientes', pendingTasks.length, 'list', 'is-pending');
+            pendingTasks.forEach(t => renderMyTask(t, 'my-task-pending'));
+        }
+
         if(myTasks.length === 0) {
             const empty = document.createElement('li');
             empty.className = 'request-item';

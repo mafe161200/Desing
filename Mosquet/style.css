@@ -7753,3 +7753,128 @@ html body .request-item .btn-star:not(.active) svg {
     stroke: currentColor !important;
     fill: transparent !important;
 }
+
+/* =========================================================
+   V37.5.17 — Refinamiento del sidebar de Mis Tareas
+   - Agrupa En curso y Pendientes.
+   - Scrollbar discreto y coherente con la interfaz.
+   - En curso recibe una señal visual de trabajo activo.
+   ========================================================= */
+.sidebar-card:first-child .sidebar-content {
+    max-height: 410px !important;
+    padding: 10px 10px 12px !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+    scrollbar-color: #29425f transparent;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.sidebar-card:first-child .sidebar-content::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sidebar-card:first-child .sidebar-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-card:first-child .sidebar-content::-webkit-scrollbar-thumb {
+    background: #29425f;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+}
+
+.sidebar-card:first-child .sidebar-content::-webkit-scrollbar-thumb:hover {
+    background: #3b5a7c;
+}
+
+.sidebar-card:first-child .request-list {
+    gap: 8px;
+}
+
+.sidebar-task-section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 24px;
+    padding: 5px 3px 2px;
+    color: #7894b5;
+    font-size: .66rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    list-style: none;
+}
+
+.sidebar-task-section-label + .request-item {
+    margin-top: 1px;
+}
+
+.sidebar-task-section-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sidebar-task-section-title svg {
+    width: 13px;
+    height: 13px;
+}
+
+.sidebar-task-section-label.is-in-progress {
+    color: #67e8f9;
+}
+
+.sidebar-task-section-label.is-in-progress .sidebar-task-section-title svg {
+    color: #22d3ee;
+}
+
+.sidebar-task-section-count {
+    min-width: 19px;
+    height: 19px;
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #28435f;
+    border-radius: 999px;
+    background: #0a1727;
+    color: #9db4ce;
+    font-size: .62rem;
+    letter-spacing: 0;
+}
+
+.sidebar-task-section-label.is-in-progress .sidebar-task-section-count {
+    border-color: rgba(34,211,238,.38);
+    background: rgba(34,211,238,.08);
+    color: #67e8f9;
+}
+
+.sidebar-card:first-child .request-item.my-task-in-progress {
+    border-color: rgba(34,211,238,.38);
+    box-shadow: inset 2px 0 0 #22d3ee;
+    background: linear-gradient(90deg, rgba(34,211,238,.07), rgba(8,19,33,.92) 48%);
+}
+
+.sidebar-card:first-child .request-item.my-task-in-progress:hover,
+.sidebar-card:first-child .request-item.my-task-in-progress:focus-visible {
+    border-color: rgba(34,211,238,.62);
+    box-shadow: inset 2px 0 0 #22d3ee, 0 4px 12px rgba(2,8,23,.28);
+}
+
+.sidebar-card:first-child .request-item.my-task-pending {
+    background: rgba(8,19,33,.72);
+}
+
+.sidebar-card:first-child .request-item.my-task-pending:hover,
+.sidebar-card:first-child .request-item.my-task-pending:focus-visible {
+    border-color: #31506e;
+}
+
+@media (max-width: 760px) {
+    .sidebar-card:first-child .sidebar-content {
+        max-height: 360px !important;
+    }
+}
