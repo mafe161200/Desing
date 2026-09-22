@@ -7586,7 +7586,7 @@ input.deadline-control.text-warning:focus {
 
 .task-table .btn-star.active,
 .request-item .btn-star.active {
-    color: inherit !important;
+    color: var(--priority-star-color, var(--accent-cyan)) !important;
     background: transparent !important;
     filter: none !important;
     opacity: 1 !important;
@@ -7604,4 +7604,152 @@ input.deadline-control.text-warning:focus {
 .request-item .btn-star:focus-visible {
     outline: 2px solid currentColor !important;
     outline-offset: 2px !important;
+}
+
+/* =========================================================
+   DESIGN HUB V37.5.16 — SISTEMA GLOBAL DE BOTONES
+   - Unifica acciones primarias/secundarias en todo el portal.
+   - Mantiene intactos los colores semánticos de estados.
+   - Seleccionar archivo pasa a tratamiento secundario.
+   - Las acciones destructivas conservan rojo.
+   ========================================================= */
+
+:root {
+    --dh-action-primary: #2faed8;
+    --dh-action-primary-hover: #43bfe5;
+    --dh-action-primary-border: #67d7ee;
+    --dh-action-primary-text: #06151d;
+    --dh-action-secondary-bg: #0a1524;
+    --dh-action-secondary-border: #294463;
+    --dh-action-secondary-hover-bg: #0e1d30;
+    --dh-action-secondary-hover-border: #3d607f;
+    --dh-action-secondary-hover-text: #eaf5ff;
+}
+
+/* Acciones primarias: un solo lenguaje visual para todo el portal. */
+html body .btn.btn-primary {
+    background: var(--dh-action-primary) !important;
+    border: 1px solid var(--dh-action-primary-border) !important;
+    color: var(--dh-action-primary-text) !important;
+    box-shadow: 0 4px 12px rgba(34, 169, 210, .16) !important;
+    font-weight: 800 !important;
+    transform: none;
+}
+
+html body .btn.btn-primary:hover {
+    background: var(--dh-action-primary-hover) !important;
+    border-color: #8ae3f4 !important;
+    color: #04131b !important;
+    box-shadow: 0 5px 14px rgba(34, 169, 210, .22) !important;
+    transform: translateY(-1px);
+}
+
+html body .btn.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 7px rgba(34, 169, 210, .16) !important;
+}
+
+html body .btn.btn-primary:focus-visible {
+    color: var(--dh-action-primary-text) !important;
+    outline: 3px solid #7ee7f5 !important;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px rgba(34, 211, 238, .12) !important;
+}
+
+/* Secundarios: acompañan la acción sin competir con ella. */
+html body .btn.btn-secondary {
+    background: var(--dh-action-secondary-bg) !important;
+    border: 1px solid var(--dh-action-secondary-border) !important;
+    color: #c5d5e8 !important;
+    box-shadow: none !important;
+}
+
+html body .btn.btn-secondary:hover {
+    background: var(--dh-action-secondary-hover-bg) !important;
+    border-color: var(--dh-action-secondary-hover-border) !important;
+    color: var(--dh-action-secondary-hover-text) !important;
+    transform: none;
+}
+
+html body .btn.btn-secondary:focus-visible {
+    outline: 3px solid #67e8f9 !important;
+    outline-offset: 2px;
+}
+
+/* El botón de archivo no debe competir con Guardar Cambios. */
+html body input[type="file"].custom-input::file-selector-button,
+html body input[type="file"]::file-selector-button {
+    background: transparent !important;
+    color: #67d7ee !important;
+    border: 1px solid #31506e !important;
+    padding: 6px 12px !important;
+    border-radius: 6px !important;
+    font-weight: 700 !important;
+    font-family: inherit !important;
+    transition: background-color .16s ease, border-color .16s ease, color .16s ease !important;
+}
+
+html body input[type="file"].custom-input::file-selector-button:hover,
+html body input[type="file"]::file-selector-button:hover {
+    background: #0e1d30 !important;
+    border-color: #4b6e8d !important;
+    color: #9aeafa !important;
+}
+
+/* Botones de icono: siguen siendo utilitarios, no CTAs. */
+html body .btn-icon {
+    background: transparent;
+    box-shadow: none;
+}
+
+html body .btn-icon:hover,
+html body .btn-icon:focus-visible {
+    box-shadow: none;
+}
+
+/* El envío de notas conserva la familia primaria, pero sin el azul eléctrico. */
+html body .btn-send-note,
+html body .chat-send-btn {
+    background: var(--dh-action-primary) !important;
+    border: 1px solid var(--dh-action-primary-border) !important;
+    color: var(--dh-action-primary-text) !important;
+}
+
+html body .btn-send-note:hover,
+html body .chat-send-btn:hover {
+    background: var(--dh-action-primary-hover) !important;
+    color: #04131b !important;
+}
+
+/* Las acciones semánticas de estado NO se sobrescriben aquí. */
+
+/* =========================================================
+   V37.5.16 — ESTRELLA DE PRIORIDAD ROBUSTA
+   ========================================================= */
+
+html body .task-table .btn-star.active,
+html body .request-item .btn-star.active {
+    color: var(--priority-star-color, #22d3ee) !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    opacity: 1 !important;
+}
+
+html body .task-table .btn-star.active svg,
+html body .request-item .btn-star.active svg {
+    color: var(--priority-star-color, #22d3ee) !important;
+    stroke: var(--priority-star-color, #22d3ee) !important;
+    fill: var(--priority-star-color, #22d3ee) !important;
+}
+
+html body .task-table .btn-star:not(.active),
+html body .request-item .btn-star:not(.active) {
+    color: #60738d !important;
+}
+
+html body .task-table .btn-star:not(.active) svg,
+html body .request-item .btn-star:not(.active) svg {
+    color: currentColor !important;
+    stroke: currentColor !important;
+    fill: transparent !important;
 }

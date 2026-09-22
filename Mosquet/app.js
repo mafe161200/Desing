@@ -79,9 +79,19 @@ const getPriorityActor = (task) => {
     return normalizeText(profile?.name || rawActor);
 };
 
+const DESIGN_HUB_THEME_COLORS = Object.freeze([
+    '#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488',
+    '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c',
+    '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'
+]);
+
 const getPriorityColor = (task) => {
     const profile = getPriorityProfile(task);
-    return profile?.theme || App.getColor(getPriorityActor(task) || 'Prioridad');
+    const profileTheme = normalizeText(profile?.theme).toLowerCase();
+    if (DESIGN_HUB_THEME_COLORS.includes(profileTheme)) return profileTheme;
+
+    const fallback = normalizeText(App.getColor(getPriorityActor(task) || 'Prioridad')).toLowerCase();
+    return DESIGN_HUB_THEME_COLORS.includes(fallback) ? fallback : '#22d3ee';
 };
 
 const isTaskActive = (task) => normalizeText(task?.status) !== 'Entregado';
@@ -4645,7 +4655,7 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        ${t.isStarred && isTaskActive(t) ? `<button type="button" class="btn-star active" style="color:${escapeHTML(getPriorityColor(t))};" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Quitar prioridad" title="Prioridad marcada por ${escapeHTML(getPriorityActor(t) || 'usuario')}">
+                        ${t.isStarred && isTaskActive(t) ? `<button type="button" class="btn-star active" style="--priority-star-color:${escapeHTML(getPriorityColor(t))};" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Quitar prioridad" title="Prioridad marcada por ${escapeHTML(getPriorityActor(t) || 'usuario')}">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
                         </button>` : ''}
                         <span class="req-name-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
@@ -4747,7 +4757,7 @@ const App = {
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            ${isTaskActive(t) ? `<button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" style="${t.isStarred ? `color:${escapeHTML(getPriorityColor(t))};` : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}" title="${t.isStarred ? `Prioridad marcada por ${escapeHTML(getPriorityActor(t) || 'usuario')}` : 'Marcar como prioridad'}">
+                            ${isTaskActive(t) ? `<button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" style="${t.isStarred ? `--priority-star-color:${escapeHTML(getPriorityColor(t))};` : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}" title="${t.isStarred ? `Prioridad marcada por ${escapeHTML(getPriorityActor(t) || 'usuario')}` : 'Marcar como prioridad'}">
                                 <i data-lucide="star" aria-hidden="true"></i>
                             </button>` : ''}
                             <span class="req-title-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
