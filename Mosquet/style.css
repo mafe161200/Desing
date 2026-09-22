@@ -7878,3 +7878,81 @@ html body .request-item .btn-star:not(.active) svg {
         max-height: 360px !important;
     }
 }
+
+/* =========================================================
+   DESIGN HUB V37.5.18 — MODAL DEVOLVER PARA AJUSTE
+   Refinamiento UX del footer:
+   - Cancelar siempre completamente visible.
+   - Separación clara entre acción secundaria y principal.
+   - Acción principal compacta y consistente.
+   - El icono redundante del título se oculta; el retorno queda
+     representado en la acción principal.
+   ========================================================= */
+.adjustment-modal .modal-header h2 > svg,
+.adjustment-modal .modal-header h2 > [data-lucide] {
+    display: none !important;
+}
+
+.adjustment-modal .form-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 14px !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.adjustment-modal .form-actions .btn {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 42px !important;
+    height: 42px !important;
+    padding: 0 16px !important;
+    border-radius: 10px !important;
+    font-size: .86rem !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+}
+
+.adjustment-modal .form-actions .btn-secondary {
+    min-width: 92px !important;
+    color: #a8bad0 !important;
+    background: rgba(10,21,36,.72) !important;
+    border: 1px solid rgba(91,116,148,.52) !important;
+}
+
+.adjustment-modal .form-actions .btn-secondary:hover {
+    color: #dbe7f4 !important;
+    background: rgba(255,255,255,.035) !important;
+    border-color: rgba(120,150,185,.7) !important;
+}
+
+.adjustment-modal .form-actions .btn-primary {
+    min-width: 178px !important;
+    justify-content: center !important;
+}
+
+.adjustment-modal .form-actions .btn-primary svg,
+.adjustment-modal .form-actions .btn-primary [data-lucide] {
+    width: 16px !important;
+    height: 16px !important;
+    flex: 0 0 auto !important;
+}
+
+@media (max-width: 640px) {
+    .adjustment-modal .form-actions {
+        flex-direction: column-reverse !important;
+        align-items: stretch !important;
+        gap: 9px !important;
+    }
+
+    .adjustment-modal .form-actions .btn,
+    .adjustment-modal .form-actions .btn-secondary,
+    .adjustment-modal .form-actions .btn-primary {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+}
