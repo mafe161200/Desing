@@ -690,10 +690,10 @@ const DataService = {
                 const optional = ['assignee_id','requester_id','due_at','delivered_at','priorityBy'].includes(field);
                 if (optional && value === undefined) return;
                 if (optional && value === null) {
-                    payload[field] = null;
+                    payload[dbField] = null;
                     return;
                 }
-                payload[field] = value ?? (field === 'isStarred' ? false : '');
+                payload[dbField] = value ?? (field === 'isStarred' ? false : '');
             });
             return payload;
         };
