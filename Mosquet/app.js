@@ -480,6 +480,13 @@ function canTransitionTaskStatus(fromStatus, toStatus) {
     return (TASK_STATUS_TRANSITIONS[fromStatus] || []).includes(toStatus);
 }
 
+function getNextActiveTaskStatus(status) {
+    const normalized = getTaskStatusLabel(status);
+    if (normalized === TASK_STATUS.QUEUED) return TASK_STATUS.IN_PROGRESS;
+    if (normalized === TASK_STATUS.IN_PROGRESS) return TASK_STATUS.DELIVERED;
+    return null;
+}
+
 function getTaskStatusLabel(status) {
     return Object.values(TASK_STATUS).includes(status) ? status : TASK_STATUS.QUEUED;
 }
@@ -2391,7 +2398,12 @@ const App = {
 
                 case 'set-status':
                     if (taskId) {
-                        this.handleTaskStatusAction(taskId, target.dataset.status, target);
+                        const clickedStatus = target.dataset.status;
+                        const currentTask = this.tasks.find(t => String(t.id) === String(taskId));
+                        const nextStatus = currentTask && clickedStatus === currentTask.status
+                            ? getNextActiveTaskStatus(currentTask.status)
+                            : null;
+                        this.handleTaskStatusAction(taskId, nextStatus || clickedStatus, target);
                     }
                     break;
 
@@ -4769,7 +4781,14 @@ const App = {
                 ${actionsForStatus.map(([value, label, icon], index) => {
                     const isCurrent = value === t.status;
                     const isReopen = value === '__REOPEN__';
-                    const actionLabel = isReopen ? 'Reabrir solicitud y devolver a gestión' : label;
+                    const nextActiveStatus = isCurrent ? getNextActiveTaskStatus(t.status) : null;
+                    const actionLabel = isReopen
+                        ? 'Reabrir solicitud y devolver a gestión'
+                        : isCurrent && nextActiveStatus
+                            ? `Clic para pasar a ${nextActiveStatus}`
+                            : isCurrent
+                                ? `Estado actual: ${label}`
+                                : label;
                     return `<button type="button" class="status-switch-btn ${isCurrent ? 'is-current' : ''} ${isReopen ? 'is-reopen' : ''}" data-action="${isReopen ? 'reopen-task' : 'set-status'}" data-task-id="${taskId}" data-status="${isReopen ? '' : escapeHTML(value)}" aria-label="${escapeHTML(actionLabel)}" title="${escapeHTML(actionLabel)}" ${isCurrent ? 'aria-current="true"' : ''}><i data-lucide="${icon}" aria-hidden="true"></i><span>${escapeHTML(label)}</span></button>`;
                 }).join('')}
             </div>`;
