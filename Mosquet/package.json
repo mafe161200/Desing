@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.20",
+  "version": "37.5.22",
   "private": true,
-  "description": "Design Hub V37.5.20 — simplificación del portal: chat de equipo retirado",
+  "description": "Design Hub V37.5.22 — refinamiento de etiqueta Realizada",
   "engines": {
     "node": ">=18"
   }
