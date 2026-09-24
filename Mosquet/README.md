@@ -1,11 +1,3 @@
-## V37.5.20 — Simplificación del portal: retiro del chat de equipo
-
-- Se retiró el acceso al chat/notas generales del equipo porque no forma parte del flujo de trabajo utilizado por los usuarios.
-- Se conserva intacto el campo **Notas** de cada solicitud, ya que sí aporta contexto a la tarea y al historial operativo.
-- Se eliminó la integración del selector de emojis y la suscripción Realtime de la tabla `notes` del chat.
-- Se retiró el botón de chat del encabezado y el panel lateral asociado.
-- No se elimina ninguna tabla ni dato de Supabase; esta versión no requiere SQL.
-
 
 ## V36.1 — Consolidación UX/UI
 
@@ -177,47 +169,9 @@
 - Responsive preservado: en pantallas pequeñas los botones se apilan.
 - Sin cambios funcionales, sin SQL y sin tests nuevos.
 
-## V37.5.5 — Multi-asignación
-- Una solicitud puede tener hasta 3 encargados simultáneamente.
-- Se reutiliza el campo existente `assignee`, sin migración de base de datos.
-- Los filtros y «Mis tareas» reconocen cualquiera de los encargados.
-- No se modifican estados, fechas, entregas, Archivo, historial ni el resto del flujo.
-- Sin SQL y sin tests nuevos.
-
-## V37.5.6 — Multi-asignación UX
-- El selector de encargados ahora muestra visualmente las selecciones mediante checks.
-- `No asignado` funciona como opción especial y no cuenta dentro del máximo de 3 personas.
-- El selector vacío muestra «Selecciona hasta 3 personas» en Nueva Solicitud.
-- El cálculo de Trabajo activo contabiliza una tarea para cada encargado.
-- No se modifica ningún otro flujo.
-- Sin SQL y sin tests nuevos.
-
-## V37.5.7 — Prioridad por usuario
-- La estrella de prioridad usa el color configurado actualmente del usuario que la activa.
-- Las solicitudes `Entregado` no muestran la estrella en las vistas activas.
-- El responsable visual de la prioridad se conserva localmente sin modificar el esquema de Supabase.
-- Al devolver una solicitud al flujo, la estrella vuelve a estar disponible.
-- No se modifican asignaciones, estados, fechas, Archivo, historial ni otros flujos.
-- Sin SQL y sin tests nuevos.
-
-## V37.5.8 — Prioridad persistente por usuario
-- La prioridad guarda en Supabase quién la activó mediante `tasks.priority_by`.
-- La estrella usa el `theme` actual del perfil de ese usuario.
-- Las solicitudes `Entregado` no muestran la estrella.
-- Se elimina la dependencia de `localStorage` para identificar al usuario.
-- Requiere ejecutar una única migración: `SUPABASE_V37_5_8_PRIORITY.sql`.
-- No se modifican otros campos ni flujos.
-
-## V37.5.9 — Home + logo
-- El logo `Design` del header ahora funciona como enlace accesible al inicio.
-- Se añadió un botón explícito `Inicio`.
-- El logo del header se presenta en blanco sin modificar su composición.
-- Se añadió foco visible para navegación por teclado.
-- No se modifican solicitudes, estados, asignaciones, prioridades ni persistencia.
-
-## V37.5.10 — Prioridad persistente final
-- Ajuste final para leer correctamente `tasks.priority_by` desde Supabase.
-- La aplicación normaliza `priority_by` a `priorityBy` internamente.
-- La prioridad usa el color `theme` del usuario que la marcó.
-- Requiere la migración `SUPABASE_V37_5_8_PRIORITY.sql`, ya aplicada por el usuario.
-- No se modifican otros flujos.
+## V37.5.5 — Ajuste visual de filtros
+- Panel «Más filtros» más compacto en escritorio, sin eliminar ni cambiar filtros.
+- Los seis controles y «Limpiar» permanecen en una sola fila cuando el ancho lo permite.
+- Textos visuales de filtros simplificados (`Responsable · Todos`, `Solicitante · Todos`).
+- Búsqueda mantiene exactamente la misma lógica; se desactiva el autocompletado del navegador para evitar sugerencias flotantes.
+- Sin cambios de Supabase, sin SQL, sin cambios de estados, entrega, archivo, historial o autosave.

@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.22",
+  "version": "37.5.5",
   "private": true,
-  "description": "Design Hub V37.5.22 — refinamiento de etiqueta Realizada",
+  "description": "Design Hub V37.5.5 — ajuste visual compacto de filtros y búsqueda",
   "engines": {
     "node": ">=18"
   }

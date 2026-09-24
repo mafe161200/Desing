@@ -40,65 +40,6 @@ const clearLegacyLocalData = () => {
 };
 
 const normalizeText = (value) => String(value ?? '').trim();
-const normalizeAssignees = (value) => {
-    const names = Array.isArray(value)
-        ? value.map(normalizeText)
-        : normalizeText(value).split(/\s*,\s*/).map(normalizeText);
-    return [...new Set(names.filter(name => name && name !== 'No asignado'))].slice(0, 3);
-};
-
-const serializeAssignees = (value) => {
-    const names = normalizeAssignees(value);
-    return names.length ? names.join(', ') : 'No asignado';
-};
-
-const getPriorityProfile = (task) => {
-    const actor = normalizeText(task?.priorityBy);
-    if (!actor) return null;
-
-    const actorClean = actor.toLowerCase();
-    const profiles = Array.isArray(App.usersList) ? App.usersList : [];
-    const currentUser = App.user || null;
-
-    return profiles.find((user) => {
-        const name = normalizeText(user?.name).toLowerCase();
-        const username = normalizeText(user?.username).toLowerCase();
-        const id = normalizeText(user?.id).toLowerCase();
-        return actorClean === name || actorClean === username || actorClean === id;
-    }) || (currentUser && (
-        actorClean === normalizeText(currentUser.name).toLowerCase() ||
-        actorClean === normalizeText(currentUser.username).toLowerCase() ||
-        actorClean === normalizeText(currentUser.id).toLowerCase()
-    ) ? currentUser : null);
-};
-
-const getPriorityActor = (task) => {
-    const rawActor = normalizeText(task?.priorityBy);
-    if (!rawActor) return '';
-    const profile = getPriorityProfile(task);
-    return normalizeText(profile?.name || rawActor);
-};
-
-const DESIGN_HUB_THEME_COLORS = Object.freeze([
-    '#4f46e5', '#2563eb', '#0284c7', '#0891b2', '#0d9488',
-    '#059669', '#16a34a', '#84cc16', '#f59e0b', '#ea580c',
-    '#dc2626', '#e11d48', '#db2777', '#c026d3', '#7c3aed'
-]);
-
-const getPriorityColor = (task) => {
-    const profile = getPriorityProfile(task);
-    const profileTheme = normalizeText(profile?.theme).toLowerCase();
-    if (DESIGN_HUB_THEME_COLORS.includes(profileTheme)) return profileTheme;
-
-    const fallback = normalizeText(App.getColor(getPriorityActor(task) || 'Prioridad')).toLowerCase();
-    return DESIGN_HUB_THEME_COLORS.includes(fallback) ? fallback : '#22d3ee';
-};
-
-const isTaskActive = (task) => normalizeText(task?.status) !== 'Entregado';
-
-const taskHasAssignee = (task, name) =>
-    normalizeAssignees(task?.assignee).includes(normalizeText(name));
-
 
 // Normaliza una tarea recibida desde Supabase/Realtime. Mantiene los campos
 // opcionales de control de concurrencia cuando la base de datos ya dispone
@@ -110,12 +51,11 @@ const normalizeTask = (task) => {
         id: source.id ?? createId(),
         name: normalizeText(source.name),
         requester: normalizeText(source.requester),
-        assignee: serializeAssignees(source.assignee),
+        assignee: normalizeText(source.assignee) || 'No asignado',
         status: normalizeText(source.status) || 'En cola',
         dateReceived: normalizeText(source.dateReceived),
         dateDelivered: normalizeText(source.dateDelivered),
         isStarred: Boolean(source.isStarred),
-        priorityBy: normalizeText(source.priorityBy || source.priority_by),
         notes: normalizeText(source.notes)
     };
     if (!normalized.dateDelivered && source.due_at) {
@@ -413,7 +353,7 @@ const NotificationService = {
             }, 100);
         };
 
-        const myPendingTasks = tasks.filter(t => taskHasAssignee(t, userName) && t.status !== 'Entregado' && getTaskDeadline(t));
+        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && getTaskDeadline(t));
         if (myPendingTasks.length > 0) {
             myPendingTasks.sort((a, b) => new Date(getTaskDeadline(a) + 'T12:00:00').getTime() - new Date(getTaskDeadline(b) + 'T12:00:00').getTime());
             const nearest = myPendingTasks[0];
@@ -428,7 +368,7 @@ const NotificationService = {
             }
         }
 
-        const unassigned = tasks.filter(t => normalizeAssignees(t.assignee).length === 0 && t.status !== 'Entregado' && t.dateReceived);
+        const unassigned = tasks.filter(t => t.assignee === 'No asignado' && t.status !== 'Entregado' && t.dateReceived);
         const oldUnassigned = unassigned.filter(t => {
             const recDate = new Date(t.dateReceived);
             const diffTime = Math.abs(now - recDate);
@@ -478,13 +418,6 @@ const TASK_EVENT = Object.freeze({
 function canTransitionTaskStatus(fromStatus, toStatus) {
     if (!fromStatus || !toStatus || fromStatus === toStatus) return false;
     return (TASK_STATUS_TRANSITIONS[fromStatus] || []).includes(toStatus);
-}
-
-function getNextActiveTaskStatus(status) {
-    const normalized = getTaskStatusLabel(status);
-    if (normalized === TASK_STATUS.QUEUED) return TASK_STATUS.IN_PROGRESS;
-    if (normalized === TASK_STATUS.IN_PROGRESS) return TASK_STATUS.DELIVERED;
-    return null;
 }
 
 function getTaskStatusLabel(status) {
@@ -597,14 +530,8 @@ const DataService = {
                 .limit(1);
             if (error) throw error;
             const first = Array.isArray(data) && data.length ? data[0] : {};
-            let priorityBy = Object.prototype.hasOwnProperty.call(first, 'priority_by') || Object.prototype.hasOwnProperty.call(first, 'priorityBy');
-            if (!priorityBy) {
-                const probe = await supabaseClient.from('tasks').select('priority_by').limit(1);
-                priorityBy = !probe.error;
-            }
             this.taskSchemaCapabilities = {
                 modern: ['due_at', 'delivered_at', 'version', 'updated_at'].every(field => Object.prototype.hasOwnProperty.call(first, field)),
-                priorityBy,
                 legacy: true
             };
             return this.taskSchemaCapabilities;
@@ -637,8 +564,7 @@ const DataService = {
             if (rows.length) {
                 const first = rows[0] || {};
                 this.taskSchemaCapabilities = {
-                    modern: ['due_at', 'delivered_at', 'version', 'updated_at'].every(field => Object.prototype.hasOwnProperty.call(first, field)),
-                    priorityBy: Object.prototype.hasOwnProperty.call(first, 'priority_by') || Object.prototype.hasOwnProperty.call(first, 'priorityBy')
+                    modern: ['due_at', 'delivered_at', 'version', 'updated_at'].every(field => Object.prototype.hasOwnProperty.call(first, field))
                 };
             } else if (!this.taskSchemaCapabilities) {
                 await this.getTaskSchemaCapabilities();
@@ -648,39 +574,6 @@ const DataService = {
             UI.updateConnectionStatus(false, error.message);
             console.error('Supabase: error cargando tareas.', error);
             throw error;
-        }
-    },
-
-    async saveTaskPriority(task) {
-        if (!supabaseClient || !task?.id) {
-            return { cloudSaved: false, error: new Error('Supabase no está disponible.') };
-        }
-
-        const priorityBy = task.isStarred ? normalizeText(task.priorityBy) : null;
-
-        try {
-            // La prioridad se guarda de forma aislada. No usamos el payload
-            // completo de la tarea ni .select(), para que un cambio de estrella
-            // no dependa de permisos de lectura posteriores al UPDATE.
-            const { error, count } = await supabaseClient
-                .from('tasks')
-                .update({
-                    isStarred: Boolean(task.isStarred),
-                    priority_by: priorityBy
-                }, { count: 'exact' })
-                .eq('id', task.id);
-
-            if (error) throw error;
-            if (count !== null && count !== 1) {
-                throw new Error('Supabase no actualizó la solicitud. Verifica los permisos de actualización (RLS) de la tabla tasks.');
-            }
-
-            UI.updateConnectionStatus(true);
-            return { cloudSaved: true };
-        } catch (error) {
-            console.error('Supabase: no se pudo guardar la prioridad.', error);
-            UI.updateConnectionStatus(false, error.message);
-            return { cloudSaved: false, error };
         }
     },
 
@@ -696,21 +589,19 @@ const DataService = {
         const currentIds = new Set(safeTasks.map(task => String(task.id)));
 
         const fields = ['name', 'requester', 'assignee', 'status', 'dateReceived', 'dateDelivered', 'isStarred', 'notes'];
-        if (this.taskSchemaCapabilities?.priorityBy) fields.push('priorityBy');
         const modernFields = ['assignee_id', 'requester_id', 'due_at', 'delivered_at'];
         if (this.taskSchemaCapabilities?.modern) fields.push(...modernFields);
         const buildPayload = (task) => {
             const payload = { id: task.id };
             fields.forEach(field => {
                 const value = task[field];
-                const dbField = field === 'priorityBy' ? 'priority_by' : field;
-                const optional = ['assignee_id','requester_id','due_at','delivered_at','priorityBy'].includes(field);
+                const optional = ['assignee_id','requester_id','due_at','delivered_at'].includes(field);
                 if (optional && value === undefined) return;
                 if (optional && value === null) {
-                    payload[dbField] = null;
+                    payload[field] = null;
                     return;
                 }
-                payload[dbField] = value ?? (field === 'isStarred' ? false : '');
+                payload[field] = value ?? (field === 'isStarred' ? false : '');
             });
             return payload;
         };
@@ -902,6 +793,50 @@ const DataService = {
             return { cloudSaved: Boolean(data), data };
         } catch (error) {
             console.warn('Supabase: task_events no está disponible todavía.', error);
+            return { cloudSaved: false, error };
+        }
+    },
+
+    async getNotes() {
+        if (!supabaseClient) return [];
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('notes')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100);
+
+            if (error) {
+                console.error('Supabase: no se pudieron cargar las notas.', error);
+                return [];
+            }
+
+            return Array.isArray(data) ? data.reverse() : [];
+        } catch (error) {
+            console.error('Supabase: error cargando notas.', error);
+            return [];
+        }
+    },
+
+    async saveNote(note) {
+        if (!supabaseClient) return { cloudSaved: false };
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('notes')
+                .insert([note])
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Supabase: no se pudo guardar la nota.', error);
+                return { cloudSaved: false, error };
+            }
+
+            return { cloudSaved: true, data };
+        } catch (error) {
+            console.error('Supabase: error guardando nota.', error);
             return { cloudSaved: false, error };
         }
     },
@@ -1262,12 +1197,7 @@ function buildCustomSelects(container = document) {
         const classNames = Array.from(select.classList).filter(c => c !== 'native-select-hidden').join(' ');
         trigger.className = `select-trigger ${classNames}`;
 
-        const safeText = escapeHTML(
-            select.multiple
-                ? (Array.from(select.selectedOptions).map(option => option.text).join(', ') ||
-                    (select.id === 'assignee' ? 'Selecciona hasta 3 personas' : 'No asignado'))
-                : (select.options[select.selectedIndex]?.text || '')
-        );
+        const safeText = escapeHTML(select.options[select.selectedIndex]?.text || '');
         trigger.innerHTML = `<span>${safeText}</span> <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
 
         const applyColor = (color) => {
@@ -1290,9 +1220,6 @@ function buildCustomSelects(container = document) {
         optionsDiv.setAttribute('aria-label', trigger.getAttribute('aria-label'));
         optionsDiv.dataset.triggerId = triggerId;
         optionsDiv.dataset.selectId = select.id;
-        if (select.classList.contains('multi-assignee-select')) {
-            optionsDiv.classList.add('multi-assignee-options');
-        }
 
         // Todos los selectores personalizados se portan al body. Así funcionan
         // igual dentro de modales, tablas y paneles con overflow/scroll, sin quedar
@@ -1311,16 +1238,10 @@ function buildCustomSelects(container = document) {
             options[nextIndex].focus();
         };
 
-        const isMultiAssignee = select.classList.contains('multi-assignee-select');
-
         Array.from(select.options).forEach((opt, index) => {
             const item = document.createElement('div');
             item.className = `select-option ${opt.selected ? 'selected' : ''}`;
-            if (select.classList.contains('multi-assignee-select')) {
-                item.innerHTML = `<span class="multi-option-check" aria-hidden="true">✓</span><span>${escapeHTML(opt.text)}</span>`;
-            } else {
-                item.textContent = opt.text;
-            }
+            item.textContent = opt.text;
             item.setAttribute('role', 'option');
             item.setAttribute('aria-selected', opt.selected ? 'true' : 'false');
             item.setAttribute('tabindex', '-1');
@@ -1329,49 +1250,6 @@ function buildCustomSelects(container = document) {
             const handleSelect = (e) => {
                 e.stopPropagation();
                 if (opt.disabled) return;
-                if (isMultiAssignee) {
-                    const selected = Array.from(select.selectedOptions).map(option => option.value);
-                    let nextSelected;
-
-                    if (opt.value === 'No asignado') {
-                        nextSelected = opt.selected ? [] : ['No asignado'];
-                    } else {
-                        const withoutUnassigned = selected.filter(value => value !== 'No asignado');
-                        nextSelected = opt.selected
-                            ? withoutUnassigned.filter(value => value !== opt.value)
-                            : [...withoutUnassigned, opt.value];
-                    }
-
-                    if (opt.value !== 'No asignado' && !opt.selected && nextSelected.length > 3) {
-                        UI.showToast('Puedes asignar máximo 3 personas.', 'info');
-                        return;
-                    }
-
-                    Array.from(select.options).forEach(option => {
-                        option.selected = nextSelected.includes(option.value);
-                    });
-
-                    const labels = Array.from(select.selectedOptions).map(option => option.text);
-                    trigger.querySelector('span').textContent = labels.length ? labels.join(', ') : 'No asignado';
-
-                    optionElements.forEach((optionEl, optionIndex) => {
-                        const sourceOption = select.options[optionIndex];
-                        const isSelected = !!sourceOption?.selected;
-                        optionEl.classList.toggle('selected', isSelected);
-                        optionEl.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-                    });
-
-                    if (select.classList.contains('inline-assignee')) {
-                        const colorName = labels[0] || 'No asignado';
-                        const newColor = App.getColor(colorName);
-                        select.setAttribute('data-color', newColor);
-                        applyColor(newColor);
-                    }
-
-                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                    return;
-                }
-
                 select.value = opt.value;
                 trigger.querySelector('span').textContent = opt.text;
                 if (select.classList.contains('inline-assignee')) {
@@ -1448,27 +1326,6 @@ function buildCustomSelects(container = document) {
 }
 
 function updateCustomSelectUI(selectElement, value) {
-    if (selectElement?.multiple) {
-        const names = normalizeAssignees(value);
-        Array.from(selectElement.options).forEach(option => {
-            option.selected = names.includes(option.value);
-        });
-
-        const wrapper = selectElement.closest('.select-wrapper');
-        const triggerSpan = wrapper?.querySelector('.select-trigger span');
-        if (triggerSpan) triggerSpan.textContent = names.length ? names.join(', ') : 'No asignado';
-
-        const options = document.querySelectorAll(
-            `.select-options-portal[data-select-id="${CSS.escape(selectElement.id)}"] .select-option`
-        );
-        options.forEach((opt, index) => {
-            const selected = !!selectElement.options[index]?.selected;
-            opt.classList.toggle('selected', selected);
-            opt.setAttribute('aria-selected', selected ? 'true' : 'false');
-        });
-        return;
-    }
-
     selectElement.value = value;
     const wrapper = selectElement.closest('.select-wrapper');
     const option = Array.from(selectElement.options).find(o => o.value === value);
@@ -1496,6 +1353,7 @@ const App = {
     members: [],
     requesters: [],
     usersList: [],
+    notes: [],
     filterDates: [],
     quickFilter: 'all',
     fpInstances: [],
@@ -1562,6 +1420,7 @@ const App = {
             });
             window.__designHubUnsavedGuardBound = true;
         }
+        this.setupNotesPanel();
         this.renderAll();
         this.applyViewFromHash();
         
@@ -1657,6 +1516,23 @@ const App = {
                 }
             });
 
+        supabaseClient
+            .channel('design-hub-notes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async () => {
+                const panel = document.getElementById('notesPanel');
+                if (panel && !panel.classList.contains('open')) {
+                    document.getElementById('btnToggleNotes')
+                        ?.querySelector('.notification-badge')?.classList.add('active');
+                }
+                this.notes = await DataService.getNotes();
+                this.renderNotes();
+            })
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.error('Realtime: no fue posible suscribirse a notas.');
+                }
+            });
+
         /*
          * PERFIL COMPARTIDO:
          * avatar + color viven en public.profiles. Cuando un compañero
@@ -1692,6 +1568,7 @@ const App = {
     updateAvatarUI() {
         const avatarEl = document.getElementById('userAvatar');
         const previewEl = document.getElementById('previewAvatar');
+        const sendBtn = document.getElementById('btnSendNote');
         
         const themeColor = this.user.theme || '#4f46e5';
         let avatarUrl = sanitizeAvatarUrl(this.user.avatar);
@@ -1702,6 +1579,7 @@ const App = {
         
         if(avatarEl) avatarEl.src = avatarUrl;
         if(previewEl) previewEl.src = avatarUrl;
+        if(sendBtn) sendBtn.style.backgroundColor = themeColor; 
     },
 
     async loadData() {
@@ -1713,6 +1591,7 @@ const App = {
         this.members = await DataService.getMembers();
         this.requesters = await DataService.getRequesters();
         this.usersList = await DataService.getUsers();
+        this.notes = await DataService.getNotes();
     },
 
     setupPlugins() {
@@ -1861,47 +1740,13 @@ const App = {
         UI.showToast('Último cambio revertido. Se guardará automáticamente.', 'info');
     },
 
-    async toggleTaskStar(taskId) {
-        const task = this.tasks.find(t => String(t.id) === String(taskId));
-        if (!task || !isTaskActive(task) || task._prioritySaving) return;
-
-        const previousStarred = Boolean(task.isStarred);
-        const previousPriorityBy = normalizeText(task.priorityBy);
-
-        task.isStarred = !previousStarred;
-        task.priorityBy = task.isStarred
-            ? normalizeText(this.user?.username || this.user?.name)
-            : '';
-        task._prioritySaving = true;
-
-        this.renderBoard();
-        this.updateAutosaveUI('saving', 'Guardando prioridad…');
-
-        const result = await DataService.saveTaskPriority(task);
-        task._prioritySaving = false;
-
-        if (!result.cloudSaved) {
-            task.isStarred = previousStarred;
-            task.priorityBy = previousPriorityBy;
+    toggleTaskStar(taskId) {
+        const task = this.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.isStarred = !task.isStarred;
+            this.markAsUnsaved();
             this.renderBoard();
-            this.updateAutosaveUI('error', 'No se pudo sincronizar');
-            UI.showToast(
-                `No se pudo guardar la prioridad. ${result.error?.message || 'Revisa la conexión con Supabase.'}`,
-                'error',
-                9000
-            );
-            return;
         }
-
-        // Actualiza la copia sincronizada sin activar el guardado general.
-        const synced = this.originalTasks.find(t => String(t.id) === String(task.id));
-        if (synced) {
-            synced.isStarred = task.isStarred;
-            synced.priorityBy = task.priorityBy;
-        }
-        this.hasUnsavedChanges = false;
-        this.updateAutosaveUI('saved', 'Prioridad guardada');
-        this.renderBoard();
     },
 
     setupKeyboardShortcuts() {
@@ -1945,14 +1790,14 @@ const App = {
             const assigneeSelect = document.getElementById('assignee');
 
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
-            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, []);
+            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
 
             // Recalcula los menús del formulario cada vez que se abre. Esto evita
             // que una renderización previa deje triggers sin opciones o referencias
             // antiguas, especialmente después de actualizar solicitantes/equipo.
             buildCustomSelects(document);
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
-            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, []);
+            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
 
             const taskNotes = document.getElementById('taskNotes');
             if (taskNotes) taskNotes.value = '';
@@ -2149,7 +1994,7 @@ const App = {
                 id: createId(),
                 name: taskNameRaw,
                 requester: requesterRaw,
-                assignee: serializeAssignees(Array.from(assigneeInput?.selectedOptions || []).map(option => option.value)),
+                assignee: normalizeText(assigneeInput?.value),
                 status: 'En cola',
                 dateReceived: dateReceivedValue,
                 dateDelivered: delivered,
@@ -2167,7 +2012,7 @@ const App = {
             const newRequesterSelect = document.getElementById('requesterSelect');
             const newAssigneeSelect = document.getElementById('assignee');
             if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
-            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, []);
+            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, 'No asignado');
 
             const receivedPicker = document.getElementById('dateReceived')?._flatpickr;
             const deliveredPicker = document.getElementById('dateDelivered')?._flatpickr;
@@ -2332,12 +2177,7 @@ const App = {
 
                 case 'set-status':
                     if (taskId) {
-                        const clickedStatus = target.dataset.status;
-                        const currentTask = this.tasks.find(t => String(t.id) === String(taskId));
-                        const nextStatus = currentTask && clickedStatus === currentTask.status
-                            ? getNextActiveTaskStatus(currentTask.status)
-                            : null;
-                        this.handleTaskStatusAction(taskId, nextStatus || clickedStatus, target);
+                        this.handleTaskStatusAction(taskId, target.dataset.status, target);
                     }
                     break;
 
@@ -2395,7 +2235,7 @@ const App = {
                     this.updateTask(
                         taskId,
                         'assignee',
-                        serializeAssignees(Array.from(target.selectedOptions || []).map(option => option.value)),
+                        target.value,
                         false
                     );
                     break;
@@ -2418,6 +2258,137 @@ const App = {
                     break;
             }
         });
+    },
+
+    setupNotesPanel() {
+        const btnToggle = document.getElementById('btnToggleNotes');
+        const panel = document.getElementById('notesPanel');
+        const overlay = document.getElementById('notesPanelOverlay');
+        const btnClose = document.getElementById('btnCloseNotes');
+        const form = document.getElementById('noteForm');
+
+        if (!btnToggle.querySelector('.notification-badge')) {
+            btnToggle.insertAdjacentHTML('beforeend', '<div class="notification-badge"></div>');
+        }
+
+        const openPanel = () => {
+            panel.classList.add('open');
+            overlay.classList.add('active');
+            btnToggle.querySelector('.notification-badge').classList.remove('active');
+            this.renderNotes();
+        };
+
+        const closePanel = () => {
+            panel.classList.remove('open');
+            overlay.classList.remove('active');
+            const picker = document.getElementById('emojiPickerWrapper');
+            if(picker) picker.style.display = 'none';
+        };
+
+        btnToggle.addEventListener('click', openPanel);
+        btnClose.addEventListener('click', closePanel);
+        overlay.addEventListener('click', closePanel);
+
+        const emojiBtn = document.getElementById('btnToggleEmoji');
+        const pickerWrapper = document.getElementById('emojiPickerWrapper');
+        const picker = document.querySelector('emoji-picker');
+        const input = document.getElementById('noteInput');
+
+        if(emojiBtn && pickerWrapper) {
+            emojiBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                pickerWrapper.style.display = pickerWrapper.style.display === 'none' ? 'block' : 'none';
+            });
+        }
+
+        if (picker) {
+            picker.addEventListener('emoji-click', event => {
+                const unicode = event?.detail?.unicode;
+                if (!unicode || !input) return;
+                input.value += unicode;
+                input.focus();
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if(pickerWrapper && pickerWrapper.style.display === 'block') {
+                if(!pickerWrapper.contains(e.target) && !emojiBtn.contains(e.target)) {
+                    pickerWrapper.style.display = 'none';
+                }
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if(!text) return;
+
+            const newNote = {
+                id: createId(),
+                author: this.user.name,
+                content: text, 
+                created_at: new Date().toISOString()
+     };
+
+            const result = await DataService.saveNote(newNote);
+
+            if (!result.cloudSaved) {
+                UI.showToast("No se pudo guardar la nota en la nube.", "error");
+                return;
+            }
+
+            this.notes.push(result.data || newNote);
+            input.value = '';
+            if(pickerWrapper) pickerWrapper.style.display = 'none';
+            this.renderNotes();
+        });
+    },
+
+    renderNotes() {
+        const container = document.getElementById('notesList');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        if (this.notes.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:20px;">No hay notas del equipo aún.</p>';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        this.notes.forEach(n => {
+            const dateObj = new Date(n.created_at);
+            const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
+            const isMine = n.author === this.user.name;
+            const authorColor = this.getColor(n.author);
+
+            const message = document.createElement('div');
+            message.className = `chat-msg ${isMine ? 'mine' : 'other'}`;
+
+            const meta = document.createElement('div');
+            meta.className = 'chat-meta';
+            const author = document.createElement('span');
+            author.textContent = isMine ? 'Tú' : normalizeText(n.author);
+            author.style.color = isMine ? 'var(--text-muted)' : authorColor;
+            author.style.fontWeight = '700';
+            const time = document.createElement('span');
+            time.textContent = dateStr;
+            meta.append(author, time);
+
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${isMine ? '' : 'chat-bubble-other'}`;
+            bubble.textContent = normalizeText(n.content);
+            if (isMine) {
+                bubble.style.backgroundColor = 'var(--primary-cold)';
+                bubble.style.color = '#ffffff';
+            } else {
+                bubble.style.borderLeftColor = authorColor;
+            }
+            message.append(meta, bubble);
+            fragment.appendChild(message);
+        });
+        container.replaceChildren(fragment);
+        
+        container.scrollTop = container.scrollHeight;
     },
 
     openEditModal(taskId) {
@@ -2563,7 +2534,7 @@ const App = {
 
         if (title) title.textContent = normalizeText(task.name);
         if (date) date.textContent = 'Se registrará hoy como fecha real de entrega';
-        if (assignee) assignee.textContent = normalizeAssignees(task.assignee).join(', ') || 'No asignado';
+        if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
 
         modal.dataset.taskId = String(taskId);
         if (sourceButton instanceof HTMLElement && sourceButton.id) {
@@ -2620,7 +2591,7 @@ const App = {
         const assignee = document.getElementById('reopenTaskAssignee');
         if (title) title.textContent = normalizeText(task.name);
         if (deadline) deadline.textContent = getTaskDeadline(task) ? this.formatBusinessDate(getTaskDeadline(task)) : 'Sin fecha límite';
-        if (assignee) assignee.textContent = normalizeAssignees(task.assignee).join(', ') || 'No asignado';
+        if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
 
         modal.dataset.taskId = String(taskId);
         if (sourceButton instanceof HTMLElement && sourceButton.id) {
@@ -3579,7 +3550,7 @@ const App = {
             .filter(task => {
                 if (filters.month && monthOf(task.dateReceived) !== filters.month) return false;
                 if (filters.requester !== 'Todos' && normalizeText(task.requester) !== filters.requester) return false;
-                if (filters.assignee !== 'Todos' && !taskHasAssignee(task, filters.assignee)) return false;
+                if (filters.assignee !== 'Todos' && normalizeText(task.assignee) !== filters.assignee) return false;
                 if (filters.status !== 'Todos' && normalizeText(task.status) !== filters.status) return false;
 
                 if (filters.search) {
@@ -3758,9 +3729,6 @@ const App = {
         const buildOptions = (select, options, placeholder, emptyOption = false) => {
             if (!select) return;
             const currentValue = select.value;
-            const currentValues = select.multiple
-                ? Array.from(select.selectedOptions).map(option => option.value)
-                : [currentValue];
             const fragment = document.createDocumentFragment();
 
             if (placeholder) {
@@ -3780,11 +3748,7 @@ const App = {
             });
 
             select.replaceChildren(fragment);
-            if (select.multiple) {
-                Array.from(select.options).forEach(option => {
-                    option.selected = currentValues.includes(option.value);
-                });
-            } else if ([...select.options].some(option => option.value === currentValue)) {
+            if ([...select.options].some(option => option.value === currentValue)) {
                 select.value = currentValue;
             }
         };
@@ -3797,7 +3761,7 @@ const App = {
             buildOptions(
                 el,
                 options,
-                id === 'filterAssignee' ? 'Asignación: Todos' : null
+                id === 'filterAssignee' ? 'Responsable · Todos' : null
             );
         });
 
@@ -3808,7 +3772,7 @@ const App = {
             buildOptions(
                 el,
                 this.requesters,
-                id === 'filterRequester' ? 'Solicitante: Todos' : 'Seleccionar solicitante...',
+                id === 'filterRequester' ? 'Solicitante · Todos' : 'Seleccionar solicitante...',
                 id !== 'filterRequester'
             );
         });
@@ -4310,7 +4274,7 @@ const App = {
         };
 
         const matchesCommonFilters = (t) => {
-            const mAsig = fAssignee === 'Todos' || taskHasAssignee(t, fAssignee);
+            const mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
             const mReq = fRequester === 'Todos' || t.requester === fRequester;
             const mStat = fStatus === 'Todos' || t.status === fStatus;
             const mSearch = !fSearch ||
@@ -4323,9 +4287,9 @@ const App = {
             if (this.quickFilter === 'starred') {
                 mQuick = !!t.isStarred;
             } else if (this.quickFilter === 'mine') {
-                mQuick = !!this.user && taskHasAssignee(t, this.user.name);
+                mQuick = !!this.user && t.assignee === this.user.name;
             } else if (this.quickFilter === 'unassigned') {
-                mQuick = normalizeAssignees(t.assignee).length === 0;
+                mQuick = !t.assignee || t.assignee === 'No asignado';
             } else if (this.quickFilter === 'overdue') {
                 mQuick = t.status !== 'Entregado' && !!getTaskDeadline(t) && dateValue(getTaskDeadline(t)) < Date.now();
             } else if (this.quickFilter === 'today') {
@@ -4363,15 +4327,8 @@ const App = {
         // de la más antigua a la más reciente.
         // Las estrellas solo toman prioridad en órdenes alternativos.
         const sortTasks = (a, b) => {
-            // Orden de trabajo: las solicitudes que están En curso aparecen
-            // siempre primero para que el equipo tenga a mano lo que está trabajando.
-            // Dentro de cada grupo se conserva el criterio de orden elegido por el usuario.
-            const aInProgress = normalizeText(a.status) === TASK_STATUS.IN_PROGRESS || normalizeText(a.status) === 'En curso';
-            const bInProgress = normalizeText(b.status) === TASK_STATUS.IN_PROGRESS || normalizeText(b.status) === 'En curso';
-            if (aInProgress && !bInProgress) return -1;
-            if (!aInProgress && bInProgress) return 1;
-
-            // Después de En curso, las prioridades conservan su precedencia.
+            // Regla por defecto: ⭐ prioridad primero y, dentro de cada grupo,
+            // fecha de solicitud (recepción) de más antigua a más reciente.
             if (a.isStarred && !b.isStarred) return -1;
             if (!a.isStarred && b.isStarred) return 1;
 
@@ -4396,17 +4353,11 @@ const App = {
 
         const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
         const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
-        // La búsqueda principal es global: si el usuario busca una solicitud
-        // concreta, también revisamos las entregadas aunque el selector siga en
-        // "Pendientes". Así no obliga a ir primero al Archivo de entregas.
-        const isGlobalSearch = Boolean(fSearch);
         const boardTasks = fCompletion === 'Realizadas'
             ? completadas
             : fCompletion === 'Todas'
                 ? [...activas, ...completadas].sort(sortTasks)
-                : isGlobalSearch
-                    ? [...activas, ...completadas].sort(sortTasks)
-                    : activas;
+                : activas;
         const activeFragment = document.createDocumentFragment();
         const sidebarFragment = document.createDocumentFragment();
 
@@ -4418,26 +4369,15 @@ const App = {
 
         const myTasks = this.tasks.filter(t => t.status !== TASK_STATUS.DELIVERED && (
                 (t.assignee_id && this.user?.id && String(t.assignee_id) === String(this.user.id)) ||
-                (!t.assignee_id && taskHasAssignee(t, this.user.name))
+                (!t.assignee_id && t.assignee === this.user.name)
             )).sort(sortTasks);
         const myTasksBadge = document.querySelector('.sidebar-card:first-child .badge-count');
         if (myTasksBadge) myTasksBadge.textContent = String(myTasks.length);
         
-        const inProgressTasks = myTasks.filter(t => normalizeText(t.status) === TASK_STATUS.IN_PROGRESS || normalizeText(t.status) === 'En curso');
-        const pendingTasks = myTasks.filter(t => !(normalizeText(t.status) === TASK_STATUS.IN_PROGRESS || normalizeText(t.status) === 'En curso'));
-
-        const appendSidebarSectionLabel = (label, count, icon, className) => {
-            const section = document.createElement('li');
-            section.className = `sidebar-task-section-label ${className}`;
-            section.setAttribute('aria-hidden', 'true');
-            section.innerHTML = `<span class="sidebar-task-section-title"><i data-lucide="${icon}"></i>${escapeHTML(label)}</span><span class="sidebar-task-section-count">${count}</span>`;
-            sidebarFragment.appendChild(section);
-        };
-
-        const renderMyTask = (t, sectionClass = '') => {
+        myTasks.forEach(t => {
             const li = document.createElement('li');
             // Añadir clase de estrella para estilar en el CSS
-            li.className = `request-item ${sectionClass} ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
+            li.className = `request-item ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`;
             li.tabIndex = 0; 
             li.id = `li-${t.id}`;
             li.dataset.taskRow = String(t.id);
@@ -4487,9 +4427,9 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        ${t.isStarred && isTaskActive(t) ? `<button type="button" class="btn-star active" style="--priority-star-color:${escapeHTML(getPriorityColor(t))};" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Quitar prioridad" title="Prioridad marcada por ${escapeHTML(getPriorityActor(t) || 'usuario')}">
+                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
-                        </button>` : ''}
+                        </button>
                         <span class="req-name-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                     </span>
                     <div class="req-dates">
@@ -4506,17 +4446,7 @@ const App = {
                 </div>
             `;
             sidebarFragment.appendChild(li);
-        };
-
-        if (inProgressTasks.length) {
-            appendSidebarSectionLabel('En curso', inProgressTasks.length, 'play-circle', 'is-in-progress');
-            inProgressTasks.forEach(t => renderMyTask(t, 'my-task-in-progress'));
-        }
-        if (pendingTasks.length) {
-            appendSidebarSectionLabel('Pendientes', pendingTasks.length, 'list', 'is-pending');
-            pendingTasks.forEach(t => renderMyTask(t, 'my-task-pending'));
-        }
-
+        });
         if(myTasks.length === 0) {
             const empty = document.createElement('li');
             empty.className = 'request-item';
@@ -4526,7 +4456,7 @@ const App = {
         }
         sList.replaceChildren(sidebarFragment);
 
-        let assigneeOpts = this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
+        let assigneeOpts = `<option value="No asignado">No asignado</option>` + this.members.map(m => `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`).join('');
         
         boardTasks.forEach(t => {
             const tr = document.createElement('tr');
@@ -4590,14 +4520,7 @@ const App = {
                 ${actionsForStatus.map(([value, label, icon], index) => {
                     const isCurrent = value === t.status;
                     const isReopen = value === '__REOPEN__';
-                    const nextActiveStatus = isCurrent ? getNextActiveTaskStatus(t.status) : null;
-                    const actionLabel = isReopen
-                        ? 'Reabrir solicitud y devolver a gestión'
-                        : isCurrent && nextActiveStatus
-                            ? `Clic para pasar a ${nextActiveStatus}`
-                            : isCurrent
-                                ? `Estado actual: ${label}`
-                                : label;
+                    const actionLabel = isReopen ? 'Reabrir solicitud y devolver a gestión' : label;
                     return `<button type="button" class="status-switch-btn ${isCurrent ? 'is-current' : ''} ${isReopen ? 'is-reopen' : ''}" data-action="${isReopen ? 'reopen-task' : 'set-status'}" data-task-id="${taskId}" data-status="${isReopen ? '' : escapeHTML(value)}" aria-label="${escapeHTML(actionLabel)}" title="${escapeHTML(actionLabel)}" ${isCurrent ? 'aria-current="true"' : ''}><i data-lucide="${icon}" aria-hidden="true"></i><span>${escapeHTML(label)}</span></button>`;
                 }).join('')}
             </div>`;
@@ -4606,19 +4529,18 @@ const App = {
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            ${isTaskActive(t) ? `<button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" style="${t.isStarred ? `--priority-star-color:${escapeHTML(getPriorityColor(t))};` : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}" title="${t.isStarred ? `Prioridad marcada por ${escapeHTML(getPriorityActor(t) || 'usuario')}` : 'Marcar como prioridad'}">
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}">
                                 <i data-lucide="star" aria-hidden="true"></i>
-                            </button>` : ''}
+                            </button>
                             <span class="req-title-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
                         </strong>
                         <span>${escapeHTML(t.requester)}</span>
                         ${(() => { const lc = this.getTaskLifecycle(t); return lc.deliveries || lc.adjustments ? `<span class="task-lifecycle-meta">${lc.deliveries} entrega${lc.deliveries === 1 ? '' : 's'} · ${lc.adjustments} ajuste${lc.adjustments === 1 ? '' : 's'}</span>` : ''; })()}
-                        ${fSearch && t.status === 'Entregado' ? '<span class="search-realized-badge" title="Esta solicitud está en Realizadas"><i data-lucide="archive" aria-hidden="true"></i>Realizada</span>' : ''}
                     </div>
                 </td>
                 <td data-label="Asignación">
-                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee multi-assignee-select" aria-label="Cambiar asignación (hasta 3 personas)" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}" multiple>
-                        ${assigneeOpts}
+                    <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
+                        ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
                     </select>
                 </td>
                 <td class="date-info" data-label="Fechas">
@@ -4643,13 +4565,6 @@ const App = {
                     </div>
                 </td>
             `;
-            const rowAssigneeSelect = tr.querySelector('.multi-assignee-select');
-            if (rowAssigneeSelect) {
-                const currentAssignees = new Set(normalizeAssignees(t.assignee));
-                Array.from(rowAssigneeSelect.options).forEach(option => {
-                    option.selected = currentAssignees.has(option.value);
-                });
-            }
             activeFragment.appendChild(tr);
         });
         if (boardTasks.length === 0) {
@@ -4659,11 +4574,9 @@ const App = {
             cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
             cell.textContent = fCompletion === 'Realizadas'
                 ? 'No hay tareas realizadas.'
-                : isGlobalSearch
-                    ? 'No se encontraron solicitudes con ese término.'
-                    : fCompletion === 'Todas'
-                        ? 'No hay tareas que coincidan con los filtros.'
-                        : 'No hay tareas pendientes.';
+                : fCompletion === 'Todas'
+                    ? 'No hay tareas que coincidan con los filtros.'
+                    : 'No hay tareas pendientes.';
             row.appendChild(cell);
             activeFragment.appendChild(row);
         }
@@ -4722,14 +4635,8 @@ const App = {
         workload['No asignado'] = 0;
 
         activasTasks.forEach(task => {
-            const assignees = normalizeAssignees(task.assignee);
-            if (!assignees.length) {
-                workload['No asignado'] = (workload['No asignado'] || 0) + 1;
-                return;
-            }
-            assignees.forEach(assignee => {
-                workload[assignee] = (workload[assignee] || 0) + 1;
-            });
+            const assignee = task.assignee || 'No asignado';
+            workload[assignee] = (workload[assignee] || 0) + 1;
         });
 
         const sortedWorkload = Object.entries(workload)
@@ -4865,13 +4772,4 @@ const App = {
 document.addEventListener('DOMContentLoaded', async () => {
     try { await App.init(); } 
     catch(e) { console.error("FATAL ERROR:", e); alert("No pudimos cargar Design Hub correctamente. Recarga la página. Si el problema continúa, informa al administrador."); }
-});
-
-/* V37.5.9 — navegación accesible al Home */
-document.addEventListener('click', (event) => {
-    const trigger = event.target.closest('[data-nav-home="true"]');
-    if (!trigger) return;
-    event.preventDefault();
-    window.location.hash = '#home';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 });

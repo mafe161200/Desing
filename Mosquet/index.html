@@ -15,6 +15,7 @@
     
     <script src="https://unpkg.com/lucide@1.46.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.1"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -57,11 +58,7 @@
         <header class="app-header">
             <div class="header-content">
                 <h1 class="mixed-title">
-                    <a href="#home" class="brand-home" aria-label="Ir al inicio" title="Ir al inicio"><span class="logo-typographic">Design</span></a>
-<a href="#home" class="home-nav-btn" data-nav-home="true" aria-label="Ir al inicio" title="Ir al inicio">
-                <i data-lucide="home" aria-hidden="true"></i>
-                <span>Inicio</span>
-            </a>
+                    <span class="logo-typographic">Design</span>
                 </h1>
                 <p class="header-subtitle">Gestión de Solicitudes<br>y Entregables de Diseño</p>
             </div>
@@ -77,6 +74,10 @@
                 </div>
                 
                 <div class="header-divider hide-mobile"></div>
+                
+                <button type="button" id="btnToggleNotes" class="btn-icon position-relative" aria-label="Notas del Equipo" title="Notas del Equipo">
+                    <i data-lucide="message-square"></i>
+                </button>
 
                 <button type="button" id="btnLogout" class="btn-icon header-logout-btn" aria-label="Cerrar sesión" title="Cerrar sesión">
                     <i data-lucide="log-out"></i>
@@ -147,7 +148,7 @@
 
             </aside>
 
-            <main class="main-board" id="mainContent" id="home">
+            <main class="main-board" id="mainContent">
                 <section class="card board-section card-accent-primary">
                     <div class="card-header card-header-flex">
                         <div>
@@ -167,7 +168,7 @@
                     <div class="inline-filters-bar">
                         <div class="filter-search">
                             <i data-lucide="search" aria-hidden="true"></i>
-                            <input type="search" id="taskSearch" class="custom-input" placeholder="Buscar solicitud, solicitante o responsable..." aria-label="Buscar solicitudes">
+                            <input type="search" id="taskSearch" class="custom-input" placeholder="Buscar solicitud, solicitante o responsable..." aria-label="Buscar solicitudes" autocomplete="off" spellcheck="false">
                         </div>
 
                         <div class="quick-filters" role="group" aria-label="Filtros rápidos principales">
@@ -431,6 +432,32 @@
 
     </div>
 
+    <!-- PANEL LATERAL DE NOTAS Y CHAT DE EQUIPO -->
+    <div id="notesPanelOverlay" class="notes-overlay"></div>
+    <div id="notesPanel" class="notes-panel">
+        <div class="notes-header">
+            <h2><i data-lucide="message-square" class="icon-primary"></i> Anotaciones del Equipo</h2>
+            <button type="button" id="btnCloseNotes" class="btn-icon" aria-label="Cerrar notas" title="Cerrar notas"><i data-lucide="x"></i></button>
+        </div>
+        <div class="notes-body" id="notesList">
+            <!-- Notas renderizadas dinámicamente aquí -->
+        </div>
+        <div class="notes-footer" style="position: relative;">
+            
+            <div id="emojiPickerWrapper" style="display: none; position: absolute; bottom: 100%; right: 20px; z-index: 10000; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 8px; overflow: hidden; margin-bottom: 10px;">
+                <emoji-picker class="light"></emoji-picker>
+            </div>
+
+            <form id="noteForm" style="display:flex; gap: 8px;">
+                <button type="button" id="btnToggleEmoji" class="btn-icon" title="Añadir Emoji" aria-label="Añadir Emoji" style="flex-shrink: 0; background: var(--bg-subtle);">
+                    <i data-lucide="smile"></i>
+                </button>
+                <input type="text" id="noteInput" name="team_chat_input_unique" autocomplete="off" spellcheck="false" class="custom-input" placeholder="Escribe un mensaje al equipo..." required>
+                <button type="submit" id="btnSendNote" class="btn-send-note" aria-label="Enviar"><i data-lucide="send"></i></button>
+            </form>
+        </div>
+    </div>
+
     <!-- Estado de sincronización automática -->
     <div id="unsavedChangesBar" class="unsaved-bar autosave-status" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true" inert>
         <div class="unsaved-bar-content">
@@ -485,8 +512,7 @@
                         </div>
                         <div class="field">
                             <label for="assignee">Asignar a <span class="required-mark" aria-hidden="true">*</span></label>
-                            <select id="assignee" name="assignee" class="native-select-hidden multi-assignee-select" multiple aria-describedby="assigneeHelp"></select>
-                            <div id="assigneeHelp" class="field-help">Puedes asignar hasta 3 personas.</div>
+                            <select id="assignee" name="assignee" class="native-select-hidden" required></select>
                         </div>
                         <div class="field">
                             <label id="dateReceived-label" for="dateReceived">Fecha de solicitud</label>
