@@ -89,12 +89,17 @@ const getTaskDeadline = (task) => {
     return normalizeText(task.due_at).slice(0, 10) || normalizeText(task.dateDelivered);
 };
 
-const getTaskDeliveredDate = (task) => {
-    if (!task) return '';
-    return normalizeText(task.delivered_at).slice(0, 10) || (task.status === 'Entregado' ? normalizeText(task.dateDelivered) : '');
+const isCompletedTask = (task) => {
+    const status = normalizeText(task?.status);
+    return status === 'Entregado' || status === 'Realizada';
 };
 
-const getTaskBoardDate = (task) => task?.status === 'Entregado' ? getTaskDeliveredDate(task) : getTaskDeadline(task);
+const getTaskDeliveredDate = (task) => {
+    if (!task) return '';
+    return normalizeText(task.delivered_at).slice(0, 10) || (isCompletedTask(task) ? normalizeText(task.dateDelivered) : '');
+};
+
+const getTaskBoardDate = (task) => isCompletedTask(task) ? getTaskDeliveredDate(task) : getTaskDeadline(task);
 
 const getInitials = (value) => {
     const parts = normalizeText(value)
@@ -4351,8 +4356,8 @@ const App = {
             return String(a.id).localeCompare(String(b.id));
         };
 
-        const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
-        const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
+        const activas = filtered.filter(t => !isCompletedTask(t)).sort(sortTasks);
+        const completadas = filtered.filter(t => isCompletedTask(t)).sort(sortTasks);
         const boardTasks = fCompletion === 'Realizadas'
             ? completadas
             : fCompletion === 'Todas'

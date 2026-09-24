@@ -175,3 +175,11 @@
 - Textos visuales de filtros simplificados (`Responsable · Todos`, `Solicitante · Todos`).
 - Búsqueda mantiene exactamente la misma lógica; se desactiva el autocompletado del navegador para evitar sugerencias flotantes.
 - Sin cambios de Supabase, sin SQL, sin cambios de estados, entrega, archivo, historial o autosave.
+
+
+## V37.5.5 FIX — Solicitudes realizadas
+- Corregido el filtro «Realizadas» para reconocer tanto el estado actual `Entregado` como registros heredados con estado `Realizada`.
+- Las solicitudes realizadas vuelven a aparecer correctamente al seleccionar ese filtro.
+- La fecha de entrega también se interpreta correctamente para esos registros heredados.
+- El ajuste visual de filtros de V37.5.5 se conserva.
+- Sin SQL y sin cambios al flujo de estados actual.

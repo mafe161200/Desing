@@ -2,7 +2,7 @@
   "name": "design-hub",
   "version": "37.5.5",
   "private": true,
-  "description": "Design Hub V37.5.5 — ajuste visual compacto de filtros y búsqueda",
+  "description": "Design Hub V37.5.5 — filtros y compatibilidad con solicitudes realizadas",
   "engines": {
     "node": ">=18"
   }
