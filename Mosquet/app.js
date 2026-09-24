@@ -4396,11 +4396,17 @@ const App = {
 
         const activas = filtered.filter(t => t.status !== 'Entregado').sort(sortTasks);
         const completadas = filtered.filter(t => t.status === 'Entregado').sort(sortTasks);
+        // La búsqueda principal es global: si el usuario busca una solicitud
+        // concreta, también revisamos las entregadas aunque el selector siga en
+        // "Pendientes". Así no obliga a ir primero al Archivo de entregas.
+        const isGlobalSearch = Boolean(fSearch);
         const boardTasks = fCompletion === 'Realizadas'
             ? completadas
             : fCompletion === 'Todas'
                 ? [...activas, ...completadas].sort(sortTasks)
-                : activas;
+                : isGlobalSearch
+                    ? [...activas, ...completadas].sort(sortTasks)
+                    : activas;
         const activeFragment = document.createDocumentFragment();
         const sidebarFragment = document.createDocumentFragment();
 
@@ -4607,6 +4613,7 @@ const App = {
                         </strong>
                         <span>${escapeHTML(t.requester)}</span>
                         ${(() => { const lc = this.getTaskLifecycle(t); return lc.deliveries || lc.adjustments ? `<span class="task-lifecycle-meta">${lc.deliveries} entrega${lc.deliveries === 1 ? '' : 's'} · ${lc.adjustments} ajuste${lc.adjustments === 1 ? '' : 's'}</span>` : ''; })()}
+                        ${fSearch && t.status === 'Entregado' ? '<span class="search-realized-badge" title="Esta solicitud está en Realizadas"><i data-lucide="archive" aria-hidden="true"></i>Realizada</span>' : ''}
                     </div>
                 </td>
                 <td data-label="Asignación">
@@ -4652,9 +4659,11 @@ const App = {
             cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
             cell.textContent = fCompletion === 'Realizadas'
                 ? 'No hay tareas realizadas.'
-                : fCompletion === 'Todas'
-                    ? 'No hay tareas que coincidan con los filtros.'
-                    : 'No hay tareas pendientes.';
+                : isGlobalSearch
+                    ? 'No se encontraron solicitudes con ese término.'
+                    : fCompletion === 'Todas'
+                        ? 'No hay tareas que coincidan con los filtros.'
+                        : 'No hay tareas pendientes.';
             row.appendChild(cell);
             activeFragment.appendChild(row);
         }

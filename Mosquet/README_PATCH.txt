@@ -1,9 +1,8 @@
-Design Hub V37.5.20
+Design Hub V37.5.21
 
-Base: V37.5.19 CLICK STATUS.
-
-Cambios:
-- Se retira el chat general/notas del equipo del encabezado y del panel lateral.
-- Se conserva el campo Notas propio de cada solicitud.
-- Se elimina el selector de emojis y la suscripción Realtime de la tabla notes asociada al chat.
-- No se requiere SQL.
+Corrección: búsqueda global de solicitudes realizadas.
+- La búsqueda principal ahora incluye solicitudes Entregadas/Realizadas aunque el selector permanezca en Pendientes.
+- Las solicitudes encontradas que ya fueron entregadas muestran la etiqueta "Realizada".
+- Los filtros explícitos de estado, asignación, solicitante y fechas siguen respetándose.
+- No requiere SQL.
+- No modifica datos existentes.

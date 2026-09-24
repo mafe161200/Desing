@@ -7896,3 +7896,27 @@ html body .request-item .btn-star:not(.active) svg {
         min-width: 0 !important;
     }
 }
+
+
+/* V37.5.21 — búsqueda global de solicitudes realizadas */
+.task-table .search-realized-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 7px;
+    padding: 2px 7px;
+    border: 1px solid rgba(34, 211, 238, .22);
+    border-radius: 999px;
+    background: rgba(34, 211, 238, .07);
+    color: #8edff0;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.3;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.task-table .search-realized-badge svg {
+    width: 11px;
+    height: 11px;
+}
