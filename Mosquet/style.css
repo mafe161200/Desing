@@ -7485,3 +7485,163 @@ input.deadline-control.text-warning:focus {
     }
 }
 
+
+
+/* =========================================================
+   V37.5.9 — Pulido visual de contexto y barra lateral
+   Solo presentación; no altera datos ni flujo de tareas.
+   ========================================================= */
+
+/* Acción contextual: se percibe como botón, no como enlace suelto. */
+.archive-context-button {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 38px;
+    margin: 0 auto;
+    padding: 9px 16px !important;
+    border: 1px solid rgba(34, 211, 238, .34) !important;
+    border-radius: 9px !important;
+    background: rgba(34, 211, 238, .07) !important;
+    color: #67e8f9 !important;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color .18s ease, border-color .18s ease,
+                box-shadow .18s ease, transform .18s ease;
+}
+.archive-context-button:hover {
+    background: rgba(34, 211, 238, .13) !important;
+    border-color: rgba(34, 211, 238, .62) !important;
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, .07);
+}
+.archive-context-button:active {
+    transform: translateY(1px);
+}
+.archive-context-button:focus-visible {
+    outline: 2px solid #67e8f9;
+    outline-offset: 3px;
+}
+
+/* Mis Tareas: panel integrado al lenguaje visual del tablero. */
+.sidebar-col {
+    min-width: 0;
+}
+.sidebar-card {
+    overflow: hidden;
+    border: 1px solid #243753 !important;
+    border-radius: 14px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+}
+.sidebar-card .card-header {
+    padding: 13px 16px !important;
+    border-bottom: 1px solid rgba(42, 65, 95, .72);
+}
+.sidebar-card .card-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.35;
+}
+.sidebar-content {
+    min-width: 0;
+    padding: 10px !important;
+    scrollbar-width: thin;
+    scrollbar-color: #35516f #0a111f;
+    overscroll-behavior: contain;
+}
+.sidebar-content::-webkit-scrollbar {
+    width: 8px;
+}
+.sidebar-content::-webkit-scrollbar-track {
+    background: #0a111f;
+    border-radius: 8px;
+}
+.sidebar-content::-webkit-scrollbar-thumb {
+    background: #35516f;
+    border: 2px solid #0a111f;
+    border-radius: 8px;
+}
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+    background: #4b6d91;
+}
+.sidebar-card .request-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin: 0;
+    padding: 0;
+}
+.sidebar-card .request-item {
+    box-sizing: border-box;
+    margin: 0 !important;
+    padding: 12px !important;
+    border: 1px solid #263b57 !important;
+    border-radius: 10px !important;
+    background: linear-gradient(145deg, #0d182a, #0a1322) !important;
+    transition: border-color .18s ease, background-color .18s ease,
+                transform .18s ease, box-shadow .18s ease;
+}
+.sidebar-card .request-item:hover {
+    border-color: #3a5a7e !important;
+    background: #0e1a2d !important;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, .15);
+    transform: translateY(-1px);
+}
+.sidebar-card .request-item.task-starred {
+    border-left: 2px solid #22d3ee !important;
+    background: linear-gradient(120deg, rgba(34, 211, 238, .075), #0b1424 72%) !important;
+}
+.sidebar-card .req-name,
+.sidebar-card .req-name-text {
+    color: #dce8f8;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.35;
+}
+.sidebar-card .req-meta,
+.sidebar-card .req-date,
+.sidebar-card .req-details {
+    color: #91a6c1;
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+.sidebar-card .time-alert-badge {
+    font-size: 10.5px;
+}
+.sidebar-card .badge-count {
+    min-width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+.sidebar-section-subtitle {
+    margin-top: 4px;
+    color: #8fa4bf;
+    font-size: 11.5px;
+    line-height: 1.4;
+}
+
+/* Mantener la barra lateral cómoda en pantallas pequeñas. */
+@media (max-width: 768px) {
+    .sidebar-content {
+        max-height: 340px;
+        padding: 9px !important;
+    }
+    .sidebar-card .request-item {
+        padding: 11px !important;
+    }
+    .archive-context-button {
+        max-width: 100%;
+        white-space: normal;
+        text-align: center;
+    }
+}

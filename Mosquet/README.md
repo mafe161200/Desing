@@ -190,3 +190,10 @@
 - El botón «Ver en Archivo de entregas» abre el Archivo y transfiere la búsqueda.
 - El Archivo reconoce los estados completados actuales (`Entregado`) y legados (`Realizada`).
 - Sin cambios de estilos generales, esquema de Supabase, SQL, historial de eventos o autosave.
+
+## V37.5.9 — Pulido visual
+- El botón contextual «Ver en Archivo de entregas» ahora tiene tratamiento visual de acción.
+- Se refina la barra lateral «Mis Tareas»: tarjetas, espaciado, tipografía, estados hover y scrollbar oscura.
+- Se mantiene la estética oscura/cyan y el comportamiento existente.
+- El selector de finalización continúa inicializando en `Pendientes`; el chip `Todas` corresponde al filtro rápido y no cambia esa selección.
+- Sin cambios de SQL, esquema de Supabase ni lógica de persistencia.

@@ -4598,7 +4598,7 @@ const App = {
 
                 const openArchive = document.createElement('button');
                 openArchive.type = 'button';
-                openArchive.className = 'btn-text';
+                openArchive.className = 'btn-text archive-context-button';
                 openArchive.textContent = 'Ver en Archivo de entregas';
                 openArchive.setAttribute('aria-label', 'Ver esta solicitud en Archivo de entregas');
                 openArchive.addEventListener('click', () => {
