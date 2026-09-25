@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.6",
+  "version": "37.5.5",
   "private": true,
-  "description": "Design Hub V37.5.6 — solicitudes realizadas visibles por defecto",
+  "description": "Design Hub V37.5.5 — filtros y compatibilidad con solicitudes realizadas",
   "engines": {
     "node": ">=18"
   }
