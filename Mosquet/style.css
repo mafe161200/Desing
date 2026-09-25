@@ -7645,3 +7645,159 @@ input.deadline-control.text-warning:focus {
         text-align: center;
     }
 }
+
+
+/* =========================================================
+   V37.6.0 — Ajustes solicitados: logo, Home y tema más negro
+   Solo cabecera y paleta visual; no altera lógica de tareas.
+   ========================================================= */
+:root {
+    --bg-main: #030407;
+    --card-bg: #090b10;
+    --bg-subtle: #0d1017;
+    --border-light: #252a34;
+
+    --text-dark: #f5f7fa;
+    --text-main: #cbd0d9;
+    --text-muted: #9299a6;
+
+    --primary-cold: #38bdf8;
+    --primary-hover: #67d4f5;
+    --primary-deep: #167da5;
+
+    --status-cola-bg: #24131f;
+    --status-curso-bg: #0b1c20;
+    --status-entregado-bg: #0b211b;
+
+    --danger-bg: #271116;
+    --warning-bg: #251d0b;
+    --surface-glass: rgba(8, 10, 15, 0.94);
+
+    --v3-surface: #090b10;
+    --v3-surface-2: #0d1017;
+    --v3-border: rgba(120, 132, 150, 0.27);
+    --v3-cyan-soft: rgba(34, 211, 238, 0.065);
+    --dh-border-strong: #303642;
+    --dh-control-bg: #0b0e14;
+}
+
+/* Marca de cabecera: menor, blanca y mejor alineada con el subtítulo. */
+.app-header .header-content {
+    gap: 16px;
+    align-items: center;
+}
+.app-header .mixed-title {
+    flex: 0 0 auto;
+    align-items: center;
+}
+.app-header .logo-typographic {
+    display: inline-block;
+    color: #ffffff !important;
+    font-size: 2.75rem !important;
+    line-height: .92;
+    margin: 0 !important;
+    letter-spacing: -.045em;
+}
+.app-header .header-subtitle {
+    margin: 0;
+    padding-left: 16px;
+    border-left: 1px solid #343943;
+    color: #aeb5c0;
+    line-height: 1.35;
+}
+
+/* Botón Home: discreto, coherente con los controles del header. */
+.header-home-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    border: 1px solid #2a303b !important;
+    border-radius: 10px !important;
+    background: #0b0d12 !important;
+    color: #cbd5e1 !important;
+    transition: background-color .18s ease, border-color .18s ease,
+                color .18s ease, transform .18s ease;
+}
+.header-home-btn:hover {
+    background: #151922 !important;
+    border-color: #4b5563 !important;
+    color: #ffffff !important;
+}
+.header-home-btn:active {
+    transform: translateY(1px);
+}
+.header-home-btn:focus-visible {
+    outline: 2px solid var(--primary-cold);
+    outline-offset: 3px;
+}
+.header-home-btn svg {
+    width: 17px;
+    height: 17px;
+}
+
+/* Oscurecer superficies principales sin cambiar estados semánticos ni acentos. */
+.app-header,
+.card,
+.summary-card,
+.workspace-panel,
+.history-view,
+.change-history-view,
+.sidebar-card,
+.request-item,
+.workspace-tabs,
+.workspace-tab,
+.custom-input,
+select,
+input,
+textarea,
+.filter-panel,
+.inline-filters-bar {
+    --surface-glass: rgba(8, 10, 15, 0.94);
+}
+.app-header {
+    background: #080a0f !important;
+    border-color: #252a34 !important;
+}
+.summary-card,
+.card,
+.workspace-panel,
+.history-view,
+.change-history-view,
+.sidebar-card {
+    background-color: #090b10;
+    border-color: #252a34;
+}
+.custom-input,
+select,
+input,
+textarea {
+    background-color: #0b0e14;
+    border-color: #2a303b;
+}
+.workspace-tabs,
+.filter-panel,
+.inline-filters-bar {
+    background-color: #080a0f;
+    border-color: #252a34;
+}
+
+@media (max-width: 768px) {
+    .app-header .header-content {
+        gap: 10px;
+    }
+    .app-header .logo-typographic {
+        font-size: 2.2rem !important;
+    }
+    .app-header .header-subtitle {
+        padding-left: 10px;
+        font-size: .78rem;
+    }
+    .header-home-btn {
+        flex-basis: 34px;
+        width: 34px;
+        height: 34px;
+    }
+}

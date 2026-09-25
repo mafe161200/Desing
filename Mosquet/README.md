@@ -197,3 +197,10 @@
 - Se mantiene la estética oscura/cyan y el comportamiento existente.
 - El selector de finalización continúa inicializando en `Pendientes`; el chip `Todas` corresponde al filtro rápido y no cambia esa selección.
 - Sin cambios de SQL, esquema de Supabase ni lógica de persistencia.
+
+## V37.6.0 — Cabecera y paleta oscura
+- Logo de cabecera más pequeño y blanco; subtítulo alineado con separador discreto.
+- Botón Inicio en cabecera que vuelve a la vista Gestión.
+- Paleta de superficies más negra y neutral, conservando acentos cyan y colores semánticos.
+- Sin cambios en el flujo de tareas, filtros, archivo, historial ni persistencia.
+- Sin SQL ni cambios de esquema.

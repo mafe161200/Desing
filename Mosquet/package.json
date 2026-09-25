@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.5.9",
+  "version": "37.6.0",
   "private": true,
-  "description": "Design Hub V37.5.9 — pulido visual de acción contextual y barra lateral",
+  "description": "Design Hub V37.6.0 — logo compacto blanco, botón Inicio y paleta más negra",
   "engines": {
     "node": ">=18"
   }

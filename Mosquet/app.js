@@ -1787,6 +1787,10 @@ const App = {
     setupEventListeners() {
 
         const mTask = document.getElementById('modalTask');
+        document.getElementById('btnHome')?.addEventListener('click', () => {
+            this.showView('board');
+        });
+
         document.getElementById('btnNewTask').addEventListener('click', () => {
             const form = document.getElementById('taskForm');
             if (form) form.reset();
