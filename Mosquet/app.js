@@ -3798,7 +3798,7 @@ const App = {
         setValue('filterAssignee', 'Todos');
         setValue('filterRequester', 'Todos');
         setValue('filterStatus', 'Todos');
-        setValue('filterCompletion', 'Pendientes');
+        setValue('filterCompletion', 'Todas');
         if (!keepSort) setValue('filterSort', 'received_asc');
 
         const search = document.getElementById('taskSearch');
@@ -3829,14 +3829,14 @@ const App = {
         const assignee = document.getElementById('filterAssignee')?.value || 'Todos';
         const requester = document.getElementById('filterRequester')?.value || 'Todos';
         const status = document.getElementById('filterStatus')?.value || 'Todos';
-        const completion = document.getElementById('filterCompletion')?.value || 'Pendientes';
+        const completion = document.getElementById('filterCompletion')?.value || 'Todas';
         const sort = document.getElementById('filterSort')?.value || 'received_asc';
 
         if (dateInput?.value?.trim()) labels.push('fecha');
         if (requester !== 'Todos') labels.push('solicitante');
         if (assignee !== 'Todos') labels.push('asignación');
         if (status !== 'Todos') labels.push('estado');
-        if (completion !== 'Pendientes') labels.push(completion === 'Realizadas' ? 'realizadas' : 'todas');
+        if (completion !== 'Todas') labels.push(completion === 'Realizadas' ? 'realizadas' : 'pendientes');
         if (sort !== 'received_asc') labels.push('orden');
 
         if (!labels.length) {
@@ -4262,7 +4262,7 @@ const App = {
         const fRequester = document.getElementById('filterRequester').value;
         const fStatus = document.getElementById('filterStatus').value;
         const fSearch = normalizeText(document.getElementById('taskSearch')?.value || '').toLowerCase();
-        const fCompletion = document.getElementById('filterCompletion')?.value || 'Pendientes';
+        const fCompletion = document.getElementById('filterCompletion')?.value || 'Todas';
         const fSortEl = document.getElementById('filterSort');
         const fSort = fSortEl ? fSortEl.value : 'received_asc';
 
