@@ -7801,3 +7801,200 @@ textarea {
         height: 34px;
     }
 }
+
+
+/* =========================================================
+   V37.6.1 — Tema negro global
+   Ajuste exclusivamente cromático: fondos/superficies.
+   Se conservan acentos, estados semánticos y comportamiento.
+   ========================================================= */
+:root {
+    --bg-main: #030303;
+    --card-bg: #080808;
+    --bg-subtle: #0d0d0d;
+    --border-light: #292929;
+
+    --text-dark: #f5f5f5;
+    --text-main: #d0d0d0;
+    --text-muted: #999999;
+
+    --surface-glass: rgba(5, 5, 5, 0.96);
+    --v3-surface: #080808;
+    --v3-surface-2: #0d0d0d;
+    --v3-border: rgba(150, 150, 150, 0.22);
+    --dh-text-primary: #f0f0f0;
+    --dh-text-secondary: #c0c0c0;
+    --dh-text-muted: #929292;
+    --dh-border-strong: #303030;
+    --dh-control-bg: #0a0a0a;
+}
+
+/* Lienzo y estructura general */
+html,
+body {
+    background: #030303 !important;
+    color: #d0d0d0;
+}
+body,
+.app,
+.app-container,
+.app-shell,
+.main-layout,
+.main-content,
+.content-area,
+.dashboard,
+.dashboard-content,
+.workspace,
+.workspace-main,
+.workspace-panel,
+.history-view,
+.change-history-view,
+.app-header {
+    background-color: #050505 !important;
+    background-image: none !important;
+}
+
+/* Paneles, tarjetas y contenedores */
+.card,
+.summary-card,
+.kpi-card,
+.metric-card,
+.sidebar-card,
+.task-sidebar,
+.sidebar-panel,
+.panel,
+.panel-header,
+.panel-body,
+.workspace-tabs,
+.workspace-tab:not(.active),
+.filter-panel,
+.inline-filters-bar,
+.advanced-filters,
+.filters-container,
+.table-container,
+.table-wrapper,
+.history-toolbar,
+.history-filters,
+.archive-summary,
+.archive-filter-panel,
+.workload-card,
+.workload-panel,
+.request-list-container {
+    background-color: #080808 !important;
+    background-image: none !important;
+    border-color: #292929 !important;
+}
+
+/* Filas y tabla: negro neutral, con separación discreta */
+table,
+.task-table,
+.task-table thead,
+.task-table tbody,
+.task-table thead tr,
+.task-table tbody tr,
+.task-table th,
+.task-table td,
+.history-table,
+.history-table thead,
+.history-table tbody,
+.history-table th,
+.history-table td {
+    background-color: #070707 !important;
+    border-color: #252525 !important;
+}
+.task-table tbody tr:nth-child(even),
+.history-table tbody tr:nth-child(even) {
+    background-color: #0a0a0a !important;
+}
+.task-table tbody tr:hover,
+.history-table tbody tr:hover {
+    background-color: #111111 !important;
+}
+
+/* Formularios, campos y menús */
+input,
+select,
+textarea,
+.custom-input,
+.search-input,
+.filter-control,
+.dropdown-menu,
+.select-menu,
+.popover,
+.row-actions-menu,
+.autocomplete-list,
+.autocomplete-item {
+    background-color: #0b0b0b !important;
+    background-image: none !important;
+    border-color: #303030 !important;
+    color: #d5d5d5;
+}
+input::placeholder,
+textarea::placeholder {
+    color: #888888;
+}
+option {
+    background: #0b0b0b;
+    color: #dedede;
+}
+
+/* Tarjetas de Mis Tareas y elementos de carga */
+.sidebar-card .request-item,
+.request-item,
+.task-card,
+.my-task-card,
+.workload-item,
+.workload-item-interactive {
+    background-color: #0b0b0b !important;
+    background-image: none !important;
+    border-color: #2b2b2b !important;
+}
+.sidebar-card .request-item:hover,
+.request-item:hover,
+.task-card:hover,
+.my-task-card:hover,
+.workload-item-interactive:hover {
+    background-color: #111111 !important;
+}
+.sidebar-card .request-item.task-starred,
+.request-item.task-starred {
+    background: linear-gradient(90deg, rgba(34, 211, 238, .055), #0a0a0a 72%) !important;
+}
+
+/* Modales, avisos y superficies flotantes */
+.modal-overlay {
+    background: rgba(0, 0, 0, .78) !important;
+}
+.modal-content,
+.modal-header,
+.modal-footer,
+.delivery-confirm-summary,
+.reopen-task-summary,
+.reopen-task-note,
+.toast,
+.toast-close {
+    background-color: #090909 !important;
+    background-image: none !important;
+    border-color: #2b2b2b !important;
+}
+
+/* Estados y acentos conservan su color semántico; solo se neutralizan
+   superficies genéricas. El cyan sigue siendo el color de interacción. */
+.workspace-tab.active,
+.quick-filter.active,
+.filter-chip.active {
+    background-color: rgba(34, 211, 238, .10) !important;
+}
+:focus-visible {
+    outline-color: #38bdf8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-card .request-item,
+    .request-item,
+    .task-card,
+    .my-task-card,
+    .header-home-btn {
+        transition: none !important;
+    }
+}

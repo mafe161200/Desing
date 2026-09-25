@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.6.0",
+  "version": "37.6.1",
   "private": true,
-  "description": "Design Hub V37.6.0 — logo compacto blanco, botón Inicio y paleta más negra",
+  "description": "Design Hub V37.6.1 — tema negro global",
   "engines": {
     "node": ">=18"
   }

@@ -204,3 +204,8 @@
 - Paleta de superficies más negra y neutral, conservando acentos cyan y colores semánticos.
 - Sin cambios en el flujo de tareas, filtros, archivo, historial ni persistencia.
 - Sin SQL ni cambios de esquema.
+
+## V37.6.1 — Tema negro global
+- Se extiende la paleta negra a toda la aplicación: lienzo, paneles, tarjetas, tabla, filtros, campos, barra lateral y modales.
+- Se conservan el logo blanco compacto, el botón Home, los acentos cyan y los colores semánticos de estado.
+- Solo cambios CSS y metadatos de versión; sin cambios de lógica, SQL ni esquema de Supabase.
