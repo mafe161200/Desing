@@ -209,3 +209,10 @@
 - Se extiende la paleta negra a toda la aplicación: lienzo, paneles, tarjetas, tabla, filtros, campos, barra lateral y modales.
 - Se conservan el logo blanco compacto, el botón Home, los acentos cyan y los colores semánticos de estado.
 - Solo cambios CSS y metadatos de versión; sin cambios de lógica, SQL ni esquema de Supabase.
+
+## V37.6.2 — Full Black + Motion Polish
+- Se neutralizan los fondos azulados restantes en las superficies principales.
+- Se conserva el cyan como acento de interacción y los colores semánticos de estado.
+- Se añaden microinteracciones CSS para hover, active, foco, modales y notificaciones.
+- Se respeta `prefers-reduced-motion`.
+- Solo se modifican `style.css` y metadatos de versión; no hay cambios de JS, HTML, SQL ni esquema.

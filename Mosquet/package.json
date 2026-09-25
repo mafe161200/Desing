@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.6.1",
+  "version": "37.6.2",
   "private": true,
-  "description": "Design Hub V37.6.1 — tema negro global",
+  "description": "Design Hub V37.6.2 — tema negro global y microanimaciones CSS",
   "engines": {
     "node": ">=18"
   }

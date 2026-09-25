@@ -7998,3 +7998,230 @@ option {
         transition: none !important;
     }
 }
+
+
+/* =========================================================
+   V37.6.2 — Full Black + Motion Polish
+   CSS únicamente: superficies negras y microinteracciones.
+   Sin cambios de estructura, lógica, datos o persistencia.
+   ========================================================= */
+:root {
+    --bg-main: #000000;
+    --card-bg: #050505;
+    --bg-subtle: #090909;
+    --border-light: #262626;
+    --surface-glass: rgba(0, 0, 0, .96);
+    --v3-surface: #050505;
+    --v3-surface-2: #090909;
+    --v3-border: rgba(160, 160, 160, .20);
+    --dh-border-strong: #303030;
+    --dh-control-bg: #080808;
+}
+
+/* Neutralizar los restos azulados en todas las superficies principales. */
+html,
+body,
+body,
+.app,
+.app-container,
+.app-shell,
+.main-container,
+.main-layout,
+.main-content,
+.content-area,
+.dashboard,
+.dashboard-content,
+.dashboard-summary,
+.layout-grid,
+.main-board,
+.workspace,
+.workspace-main,
+.workspace-panel,
+.history-view,
+.change-history-view,
+.app-header,
+.card,
+.card-header,
+.board-section,
+.sidebar-card,
+.sidebar-col,
+.task-sidebar,
+.sidebar-panel,
+.summary-card,
+.kpi-card,
+.metric-card,
+.workload-card,
+.workload-panel,
+.workspace-tabs,
+.workspace-tab,
+.filter-panel,
+.inline-filters-bar,
+.advanced-filters,
+.filters-container,
+.table-container,
+.table-wrapper,
+.history-toolbar,
+.history-filters,
+.archive-summary,
+.archive-filter-panel,
+.request-list-container,
+.modal-content,
+.modal-header,
+.modal-footer,
+.delivery-confirm-summary,
+.reopen-task-summary,
+.reopen-task-note {
+    background-color: #050505 !important;
+    background-image: none !important;
+    border-color: #262626;
+}
+
+/* Áreas de lectura y controles: negro ligeramente diferenciado. */
+input,
+select,
+textarea,
+.custom-input,
+.search-input,
+.filter-control,
+.dropdown-menu,
+.select-menu,
+.popover,
+.row-actions-menu,
+.autocomplete-list,
+.autocomplete-item,
+.sidebar-content,
+.sidebar-card .request-item,
+.request-item,
+.task-card,
+.my-task-card,
+.workload-item,
+.workload-item-interactive {
+    background-color: #080808 !important;
+    background-image: none !important;
+    border-color: #292929 !important;
+}
+
+table,
+.task-table,
+.task-table thead,
+.task-table tbody,
+.task-table thead tr,
+.task-table th,
+.task-table td,
+.history-table,
+.history-table thead,
+.history-table tbody,
+.history-table th,
+.history-table td {
+    background-color: #050505 !important;
+    border-color: #242424 !important;
+}
+.task-table tbody tr:nth-child(even),
+.history-table tbody tr:nth-child(even) {
+    background-color: #080808 !important;
+}
+.task-table tbody tr:hover,
+.history-table tbody tr:hover {
+    background-color: #101010 !important;
+}
+
+/* Mantener diferenciación de selección sin teñir de azul los paneles. */
+.workspace-tab.active,
+.quick-filter.active,
+.filter-chip.active {
+    background-color: rgba(34, 211, 238, .09) !important;
+}
+
+/* Microinteracciones: discretas, rápidas y consistentes. */
+:where(
+    .btn,
+    .btn-icon,
+    .btn-text,
+    .workspace-tab,
+    .quick-filter,
+    .filter-chip,
+    .header-home-btn,
+    .sidebar-card .request-item,
+    .request-item,
+    .task-card,
+    .my-task-card,
+    .workload-item-interactive,
+    .color-swatch
+) {
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 200ms ease,
+        transform 180ms cubic-bezier(.2, .75, .25, 1);
+}
+
+:where(
+    .btn,
+    .btn-icon,
+    .btn-text,
+    .workspace-tab,
+    .quick-filter,
+    .filter-chip,
+    .header-home-btn
+):active {
+    transform: translateY(1px) scale(.985);
+}
+
+:where(
+    .btn,
+    .btn-icon,
+    .workspace-tab,
+    .quick-filter,
+    .filter-chip,
+    .header-home-btn
+):focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 3px;
+}
+
+.sidebar-card .request-item:hover,
+.request-item:hover,
+.task-card:hover,
+.my-task-card:hover,
+.workload-item-interactive:hover {
+    border-color: #454545 !important;
+    box-shadow: 0 7px 20px rgba(0, 0, 0, .30);
+    transform: translateY(-1px);
+}
+
+.workspace-tab:hover,
+.quick-filter:hover,
+.filter-chip:hover {
+    border-color: #454545;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-success:hover {
+    box-shadow: 0 5px 16px rgba(0, 0, 0, .28);
+}
+
+/* Entradas breves: solo para elementos que aparecen como capas. */
+@keyframes dhPolishedAppear {
+    from { opacity: 0; transform: translateY(7px) scale(.995); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-content {
+    animation: dhPolishedAppear 190ms cubic-bezier(.2, .75, .25, 1) both;
+}
+.toast {
+    animation: dhPolishedAppear 220ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+/* No forzar movimiento a quien lo tiene desactivado en su sistema. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+    }
+}
