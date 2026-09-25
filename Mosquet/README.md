@@ -184,10 +184,9 @@
 - El ajuste visual de filtros de V37.5.5 se conserva.
 - Sin SQL y sin cambios al flujo de estados actual.
 
-## V37.5.7 — Separación de Realizadas
-- Gestión mantiene `Pendientes` como filtro inicial.
-- `Realizada` se reconoce de forma consistente como estado completado legado, equivalente a `Entregado` para clasificación.
-- Los registros `Realizada` se muestran en el filtro `Realizadas`, no en `Pendientes`.
-- Los indicadores de tareas activas y los filtros `Hoy`/`Vencidas` excluyen ambos estados completados.
-- Los registros `Realizada` muestran controles de completado y permiten reabrir mediante el flujo existente.
-- Sin cambios de CSS, SQL, esquema de Supabase ni estructura de datos.
+## V37.5.8 — Búsqueda contextual de solicitudes entregadas
+- Gestión conserva el filtro inicial `Pendientes`; las entregadas no se mezclan con las tareas activas.
+- Si una búsqueda no tiene coincidencias pendientes pero sí encuentra solicitudes completadas, se informa que están en Archivo de entregas.
+- El botón «Ver en Archivo de entregas» abre el Archivo y transfiere la búsqueda.
+- El Archivo reconoce los estados completados actuales (`Entregado`) y legados (`Realizada`).
+- Sin cambios de estilos generales, esquema de Supabase, SQL, historial de eventos o autosave.

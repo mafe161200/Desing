@@ -90,8 +90,8 @@ const getTaskDeadline = (task) => {
 };
 
 const isCompletedTask = (task) => {
-    const status = normalizeText(task?.status).toLocaleLowerCase('es');
-    return status === 'entregado' || status === 'realizada';
+    const status = normalizeText(task?.status);
+    return status === 'Entregado' || status === 'Realizada';
 };
 
 const getTaskDeliveredDate = (task) => {
@@ -358,7 +358,7 @@ const NotificationService = {
             }, 100);
         };
 
-        const myPendingTasks = tasks.filter(t => t.assignee === userName && !isCompletedTask(t) && getTaskDeadline(t));
+        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && getTaskDeadline(t));
         if (myPendingTasks.length > 0) {
             myPendingTasks.sort((a, b) => new Date(getTaskDeadline(a) + 'T12:00:00').getTime() - new Date(getTaskDeadline(b) + 'T12:00:00').getTime());
             const nearest = myPendingTasks[0];
@@ -373,7 +373,7 @@ const NotificationService = {
             }
         }
 
-        const unassigned = tasks.filter(t => t.assignee === 'No asignado' && !isCompletedTask(t) && t.dateReceived);
+        const unassigned = tasks.filter(t => t.assignee === 'No asignado' && t.status !== 'Entregado' && t.dateReceived);
         const oldUnassigned = unassigned.filter(t => {
             const recDate = new Date(t.dateReceived);
             const diffTime = Math.abs(now - recDate);
@@ -422,13 +422,10 @@ const TASK_EVENT = Object.freeze({
 
 function canTransitionTaskStatus(fromStatus, toStatus) {
     if (!fromStatus || !toStatus || fromStatus === toStatus) return false;
-    // "Realizada" es el estado legado equivalente a "Entregado".
-    const canonicalFrom = normalizeText(fromStatus) === 'Realizada' ? TASK_STATUS.DELIVERED : fromStatus;
-    return (TASK_STATUS_TRANSITIONS[canonicalFrom] || []).includes(toStatus);
+    return (TASK_STATUS_TRANSITIONS[fromStatus] || []).includes(toStatus);
 }
 
 function getTaskStatusLabel(status) {
-    if (normalizeText(status) === 'Realizada') return 'Realizada';
     return Object.values(TASK_STATUS).includes(status) ? status : TASK_STATUS.QUEUED;
 }
 
@@ -2592,7 +2589,7 @@ const App = {
     openReopenConfirmation(taskId, sourceButton = null) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         const modal = document.getElementById('modalReopenTask');
-        if (!task || !isCompletedTask(task) || !modal) return;
+        if (!task || task.status !== TASK_STATUS.DELIVERED || !modal) return;
 
         const title = document.getElementById('reopenTaskTitle');
         const deadline = document.getElementById('reopenTaskDeadline');
@@ -2615,7 +2612,7 @@ const App = {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         UI.buttonFeedback(document.getElementById('confirmReopenBtn'), 'success');
         const modal = document.getElementById('modalReopenTask');
-        if (!task || !isCompletedTask(task)) return;
+        if (!task || task.status !== TASK_STATUS.DELIVERED) return;
 
         const selected = document.querySelector('input[name=\"reopenTargetStatus\"]:checked');
         const targetStatus = selected?.value === TASK_STATUS.QUEUED
@@ -3552,7 +3549,7 @@ const App = {
         };
 
         const allTasks = (Array.isArray(this.tasks) ? this.tasks : [])
-            .filter(task => normalizeText(task.status) === 'Entregado');
+            .filter(task => isCompletedTask(task));
 
         const filtered = allTasks
             .filter(task => {
@@ -4299,9 +4296,9 @@ const App = {
             } else if (this.quickFilter === 'unassigned') {
                 mQuick = !t.assignee || t.assignee === 'No asignado';
             } else if (this.quickFilter === 'overdue') {
-                mQuick = !isCompletedTask(t) && !!getTaskDeadline(t) && dateValue(getTaskDeadline(t)) < Date.now();
+                mQuick = t.status !== 'Entregado' && !!getTaskDeadline(t) && dateValue(getTaskDeadline(t)) < Date.now();
             } else if (this.quickFilter === 'today') {
-                mQuick = !isCompletedTask(t) && getTaskDeadline(t) === todayStr;
+                mQuick = t.status !== 'Entregado' && getTaskDeadline(t) === todayStr;
             } else if (this.quickFilter === 'course') {
                 mQuick = t.status === 'En curso';
             } else if (this.quickFilter === 'adjustment') {
@@ -4375,7 +4372,7 @@ const App = {
 
         this.renderWorkloadChart(activas);
 
-        const myTasks = this.tasks.filter(t => !isCompletedTask(t) && (
+        const myTasks = this.tasks.filter(t => t.status !== TASK_STATUS.DELIVERED && (
                 (t.assignee_id && this.user?.id && String(t.assignee_id) === String(this.user.id)) ||
                 (!t.assignee_id && t.assignee === this.user.name)
             )).sort(sortTasks);
@@ -4489,9 +4486,9 @@ const App = {
             const boardDate = getTaskBoardDate(t);
             const deadlineDate = getTaskDeadline(t);
             const deliveredDate = getTaskDeliveredDate(t);
-            let dateDeliveredVal = isCompletedTask(t) ? (deliveredDate || '') : (deadlineDate || '');
+            let dateDeliveredVal = t.status === 'Entregado' ? (deliveredDate || '') : (deadlineDate || '');
             let dateClass = '';
-            if (boardDate && !isCompletedTask(t)) {
+            if (boardDate && t.status !== 'Entregado') {
                 if (boardDate < todayStr) dateClass = 'text-danger';
                 else if (boardDate === todayStr) dateClass = 'text-warning';
             }
@@ -4502,8 +4499,7 @@ const App = {
                 'En cola': 'status-select-queue',
                 'En curso': 'status-select-progress',
                 'Ajuste solicitado': 'status-select-adjustment',
-                'Entregado': 'status-select-completed',
-                'Realizada': 'status-select-completed'
+                'Entregado': 'status-select-completed'
             }[t.status] || 'status-select-queue';
             const statusActions = {
                 'En cola': [
@@ -4521,10 +4517,6 @@ const App = {
                 ],
                 'Entregado': [
                     ['Entregado', 'Entregada', 'check-circle-2'],
-                    ['__REOPEN__', 'Reabrir', 'undo-2']
-                ],
-                'Realizada': [
-                    ['Realizada', 'Realizada', 'check-circle-2'],
                     ['__REOPEN__', 'Reabrir', 'undo-2']
                 ]
             };
@@ -4559,8 +4551,8 @@ const App = {
                 <td class="date-info" data-label="Fechas">
                     <span class="date-req"><span class="date-label">Recibida</span> ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
                     <div class="deadline-control">
-                        <span class="date-label date-label-primary">${isCompletedTask(t) ? 'Entregada' : 'Fecha límite'}</span>
-                        <input type="text" id="delivery-date-${taskId}" name="delivery-date-${taskId}" class="inline-date-picker ${dateClass}" data-id="${taskId}" aria-label="${isCompletedTask(t) ? 'Fecha de entrega' : 'Cambiar fecha límite'}" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar" ${isCompletedTask(t) ? 'disabled' : ''}>
+                        <span class="date-label date-label-primary">${t.status === 'Entregado' ? 'Entregada' : 'Fecha límite'}</span>
+                        <input type="text" id="delivery-date-${taskId}" name="delivery-date-${taskId}" class="inline-date-picker ${dateClass}" data-id="${taskId}" aria-label="${t.status === 'Entregado' ? 'Fecha de entrega' : 'Cambiar fecha límite'}" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar" ${t.status === 'Entregado' ? 'disabled' : ''}>
                     </div>
                 </td>
                 <td class="status-cell" data-label="Estado">${statusButtons}</td>
@@ -4584,12 +4576,52 @@ const App = {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
             cell.colSpan = 5;
-            cell.style.cssText = 'text-align:center; padding:40px; color:var(--text-muted);';
-            cell.textContent = fCompletion === 'Realizadas'
-                ? 'No hay tareas realizadas.'
-                : fCompletion === 'Todas'
-                    ? 'No hay tareas que coincidan con los filtros.'
-                    : 'No hay tareas pendientes.';
+            cell.style.cssText = 'text-align:center; padding:32px 20px; color:var(--text-muted);';
+
+            // Si la búsqueda coincide con una tarea entregada, explicar dónde está
+            // en lugar de dar la impresión de que desapareció.
+            const matchingCompleted = fSearch
+                ? this.tasks.filter(task => isCompletedTask(task) && (
+                    normalizeText(task.name).toLowerCase().includes(fSearch) ||
+                    normalizeText(task.requester).toLowerCase().includes(fSearch) ||
+                    normalizeText(task.assignee).toLowerCase().includes(fSearch) ||
+                    normalizeText(task.notes).toLowerCase().includes(fSearch)
+                ))
+                : [];
+
+            if (fCompletion === 'Pendientes' && matchingCompleted.length > 0) {
+                const message = document.createElement('p');
+                message.textContent = matchingCompleted.length === 1
+                    ? `“${normalizeText(matchingCompleted[0].name)}” ya está en Archivo de entregas (${normalizeText(matchingCompleted[0].status)}).`
+                    : `${matchingCompleted.length} solicitudes que coinciden con tu búsqueda ya están en Archivo de entregas.`;
+                message.style.cssText = 'margin:0 0 12px; color:var(--text-secondary);';
+
+                const openArchive = document.createElement('button');
+                openArchive.type = 'button';
+                openArchive.className = 'btn-text';
+                openArchive.textContent = 'Ver en Archivo de entregas';
+                openArchive.setAttribute('aria-label', 'Ver esta solicitud en Archivo de entregas');
+                openArchive.addEventListener('click', () => {
+                    const searchInput = document.getElementById('historySearch');
+                    const statusInput = document.getElementById('historyStatus');
+                    if (searchInput) searchInput.value = normalizeText(document.getElementById('taskSearch')?.value);
+                    if (statusInput) statusInput.value = 'Todos';
+                    this.historyFilters = {
+                        ...this.historyFilters,
+                        search: normalizeText(document.getElementById('taskSearch')?.value).toLowerCase(),
+                        status: 'Todos'
+                    };
+                    this.showView('history');
+                    this.renderHistory();
+                });
+                cell.append(message, openArchive);
+            } else {
+                cell.textContent = fCompletion === 'Realizadas'
+                    ? 'No hay tareas realizadas.'
+                    : fCompletion === 'Todas'
+                        ? 'No hay tareas que coincidan con los filtros.'
+                        : 'No hay tareas pendientes.';
+            }
             row.appendChild(cell);
             activeFragment.appendChild(row);
         }
