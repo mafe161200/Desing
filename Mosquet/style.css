@@ -8225,3 +8225,302 @@ table,
         transition-duration: .01ms !important;
     }
 }
+
+
+/* =========================================================
+   V37.6.3 — Black Pro / Table Polish
+   Ajuste visual incremental sobre V37.6.2.
+   Sin cambios en lógica, estructura o persistencia.
+   ========================================================= */
+
+/* Superficies reales de la aplicación: negro uniforme con niveles carbón. */
+html,
+body,
+#appContainer,
+.main-container,
+.app-header,
+.header-content,
+.dashboard-summary,
+.layout-grid,
+.sidebar-col,
+.main-board,
+.board-section,
+.board-section > .card-header,
+.card.sidebar-card,
+.sidebar-card > .card-header,
+.sidebar-content,
+.card-header,
+.card-header-flex,
+.inline-filters-bar,
+.filter-search,
+.advanced-filters,
+.advanced-task-filters-grid,
+.advanced-quick-filters,
+.workspace-tabs,
+.workspace-tab,
+.table-wrapper,
+.history-header,
+.history-view-tabs,
+.history-summary-grid,
+.history-filter-panel,
+.history-filters,
+.history-table-wrap,
+.change-history-filter-panel,
+.change-history-filters,
+.change-history-list,
+.notes-header,
+.modal-content,
+.modal-header,
+.modal-footer {
+    background-color: #050505 !important;
+    background-image: none !important;
+}
+
+/* Paneles secundarios un punto más claros para conservar jerarquía. */
+.sidebar-card,
+.board-section,
+.workspace-tabs,
+.inline-filters-bar,
+.table-wrapper,
+.history-filter-panel,
+.change-history-filter-panel,
+.history-table-wrap {
+    background-color: #070707 !important;
+}
+
+/* Los controles y superficies internas mantienen separación sutil. */
+input,
+select,
+textarea,
+.filter-search input,
+.inline-filter-item input,
+.inline-filter-item select,
+.task-table .status-control,
+.task-table .status-option,
+.task-table .status-option.status-reopen,
+.autocomplete-list,
+.autocomplete-item,
+.dropdown-menu,
+.popover,
+.row-actions-menu {
+    background-color: #090909 !important;
+    background-image: none !important;
+}
+
+/* Encabezados sin bloque azul; bordes neutros en todo el marco. */
+.app-header,
+.dashboard-summary .summary-card,
+.dashboard-summary .kpi-card,
+.sidebar-card,
+.board-section,
+.board-section > .card-header,
+.sidebar-card > .card-header,
+.workspace-tabs,
+.inline-filters-bar,
+.table-wrapper,
+.task-table th,
+.history-table th {
+    border-color: #292929 !important;
+}
+
+/* Conservar los colores de estado activos, sin recolorear badges semánticos. */
+.workspace-tab.active,
+.quick-filter.active,
+.filter-chip.active,
+.advanced-quick-filter.active,
+.task-table .status-option.status-queue.is-active,
+.task-table .status-option.status-progress.is-active {
+    background-image: none !important;
+}
+
+/* Tabla: más aire para fechas y acciones, sin alterar su contenido. */
+.task-table {
+    width: 100% !important;
+    table-layout: fixed !important;
+}
+.task-table th:nth-child(1),
+.task-table td:nth-child(1) { width: 29% !important; }
+.task-table th:nth-child(2),
+.task-table td:nth-child(2) { width: 19% !important; }
+.task-table th:nth-child(3),
+.task-table td:nth-child(3) { width: 17% !important; }
+.task-table th:nth-child(4),
+.task-table td:nth-child(4) { width: 23% !important; }
+.task-table th:nth-child(5),
+.task-table td:nth-child(5) { width: 12% !important; }
+
+.task-table td:nth-child(3) {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.task-table td:nth-child(3) .date-label,
+.task-table td:nth-child(3) .date-label-primary {
+    white-space: nowrap;
+    word-break: normal;
+}
+.task-table td:nth-child(3) input,
+.task-table td:nth-child(3) .date-input {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.task-table .actions-cell .action-buttons {
+    gap: 3px;
+}
+.task-table .actions-cell .btn-icon {
+    flex-shrink: 1;
+}
+
+/* Microinteracciones refinadas: feedback sutil, no movimiento permanente. */
+.app-header .header-home-btn,
+.workspace-tab,
+.quick-filter,
+.filter-chip,
+.advanced-quick-filter,
+.btn,
+.btn-icon,
+.task-table .status-option,
+.task-table .action-buttons .btn-icon,
+.sidebar-card .request-item,
+.request-item,
+.task-card,
+.my-task-card,
+.workload-item-interactive {
+    transition:
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease,
+        transform 160ms cubic-bezier(.2, .7, .25, 1);
+}
+.app-header .header-home-btn:hover,
+.workspace-tab:hover,
+.quick-filter:hover,
+.filter-chip:hover,
+.advanced-quick-filter:hover,
+.btn:hover,
+.btn-icon:hover,
+.task-table .action-buttons .btn-icon:hover {
+    box-shadow: 0 3px 12px rgba(0, 0, 0, .32);
+}
+.app-header .header-home-btn:active,
+.workspace-tab:active,
+.quick-filter:active,
+.filter-chip:active,
+.advanced-quick-filter:active,
+.btn:active,
+.btn-icon:active,
+.task-table .action-buttons .btn-icon:active {
+    transform: translateY(1px);
+}
+.sidebar-card .request-item:hover,
+.request-item:hover,
+.task-card:hover,
+.my-task-card:hover,
+.workload-item-interactive:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .24);
+}
+
+/* Fechas y celdas conservan lectura y no fuerzan quiebres de etiquetas. */
+.task-table td:nth-child(3) .date-label {
+    letter-spacing: .035em;
+    font-size: .62rem;
+}
+
+/* En anchos intermedios, priorizar legibilidad de fechas/acciones. */
+@media (max-width: 1100px) and (min-width: 769px) {
+    .task-table th:nth-child(1),
+    .task-table td:nth-child(1) { width: 28% !important; }
+    .task-table th:nth-child(2),
+    .task-table td:nth-child(2) { width: 18% !important; }
+    .task-table th:nth-child(3),
+    .task-table td:nth-child(3) { width: 18% !important; }
+    .task-table th:nth-child(4),
+    .task-table td:nth-child(4) { width: 23% !important; }
+    .task-table th:nth-child(5),
+    .task-table td:nth-child(5) { width: 13% !important; }
+}
+@media (max-width: 768px) {
+    .task-table th:nth-child(1),
+    .task-table td:nth-child(1) { width: 29% !important; }
+    .task-table th:nth-child(2),
+    .task-table td:nth-child(2) { width: 18% !important; }
+    .task-table th:nth-child(3),
+    .task-table td:nth-child(3) { width: 18% !important; }
+    .task-table th:nth-child(4),
+    .task-table td:nth-child(4) { width: 22% !important; }
+    .task-table th:nth-child(5),
+    .task-table td:nth-child(5) { width: 13% !important; }
+}
+
+/* Respetar la preferencia del sistema para reducir movimiento. */
+@media (prefers-reduced-motion: reduce) {
+    .app-header .header-home-btn,
+    .workspace-tab,
+    .quick-filter,
+    .filter-chip,
+    .advanced-quick-filter,
+    .btn,
+    .btn-icon,
+    .task-table .status-option,
+    .task-table .action-buttons .btn-icon,
+    .sidebar-card .request-item,
+    .request-item,
+    .task-card,
+    .my-task-card,
+    .workload-item-interactive {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+    }
+}
+
+
+/* =========================================================
+   V37.6.4 — Final review patch
+   Restore semantic status colors over the neutral control skin.
+   ========================================================= */
+
+/* The general dark control treatment must not flatten active states. */
+.task-table .status-option.status-queue.is-active {
+    color: #f9a8d4 !important;
+    background: var(--v3-pink-bg) !important;
+    border-color: var(--v3-pink) !important;
+}
+.task-table .status-option.status-progress.is-active {
+    color: #67e8f9 !important;
+    background: rgba(34, 211, 238, .10) !important;
+    border-color: var(--cyber-cyan) !important;
+}
+.task-table .status-option.status-done:hover,
+.task-table .status-option.status-done:focus-visible {
+    color: var(--success) !important;
+    background: rgba(52, 211, 153, .10) !important;
+    border-color: var(--success) !important;
+}
+
+/* Preserve neutral styling for inactive status options. */
+.task-table .status-option:not(.is-active):not(.status-done) {
+    background: transparent !important;
+}
+
+/* Keep selected tabs/filters readable while retaining the black palette. */
+.workspace-tab.active,
+.quick-filter.active,
+.filter-chip.active,
+.advanced-quick-filter.active {
+    background-color: rgba(34, 211, 238, .09) !important;
+    border-color: var(--cyber-cyan) !important;
+}
+
+/* Respect reduced-motion settings across the whole interface. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+    }
+}

@@ -216,3 +216,15 @@
 - Se añaden microinteracciones CSS para hover, active, foco, modales y notificaciones.
 - Se respeta `prefers-reduced-motion`.
 - Solo se modifican `style.css` y metadatos de versión; no hay cambios de JS, HTML, SQL ni esquema.
+
+## V37.6.3 — Black Pro / Table Polish
+- Unifica las superficies principales y cabeceras en negro/carbón neutral.
+- Ajusta proporciones de las cinco columnas de Gestión para dar más espacio a Fechas y Acciones.
+- Añade microinteracciones discretas para hover/active y conserva `prefers-reduced-motion`.
+- Solo se modifican `style.css` y metadatos de versión; sin cambios en lógica, HTML, SQL ni Supabase.
+
+## V37.6.4 — Final review
+- Reforzados los colores semánticos de los estados activos de la tabla tras el tema negro.
+- Se mantienen los fondos negros/carbón y las proporciones de columnas de V37.6.3.
+- Se refuerza el respeto global a `prefers-reduced-motion`.
+- Cambios incrementales solo en `style.css` y metadatos/documentación de versión. Sin cambios de lógica, HTML, SQL ni esquema.
