@@ -90,8 +90,8 @@ const getTaskDeadline = (task) => {
 };
 
 const isCompletedTask = (task) => {
-    const status = normalizeText(task?.status);
-    return status === 'Entregado' || status === 'Realizada';
+    const status = normalizeText(task?.status).toLocaleLowerCase('es');
+    return status === 'entregado' || status === 'realizada';
 };
 
 const getTaskDeliveredDate = (task) => {
@@ -358,7 +358,7 @@ const NotificationService = {
             }, 100);
         };
 
-        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && getTaskDeadline(t));
+        const myPendingTasks = tasks.filter(t => t.assignee === userName && !isCompletedTask(t) && getTaskDeadline(t));
         if (myPendingTasks.length > 0) {
             myPendingTasks.sort((a, b) => new Date(getTaskDeadline(a) + 'T12:00:00').getTime() - new Date(getTaskDeadline(b) + 'T12:00:00').getTime());
             const nearest = myPendingTasks[0];
@@ -373,7 +373,7 @@ const NotificationService = {
             }
         }
 
-        const unassigned = tasks.filter(t => t.assignee === 'No asignado' && t.status !== 'Entregado' && t.dateReceived);
+        const unassigned = tasks.filter(t => t.assignee === 'No asignado' && !isCompletedTask(t) && t.dateReceived);
         const oldUnassigned = unassigned.filter(t => {
             const recDate = new Date(t.dateReceived);
             const diffTime = Math.abs(now - recDate);
@@ -422,10 +422,13 @@ const TASK_EVENT = Object.freeze({
 
 function canTransitionTaskStatus(fromStatus, toStatus) {
     if (!fromStatus || !toStatus || fromStatus === toStatus) return false;
-    return (TASK_STATUS_TRANSITIONS[fromStatus] || []).includes(toStatus);
+    // "Realizada" es el estado legado equivalente a "Entregado".
+    const canonicalFrom = normalizeText(fromStatus) === 'Realizada' ? TASK_STATUS.DELIVERED : fromStatus;
+    return (TASK_STATUS_TRANSITIONS[canonicalFrom] || []).includes(toStatus);
 }
 
 function getTaskStatusLabel(status) {
+    if (normalizeText(status) === 'Realizada') return 'Realizada';
     return Object.values(TASK_STATUS).includes(status) ? status : TASK_STATUS.QUEUED;
 }
 
@@ -2589,7 +2592,7 @@ const App = {
     openReopenConfirmation(taskId, sourceButton = null) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         const modal = document.getElementById('modalReopenTask');
-        if (!task || task.status !== TASK_STATUS.DELIVERED || !modal) return;
+        if (!task || !isCompletedTask(task) || !modal) return;
 
         const title = document.getElementById('reopenTaskTitle');
         const deadline = document.getElementById('reopenTaskDeadline');
@@ -2612,7 +2615,7 @@ const App = {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         UI.buttonFeedback(document.getElementById('confirmReopenBtn'), 'success');
         const modal = document.getElementById('modalReopenTask');
-        if (!task || task.status !== TASK_STATUS.DELIVERED) return;
+        if (!task || !isCompletedTask(task)) return;
 
         const selected = document.querySelector('input[name=\"reopenTargetStatus\"]:checked');
         const targetStatus = selected?.value === TASK_STATUS.QUEUED
@@ -4296,9 +4299,9 @@ const App = {
             } else if (this.quickFilter === 'unassigned') {
                 mQuick = !t.assignee || t.assignee === 'No asignado';
             } else if (this.quickFilter === 'overdue') {
-                mQuick = t.status !== 'Entregado' && !!getTaskDeadline(t) && dateValue(getTaskDeadline(t)) < Date.now();
+                mQuick = !isCompletedTask(t) && !!getTaskDeadline(t) && dateValue(getTaskDeadline(t)) < Date.now();
             } else if (this.quickFilter === 'today') {
-                mQuick = t.status !== 'Entregado' && getTaskDeadline(t) === todayStr;
+                mQuick = !isCompletedTask(t) && getTaskDeadline(t) === todayStr;
             } else if (this.quickFilter === 'course') {
                 mQuick = t.status === 'En curso';
             } else if (this.quickFilter === 'adjustment') {
@@ -4372,7 +4375,7 @@ const App = {
 
         this.renderWorkloadChart(activas);
 
-        const myTasks = this.tasks.filter(t => t.status !== TASK_STATUS.DELIVERED && (
+        const myTasks = this.tasks.filter(t => !isCompletedTask(t) && (
                 (t.assignee_id && this.user?.id && String(t.assignee_id) === String(this.user.id)) ||
                 (!t.assignee_id && t.assignee === this.user.name)
             )).sort(sortTasks);
@@ -4486,9 +4489,9 @@ const App = {
             const boardDate = getTaskBoardDate(t);
             const deadlineDate = getTaskDeadline(t);
             const deliveredDate = getTaskDeliveredDate(t);
-            let dateDeliveredVal = t.status === 'Entregado' ? (deliveredDate || '') : (deadlineDate || '');
+            let dateDeliveredVal = isCompletedTask(t) ? (deliveredDate || '') : (deadlineDate || '');
             let dateClass = '';
-            if (boardDate && t.status !== 'Entregado') {
+            if (boardDate && !isCompletedTask(t)) {
                 if (boardDate < todayStr) dateClass = 'text-danger';
                 else if (boardDate === todayStr) dateClass = 'text-warning';
             }
@@ -4499,7 +4502,8 @@ const App = {
                 'En cola': 'status-select-queue',
                 'En curso': 'status-select-progress',
                 'Ajuste solicitado': 'status-select-adjustment',
-                'Entregado': 'status-select-completed'
+                'Entregado': 'status-select-completed',
+                'Realizada': 'status-select-completed'
             }[t.status] || 'status-select-queue';
             const statusActions = {
                 'En cola': [
@@ -4517,6 +4521,10 @@ const App = {
                 ],
                 'Entregado': [
                     ['Entregado', 'Entregada', 'check-circle-2'],
+                    ['__REOPEN__', 'Reabrir', 'undo-2']
+                ],
+                'Realizada': [
+                    ['Realizada', 'Realizada', 'check-circle-2'],
                     ['__REOPEN__', 'Reabrir', 'undo-2']
                 ]
             };
@@ -4551,8 +4559,8 @@ const App = {
                 <td class="date-info" data-label="Fechas">
                     <span class="date-req"><span class="date-label">Recibida</span> ${t.dateReceived ? t.dateReceived.split('-').reverse().join('/') : 'N/A'}</span>
                     <div class="deadline-control">
-                        <span class="date-label date-label-primary">${t.status === 'Entregado' ? 'Entregada' : 'Fecha límite'}</span>
-                        <input type="text" id="delivery-date-${taskId}" name="delivery-date-${taskId}" class="inline-date-picker ${dateClass}" data-id="${taskId}" aria-label="${t.status === 'Entregado' ? 'Fecha de entrega' : 'Cambiar fecha límite'}" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar" ${t.status === 'Entregado' ? 'disabled' : ''}>
+                        <span class="date-label date-label-primary">${isCompletedTask(t) ? 'Entregada' : 'Fecha límite'}</span>
+                        <input type="text" id="delivery-date-${taskId}" name="delivery-date-${taskId}" class="inline-date-picker ${dateClass}" data-id="${taskId}" aria-label="${isCompletedTask(t) ? 'Fecha de entrega' : 'Cambiar fecha límite'}" data-received="${escapeHTML(t.dateReceived || "")}" value="${dateDeliveredVal}" placeholder="Seleccionar" ${isCompletedTask(t) ? 'disabled' : ''}>
                     </div>
                 </td>
                 <td class="status-cell" data-label="Estado">${statusButtons}</td>
