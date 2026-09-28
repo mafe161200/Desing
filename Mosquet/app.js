@@ -1789,7 +1789,18 @@ const App = {
 
         const mTask = document.getElementById('modalTask');
         document.getElementById('btnHome')?.addEventListener('click', () => {
+            // Home vuelve a la vista inicial y limpia únicamente los filtros de la interfaz.
+            this.resetBoardFilters({ keepSort: false });
+            this.quickFilter = 'all';
+            document.querySelectorAll('.quick-filter').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.quickFilter === 'all');
+            });
+            document.querySelectorAll('.advanced-task-filters').forEach(panel => {
+                panel.open = false;
+            });
+            this.animateNextBoardRender = 'filter';
             this.showView('board');
+            this.renderBoard();
         });
 
         document.getElementById('btnNewTask').addEventListener('click', () => {
@@ -4538,7 +4549,7 @@ const App = {
             li.innerHTML = `
                 <div class="req-header">
                     <span class="req-name">
-                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
+                        <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" style="--star-color:${colorHex};" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="Destacar">
                             <i data-lucide="star" style="width: 14px; height: 14px;"></i>
                         </button>
                         <span class="req-name-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>
@@ -4640,7 +4651,7 @@ const App = {
                 <td data-label="Solicitud">
                     <div class="req-title-cell">
                         <strong>
-                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}">
+                            <button type="button" class="btn-star ${t.isStarred ? 'active' : ''}" style="--star-color:${colorHex};" data-action="toggle-star" data-task-id="${escapeHTML(t.id)}" aria-label="${t.isStarred ? 'Quitar prioridad' : 'Marcar como prioridad'}">
                                 <i data-lucide="star" aria-hidden="true"></i>
                             </button>
                             <span class="req-title-text" title="${escapeHTML(t.name)}">${escapeHTML(t.name)}</span>

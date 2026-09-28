@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.6.6",
+  "version": "37.6.8",
   "private": true,
-  "description": "Design Hub V37.6.6 — Selection highlight polish",
+  "description": "Design Hub V37.6.8 — consistent row hover and scoped select styling",
   "engines": {
     "node": ">=18"
   }

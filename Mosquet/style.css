@@ -8674,3 +8674,137 @@ textarea,
         transition: none !important;
     }
 }
+
+
+/* =========================================================
+   V37.6.7 — Home reset, user-colored stars, black surfaces
+   ========================================================= */
+
+/* Selección individual: vuelve el resaltado cyan, aplicado a la fila
+   completa. Ninguna celda debe dibujar un bloque gris/azul aislado. */
+.task-table tbody tr.task-selected,
+.task-table tbody tr.task-selected:hover {
+    background: rgba(34, 211, 238, .085) !important;
+    background-image: none !important;
+    box-shadow: inset 3px 0 0 #22d3ee !important;
+    outline: none !important;
+}
+.task-table tbody tr.task-selected > td,
+.task-table tbody tr.task-selected > th {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+.task-table tbody tr.task-selected .date-info,
+.task-table tbody tr.task-selected .date-info *,
+.task-table tbody tr.task-selected .date-cell,
+.task-table tbody tr.task-selected .date-column {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+.task-table tbody tr.task-selected::before,
+.task-table tbody tr.task-selected::after,
+.task-table tbody tr.task-selected > td::before,
+.task-table tbody tr.task-selected > td::after {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+.task-table tbody tr.task-selected > td {
+    border-bottom-color: rgba(34, 211, 238, .24) !important;
+}
+
+/* La tarjeta seleccionada en Mis Tareas comparte el mismo lenguaje visual. */
+.sidebar-card .request-item.task-selected,
+.request-item.task-selected {
+    background: rgba(34, 211, 238, .075) !important;
+    background-image: none !important;
+    border-color: rgba(34, 211, 238, .72) !important;
+    box-shadow: inset 3px 0 0 #22d3ee !important;
+}
+
+/* Estrellas: el color procede del tema del responsable de cada solicitud.
+   No hereda el cyan de prioridad ni el color de la fila seleccionada. */
+.task-table .btn-star.active,
+.task-table .btn-star.active:hover,
+.sidebar-card .btn-star.active,
+.request-item .btn-star.active {
+    color: var(--star-color, #94a3b8) !important;
+    background: transparent !important;
+    filter: none !important;
+}
+.task-table .btn-star.active svg,
+.sidebar-card .btn-star.active svg,
+.request-item .btn-star.active svg {
+    color: var(--star-color, #94a3b8) !important;
+    fill: var(--star-color, #94a3b8) !important;
+    stroke: var(--star-color, #94a3b8) !important;
+}
+.task-table .btn-star:not(.active),
+.sidebar-card .btn-star:not(.active),
+.request-item .btn-star:not(.active) {
+    color: #737373 !important;
+}
+.task-table .btn-star:not(.active):hover,
+.sidebar-card .btn-star:not(.active):hover,
+.request-item .btn-star:not(.active):hover {
+    color: var(--star-color, #22d3ee) !important;
+}
+
+/* Quitar los fondos azulados residuales de la tabla y controles neutros. */
+.task-table,
+.task-table tbody,
+.task-table tbody tr:not(.task-selected),
+.task-table tbody tr:not(.task-selected) > td,
+.task-table td.date-info {
+    background-color: #050505 !important;
+}
+.task-table tbody tr:not(.task-selected) {
+    background-image: none !important;
+}
+.task-table tbody tr:not(.task-selected):hover,
+.task-table tbody tr:not(.task-selected):hover > td,
+.task-table tbody tr:not(.task-selected):hover > td.date-info {
+    background-color: #0b0b0b !important;
+    background-image: none !important;
+}
+.custom-input,
+.native-select-hidden,
+.inline-date-picker,
+.inline-date-picker-alt,
+.filter-select,
+.advanced-task-filters,
+.task-search,
+#taskSearch,
+.history-select {
+    background-color: #090909 !important;
+    border-color: #303030 !important;
+}
+.task-table .inline-date-picker:disabled {
+    background-color: #090909 !important;
+}
+.task-table thead th {
+    background-color: #0a0a0a !important;
+}
+
+/* Home/filter changes should not introduce motion for reduced-motion users. */
+@media (prefers-reduced-motion: reduce) {
+    .task-table tbody tr.task-selected,
+    .sidebar-card .request-item.task-selected,
+    .request-item.task-selected {
+        transition: none !important;
+    }
+}
+
+
+/* V37.6.8 — Hover consistente y selectores acotados.
+   Los fondos se aplican también a las celdas, que tienen fondo propio. */
+.task-table tbody tr:not(.task-selected):hover > td *,
+.task-table tbody tr:not(.task-selected):hover > td.date-info * {
+    background-color: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+    .task-table tbody tr:not(.task-selected):hover,
+    .task-table tbody tr:not(.task-selected):hover > td {
+        transition: none !important;
+    }
+}

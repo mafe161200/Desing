@@ -241,3 +241,15 @@
 - Evita que la celda de fechas se vea como un bloque turquesa aislado.
 - Conserva la lógica de selección, los estados, los filtros y la persistencia.
 - Cambio visual en `style.css` y metadatos de versión; sin cambios en HTML, JavaScript ni SQL.
+
+## V37.6.7 — Home reset, user-colored stars and black surfaces
+- Home limpia búsqueda y filtros de Gestión, restablece el filtro rápido a «Todas» y cierra filtros avanzados.
+- Se recupera el color de estrella según el tema del responsable, tanto en Gestión como en Mis Tareas.
+- La selección individual vuelve a resaltar la fila completa con cyan sutil, sin placas grises/azules aisladas en fechas.
+- Se neutralizan superficies azuladas residuales de tabla y controles genéricos.
+- Sin cambios de esquema SQL ni de la persistencia de solicitudes.
+
+## V37.6.8 — Hover consistente y selectores acotados
+- El hover de la tabla aplica el mismo fondo oscuro a la fila y a sus celdas, incluidas las celdas de fecha.
+- Se eliminó el selector global `select` del bloque de estilos negros; ahora se limitan los estilos a los controles concretos de la interfaz y al historial.
+- Sin cambios en la lógica de solicitudes, la persistencia ni el esquema SQL.
