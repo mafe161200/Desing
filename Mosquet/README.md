@@ -278,3 +278,11 @@
 - Fondo de la celda de fechas transparente en reposo, hover y selección.
 - Se compacta la columna Fechas y se amplía Estado.
 - No se modificó la lógica de estrellas ni de estados.
+
+## V38.2 — Pulido visual conservador
+
+- Se elimina el halo/sombra de las fichas con estrella; el color de la estrella se conserva.
+- La columna Fechas queda integrada al fondo de la fila, sin fondo ni sombra propios.
+- Se uniforma ligeramente el espaciado vertical de filas y tarjetas laterales, sin fijar alturas.
+- Se conserva la distribución, los colores activos y la lógica de los botones de estado.
+- No se modificó `app.js`, la persistencia, los datos ni la lógica de las estrellas.

@@ -9252,3 +9252,84 @@ html, body {
 #appContainer .task-table .status-switch { gap: 5px !important; }
 #appContainer .task-table .status-switch-btn { padding-inline: 6px !important; }
 #appContainer .task-table .status-switch-btn span { white-space: nowrap !important; }
+
+/* =========================================================
+   V38.2 — Pulido visual conservador
+   - Prioridad: estrella visible, sin halo/sombra en la ficha.
+   - Fechas: integradas al fondo de la fila, sin placa independiente.
+   - Filas y tarjetas: espaciado sobrio y consistente.
+   - Estados: conservar distribución y lógica existentes.
+   ========================================================= */
+/* Las estrellas conservan su color; la ficha prioritaria no debe brillar. */
+#appContainer .sidebar-card .request-item.task-starred,
+#appContainer .sidebar-card .request-item.task-starred:hover,
+#appContainer .request-item.task-starred,
+#appContainer .request-item.task-starred:hover {
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+    background: #0b0b0b !important;
+    background-image: none !important;
+    border-color: #2b2b2b !important;
+    border-left: 2px solid var(--star-color, #22d3ee) !important;
+}
+#appContainer .sidebar-card .request-item.task-starred .btn-star,
+#appContainer .request-item.task-starred .btn-star {
+    color: var(--star-color, #22d3ee) !important;
+    filter: none !important;
+    box-shadow: none !important;
+}
+#appContainer .sidebar-card .request-item.task-starred .btn-star svg,
+#appContainer .request-item.task-starred .btn-star svg {
+    color: var(--star-color, #22d3ee) !important;
+    stroke: currentColor !important;
+    filter: none !important;
+}
+
+/* La columna Fechas comparte la superficie de la fila; no crea un bloque. */
+#appContainer .task-table tbody tr > td.date-info,
+#appContainer .task-table tbody tr.task-starred > td.date-info,
+#appContainer .task-table tbody tr.task-selected > td.date-info {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+#appContainer .task-table tbody tr:hover > td.date-info {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* Pulido de lectura: padding uniforme sin imponer una altura fija a las filas. */
+#appContainer .task-table tbody > tr > td {
+    padding-top: 11px;
+    padding-bottom: 11px;
+}
+#appContainer .task-table tbody > tr > td.date-info {
+    padding: 10px 7px !important;
+}
+#appContainer .sidebar-card .request-item {
+    box-shadow: none;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+#appContainer .sidebar-card .request-item:not(.task-starred):hover {
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+/* Los controles de estado mantienen su distribución y colores actuales;
+   solo se evita que una sombra compita con el estado activo. */
+#appContainer .task-table .status-switch,
+#appContainer .task-table .status-switch-btn {
+    box-shadow: none;
+}
+#appContainer .task-table .status-switch-btn:focus-visible {
+    box-shadow: 0 0 0 2px rgba(34, 211, 238, .22) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #appContainer .sidebar-card .request-item {
+        transition: none !important;
+    }
+}
