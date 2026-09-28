@@ -9082,3 +9082,173 @@ html, body {
     #appContainer.main-container { padding: 16px 12px !important; }
     #appContainer .table-wrapper { overflow-x: auto !important; }
 }
+
+/* V38.0 — columna de fechas más compacta y columna de estado con espacio real.
+   Ajuste aislado: no modifica estrellas, selección ni lógica de estados. */
+#appContainer .task-table {
+    min-width: 1080px !important;
+    table-layout: fixed !important;
+}
+#appContainer .task-table th:nth-child(1),
+#appContainer .task-table td:nth-child(1) { width: 31% !important; }
+#appContainer .task-table th:nth-child(2),
+#appContainer .task-table td:nth-child(2) { width: 16% !important; }
+#appContainer .task-table th:nth-child(3),
+#appContainer .task-table td:nth-child(3) { width: 13% !important; }
+#appContainer .task-table th:nth-child(4),
+#appContainer .task-table td:nth-child(4) { width: 29% !important; }
+#appContainer .task-table th:nth-child(5),
+#appContainer .task-table td:nth-child(5) { width: 11% !important; }
+#appContainer .task-table td.date-info {
+    width: 13% !important;
+    min-width: 0 !important;
+    padding: 10px 8px !important;
+    gap: 5px !important;
+    overflow: hidden;
+}
+#appContainer .task-table .date-req {
+    max-width: 100%;
+    font-size: .64rem;
+    line-height: 1.25;
+    white-space: normal;
+}
+#appContainer .task-table .deadline-control {
+    width: 100%;
+    min-width: 0;
+}
+#appContainer .task-table .inline-date-picker-alt {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 115px;
+    padding-inline: 5px !important;
+}
+#appContainer .task-table td.status-cell {
+    width: 29% !important;
+    min-width: 300px !important;
+    padding: 10px 8px !important;
+}
+#appContainer .task-table .status-switch {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 5px;
+    width: 100%;
+    min-width: 0;
+}
+#appContainer .task-table .status-switch-btn {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    min-height: 40px;
+    flex-direction: row !important;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 5px !important;
+    font-size: .69rem !important;
+    line-height: 1.1;
+    white-space: nowrap !important;
+}
+#appContainer .task-table .status-switch-btn span {
+    display: inline-block;
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap !important;
+    overflow-wrap: normal;
+    word-break: keep-all;
+}
+#appContainer .task-table .status-switch-completed,
+#appContainer .task-table .status-switch-adjustment {
+    display: flex !important;
+    width: 100%;
+    min-width: 0;
+}
+#appContainer .task-table .status-switch-completed .status-switch-btn,
+#appContainer .task-table .status-switch-adjustment .status-switch-btn {
+    flex: 1 1 0 !important;
+    width: auto;
+}
+
+/* =========================================================
+   V38.1 — FIX DEFINITIVO DE LA CELDA DE FECHAS
+   La celda date-info no debe usar display:flex: eso interfiere
+   con el layout de tabla y puede crear una placa azul independiente.
+   Se conserva el layout interno mediante bloques en sus hijos.
+   ========================================================= */
+#appContainer .task-table tbody tr > td.date-info,
+#appContainer .task-table tbody tr.task-selected > td.date-info,
+#appContainer .task-table tbody tr:hover > td.date-info {
+    display: table-cell !important;
+    vertical-align: top !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-bottom: 1px solid rgba(88, 116, 151, .25) !important;
+    padding: 10px 7px !important;
+    overflow: visible !important;
+}
+#appContainer .task-table td.date-info::before,
+#appContainer .task-table td.date-info::after,
+#appContainer .task-table tbody tr > td.date-info::before,
+#appContainer .task-table tbody tr > td.date-info::after {
+    content: none !important;
+    display: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+#appContainer .task-table td.date-info > .date-req {
+    display: block !important;
+    margin: 0 0 7px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    line-height: 1.3 !important;
+    white-space: nowrap !important;
+}
+#appContainer .task-table td.date-info > .deadline-control {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+}
+#appContainer .task-table td.date-info .date-label,
+#appContainer .task-table td.date-info .date-label-primary {
+    display: block !important;
+    max-width: 100% !important;
+    margin: 0 0 4px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    white-space: nowrap !important;
+}
+#appContainer .task-table td.date-info .inline-date-picker-alt {
+    width: 100% !important;
+    max-width: 115px !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    background: #090909 !important;
+    border: 1px solid #303030 !important;
+    box-shadow: none !important;
+}
+/* Proporciones finales: fechas compactas, estado amplio y legible. */
+#appContainer .task-table th:nth-child(1),
+#appContainer .task-table td:nth-child(1) { width: 30% !important; }
+#appContainer .task-table th:nth-child(2),
+#appContainer .task-table td:nth-child(2) { width: 17% !important; }
+#appContainer .task-table th:nth-child(3),
+#appContainer .task-table td:nth-child(3) { width: 12% !important; }
+#appContainer .task-table th:nth-child(4),
+#appContainer .task-table td:nth-child(4) { width: 31% !important; }
+#appContainer .task-table th:nth-child(5),
+#appContainer .task-table td:nth-child(5) { width: 10% !important; }
+#appContainer .task-table td.date-info { width: 12% !important; min-width: 0 !important; }
+#appContainer .task-table td.status-cell { width: 31% !important; min-width: 300px !important; }
+#appContainer .task-table .status-switch { gap: 5px !important; }
+#appContainer .task-table .status-switch-btn { padding-inline: 6px !important; }
+#appContainer .task-table .status-switch-btn span { white-space: nowrap !important; }

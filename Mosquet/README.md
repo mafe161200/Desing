@@ -271,3 +271,10 @@
 - El hover de la tabla aplica el mismo fondo oscuro a la fila y a sus celdas, incluidas las celdas de fecha.
 - Se eliminó el selector global `select` del bloque de estilos negros; ahora se limitan los estilos a los controles concretos de la interfaz y al historial.
 - Sin cambios en la lógica de solicitudes, la persistencia ni el esquema SQL.
+
+
+## V38.1 — Ajuste de fechas y estado
+- Se devuelve `td.date-info` al modelo de celda de tabla (`display: table-cell`) para evitar la placa de fondo independiente.
+- Fondo de la celda de fechas transparente en reposo, hover y selección.
+- Se compacta la columna Fechas y se amplía Estado.
+- No se modificó la lógica de estrellas ni de estados.
