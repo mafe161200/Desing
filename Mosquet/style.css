@@ -8524,3 +8524,95 @@ textarea,
         transition-duration: .01ms !important;
     }
 }
+
+
+/* V37.6.5 — Global search results for delivered requests */
+.board-empty-cell {
+    text-align: center;
+    padding: 32px 20px;
+    color: var(--text-muted);
+}
+.archive-search-results {
+    margin-top: 12px;
+    padding: 16px;
+    border: 1px solid var(--border-color, #292929);
+    border-radius: 12px;
+    background: #070707;
+    color: var(--text-primary, #e5e7eb);
+}
+.archive-search-results-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.archive-search-results-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+}
+.archive-search-results-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    border: 1px solid rgba(34, 211, 238, .35);
+    border-radius: 999px;
+    color: var(--cyber-cyan, #22d3ee);
+    font-size: 12px;
+    font-weight: 700;
+}
+.archive-search-results-description {
+    margin: 6px 0 12px;
+    color: var(--text-muted, #94a3b8);
+    font-size: 12px;
+    line-height: 1.5;
+}
+.archive-search-results-list {
+    display: grid;
+    gap: 8px;
+}
+.archive-search-result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px;
+    border: 1px solid #292929;
+    border-radius: 9px;
+    background: #050505;
+}
+.archive-search-result-info {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+.archive-search-result-info strong {
+    overflow-wrap: anywhere;
+    font-size: 13px;
+}
+.archive-search-result-info span {
+    color: var(--text-muted, #94a3b8);
+    font-size: 12px;
+}
+.archive-search-open-button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+.history-table tbody tr.archive-search-target {
+    outline: 2px solid var(--cyber-cyan, #22d3ee);
+    outline-offset: -2px;
+    animation: archiveSearchTarget 1.8s ease-out both;
+}
+@keyframes archiveSearchTarget {
+    0%, 35% { background-color: rgba(34, 211, 238, .16); }
+    100% { background-color: transparent; }
+}
+@media (max-width: 640px) {
+    .archive-search-results { padding: 12px; }
+    .archive-search-result-item { align-items: flex-start; flex-direction: column; gap: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .history-table tbody tr.archive-search-target { animation: none !important; }
+}

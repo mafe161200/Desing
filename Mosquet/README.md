@@ -228,3 +228,10 @@
 - Se mantienen los fondos negros/carbón y las proporciones de columnas de V37.6.3.
 - Se refuerza el respeto global a `prefers-reduced-motion`.
 - Cambios incrementales solo en `style.css` y metadatos/documentación de versión. Sin cambios de lógica, HTML, SQL ni esquema.
+
+
+## V37.6.5 — Búsqueda global Gestión + Archivo
+- La búsqueda de Gestión también muestra coincidencias entregadas en un panel separado, sin mezclarlas con las tareas pendientes.
+- Cada resultado del Archivo abre la vista Archivo, conserva el término buscado y limpia filtros secundarios que podrían ocultar el resultado.
+- La solicitud seleccionada se desplaza al centro y recibe un resaltado temporal.
+- Cambios funcionales limitados a `app.js` y estilos aditivos en `style.css`; no se modifican SQL, esquema ni configuración de Supabase.

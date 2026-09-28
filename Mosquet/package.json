@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.6.4",
+  "version": "37.6.5",
   "private": true,
-  "description": "Design Hub V37.6.4 — Black Pro, final visual review",
+  "description": "Design Hub V37.6.5 — Global search across Gestión and Archivo",
   "engines": {
     "node": ">=18"
   }

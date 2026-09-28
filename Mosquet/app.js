@@ -1385,6 +1385,7 @@ const App = {
         status: 'Todos',
         search: ''
     },
+    pendingArchiveFocusTaskId: null,
     cropperInstance: null,
 
     async init() {
@@ -3518,6 +3519,92 @@ const App = {
         });
     },
 
+    renderArchiveSearchResults(searchTerm = '') {
+        const tableWrapper = document.querySelector('.table-wrapper');
+        if (!tableWrapper) return;
+
+        let panel = document.getElementById('archiveSearchResults');
+        if (!searchTerm) {
+            panel?.remove();
+            return;
+        }
+
+        const term = normalizeText(searchTerm).toLowerCase();
+        const matches = (Array.isArray(this.tasks) ? this.tasks : [])
+            .filter(task => isCompletedTask(task))
+            .filter(task => [task.name, task.requester, task.assignee, task.status, task.notes]
+                .map(normalizeText).join(' ').toLowerCase().includes(term));
+
+        if (!matches.length) {
+            panel?.remove();
+            return;
+        }
+
+        if (!panel) {
+            panel = document.createElement('section');
+            panel.id = 'archiveSearchResults';
+            panel.className = 'archive-search-results';
+            panel.setAttribute('aria-live', 'polite');
+            panel.setAttribute('aria-label', 'Coincidencias en Archivo de entregas');
+            tableWrapper.insertAdjacentElement('afterend', panel);
+        }
+        panel.replaceChildren();
+
+        const header = document.createElement('div');
+        header.className = 'archive-search-results-header';
+        const title = document.createElement('h3');
+        title.textContent = 'Coincidencias en Archivo de entregas';
+        const count = document.createElement('span');
+        count.className = 'archive-search-results-count';
+        count.textContent = String(matches.length);
+        header.append(title, count);
+
+        const description = document.createElement('p');
+        description.className = 'archive-search-results-description';
+        description.textContent = 'Las solicitudes entregadas se muestran aquí, separadas de las tareas pendientes de Gestión.';
+
+        const list = document.createElement('div');
+        list.className = 'archive-search-results-list';
+        matches.forEach(task => {
+            const item = document.createElement('article');
+            item.className = 'archive-search-result-item';
+            const info = document.createElement('div');
+            info.className = 'archive-search-result-info';
+            const name = document.createElement('strong');
+            name.textContent = normalizeText(task.name) || 'Solicitud sin nombre';
+            const meta = document.createElement('span');
+            meta.textContent = `${normalizeText(task.requester) || 'Solicitante no indicado'} · ${normalizeText(task.assignee) || 'No asignado'} · ${normalizeText(task.status) || 'Entregado'}`;
+            info.append(name, meta);
+
+            const openButton = document.createElement('button');
+            openButton.type = 'button';
+            openButton.className = 'btn-text archive-search-open-button';
+            openButton.textContent = 'Ver en Archivo';
+            openButton.setAttribute('aria-label', `Ver ${normalizeText(task.name)} en Archivo de entregas`);
+            openButton.addEventListener('click', () => {
+                const searchInput = document.getElementById('historySearch');
+                const monthInput = document.getElementById('historyMonth');
+                const requesterInput = document.getElementById('historyRequester');
+                const assigneeInput = document.getElementById('historyAssignee');
+                const statusInput = document.getElementById('historyStatus');
+                if (searchInput) searchInput.value = term;
+                if (monthInput) monthInput.value = '';
+                if (requesterInput) requesterInput.value = 'Todos';
+                if (assigneeInput) assigneeInput.value = 'Todos';
+                if (statusInput) statusInput.value = 'Todos';
+                this.historyFilters = {
+                    month: '', requester: 'Todos', assignee: 'Todos', status: 'Todos', search: term
+                };
+                this.pendingArchiveFocusTaskId = String(task.id);
+                this.showView('history');
+            });
+            item.append(info, openButton);
+            list.appendChild(item);
+        });
+
+        panel.append(header, description, list);
+    },
+
     applyViewFromHash() {
         const hash=window.location.hash;
         if(hash==='#solicitudes-realizadas') this.showView('history');
@@ -3616,6 +3703,7 @@ const App = {
 
         filtered.forEach((task, index) => {
             const row = document.createElement('tr');
+            row.dataset.taskId = String(task.id);
             if (animateHistoryRows) {
                 row.classList.add('history-row-enter');
                 row.style.setProperty('--dh-row-delay', `${Math.min(index, 7) * 28}ms`);
@@ -3724,6 +3812,20 @@ const App = {
 
         body.replaceChildren(fragment);
         lucide.createIcons();
+        if (this.pendingArchiveFocusTaskId) {
+            const targetId = this.pendingArchiveFocusTaskId;
+            this.pendingArchiveFocusTaskId = null;
+            requestAnimationFrame(() => {
+                const targetRow = [...body.querySelectorAll('tr[data-task-id]')]
+                    .find(row => row.dataset.taskId === targetId);
+                if (targetRow) {
+                    targetRow.classList.add('archive-search-target');
+                    targetRow.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+                    targetRow.setAttribute('tabindex', '-1');
+                    targetRow.focus({ preventScroll: true });
+                }
+            });
+        }
     },
 
     renderAll() {
@@ -4580,56 +4682,17 @@ const App = {
             const row = document.createElement('tr');
             const cell = document.createElement('td');
             cell.colSpan = 5;
-            cell.style.cssText = 'text-align:center; padding:32px 20px; color:var(--text-muted);';
-
-            // Si la búsqueda coincide con una tarea entregada, explicar dónde está
-            // en lugar de dar la impresión de que desapareció.
-            const matchingCompleted = fSearch
-                ? this.tasks.filter(task => isCompletedTask(task) && (
-                    normalizeText(task.name).toLowerCase().includes(fSearch) ||
-                    normalizeText(task.requester).toLowerCase().includes(fSearch) ||
-                    normalizeText(task.assignee).toLowerCase().includes(fSearch) ||
-                    normalizeText(task.notes).toLowerCase().includes(fSearch)
-                ))
-                : [];
-
-            if (fCompletion === 'Pendientes' && matchingCompleted.length > 0) {
-                const message = document.createElement('p');
-                message.textContent = matchingCompleted.length === 1
-                    ? `“${normalizeText(matchingCompleted[0].name)}” ya está en Archivo de entregas (${normalizeText(matchingCompleted[0].status)}).`
-                    : `${matchingCompleted.length} solicitudes que coinciden con tu búsqueda ya están en Archivo de entregas.`;
-                message.style.cssText = 'margin:0 0 12px; color:var(--text-secondary);';
-
-                const openArchive = document.createElement('button');
-                openArchive.type = 'button';
-                openArchive.className = 'btn-text archive-context-button';
-                openArchive.textContent = 'Ver en Archivo de entregas';
-                openArchive.setAttribute('aria-label', 'Ver esta solicitud en Archivo de entregas');
-                openArchive.addEventListener('click', () => {
-                    const searchInput = document.getElementById('historySearch');
-                    const statusInput = document.getElementById('historyStatus');
-                    if (searchInput) searchInput.value = normalizeText(document.getElementById('taskSearch')?.value);
-                    if (statusInput) statusInput.value = 'Todos';
-                    this.historyFilters = {
-                        ...this.historyFilters,
-                        search: normalizeText(document.getElementById('taskSearch')?.value).toLowerCase(),
-                        status: 'Todos'
-                    };
-                    this.showView('history');
-                    this.renderHistory();
-                });
-                cell.append(message, openArchive);
-            } else {
-                cell.textContent = fCompletion === 'Realizadas'
-                    ? 'No hay tareas realizadas.'
-                    : fCompletion === 'Todas'
-                        ? 'No hay tareas que coincidan con los filtros.'
-                        : 'No hay tareas pendientes.';
-            }
+            cell.className = 'board-empty-cell';
+            cell.textContent = fCompletion === 'Realizadas'
+                ? 'No hay tareas realizadas que coincidan con los filtros.'
+                : fCompletion === 'Todas'
+                    ? 'No hay tareas que coincidan con los filtros.'
+                    : 'No hay tareas pendientes que coincidan con los filtros.';
             row.appendChild(cell);
             activeFragment.appendChild(row);
         }
         tBody.replaceChildren(activeFragment);
+        this.renderArchiveSearchResults(fSearch);
 
         if (this.animateNextBoardRender) {
             const mode = this.animateNextBoardRender;
