@@ -9333,3 +9333,104 @@ html, body {
         transition: none !important;
     }
 }
+
+/* =========================================================
+   V38.3 — Pulido final de lectura y controles
+   Solo CSS: no altera lógica, estrellas, estados ni columnas.
+   ========================================================= */
+
+/* Fechas: eliminar el bloque azulado; usar el mismo negro de la fila.
+   La variante hover/selección sigue siendo sutil y neutral. */
+#appContainer .task-table tbody tr > td.date-info,
+#appContainer .task-table tbody tr.task-starred > td.date-info,
+#appContainer .task-table tbody tr.task-selected > td.date-info {
+    background-color: #070707 !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+#appContainer .task-table tbody tr:nth-child(even) > td.date-info {
+    background-color: #080808 !important;
+}
+#appContainer .task-table tbody tr:hover > td.date-info {
+    background-color: #101010 !important;
+}
+#appContainer .task-table tbody tr.task-selected > td.date-info {
+    background-color: #0a0a0a !important;
+}
+#appContainer .task-table td.date-info .date-label,
+#appContainer .task-table td.date-info .date-label-primary {
+    color: #9aafc5 !important;
+}
+#appContainer .task-table td.date-info .date-req {
+    color: #c0cedd !important;
+}
+
+/* Acciones: área clicable más cómoda sin ensanchar la columna. */
+#appContainer .task-table td.actions-cell {
+    padding-inline: 6px !important;
+}
+#appContainer .task-table .actions-cell .action-buttons {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    min-width: 0 !important;
+}
+#appContainer .task-table .actions-cell .action-buttons > .btn-icon,
+#appContainer .task-table .actions-cell .row-actions-menu > .btn-icon {
+    flex: 0 0 32px !important;
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 7px !important;
+    box-shadow: none !important;
+}
+#appContainer .task-table .actions-cell .action-buttons .btn-icon:hover,
+#appContainer .task-table .actions-cell .action-buttons .btn-icon:focus-visible {
+    background-color: rgba(34, 211, 238, .09) !important;
+    border-color: rgba(34, 211, 238, .35) !important;
+    box-shadow: none !important;
+}
+#appContainer .task-table .actions-cell .action-buttons .btn-icon:focus-visible {
+    outline: 2px solid rgba(34, 211, 238, .65) !important;
+    outline-offset: 1px !important;
+}
+
+/* Títulos y metadatos: ritmo vertical consistente sin fijar alturas. */
+#appContainer .task-table .req-title-cell {
+    gap: 6px !important;
+}
+#appContainer .task-table .req-title-cell strong {
+    gap: 8px !important;
+    line-height: 1.32 !important;
+}
+#appContainer .task-table .req-title-cell > span:not(.req-title-text) {
+    line-height: 1.4 !important;
+}
+#appContainer .task-table .req-title-cell .task-lifecycle-meta {
+    margin-top: 1px !important;
+    line-height: 1.35 !important;
+}
+
+/* Panel lateral: separación limpia, sin sombra pesada ni movimiento. */
+#appContainer .sidebar-col {
+    border-right: 1px solid rgba(120, 145, 170, .16) !important;
+    padding-right: 9px !important;
+}
+#appContainer .sidebar-card {
+    box-shadow: none !important;
+    border-color: #262b32 !important;
+}
+#appContainer .sidebar-card + .sidebar-card {
+    margin-top: 14px !important;
+}
+@media (max-width: 980px) {
+    #appContainer .sidebar-col {
+        border-right: 0 !important;
+        padding-right: 0 !important;
+    }
+}
