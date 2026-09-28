@@ -8851,3 +8851,51 @@ textarea,
     color: var(--star-color, #737373) !important;
     background: rgba(255,255,255,.04) !important;
 }
+
+
+/* V37.7 — distribución consistente de los controles de estado.
+   Mantiene las acciones existentes y solo normaliza su presentación. */
+.task-table td.status-cell {
+    min-width: 205px;
+    width: 205px;
+    vertical-align: middle;
+}
+.task-table .status-switch {
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    gap: 4px;
+}
+.task-table .status-switch-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 7px;
+    white-space: normal;
+    text-align: center;
+}
+.task-table .status-switch-completed,
+.task-table .status-switch-adjustment {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+.task-table .status-switch-completed .status-switch-btn,
+.task-table .status-switch-adjustment .status-switch-btn {
+    width: 100%;
+    flex: 1 1 auto;
+}
+.task-table .status-switch-btn span {
+    overflow-wrap: anywhere;
+}
+@media (max-width: 1100px) {
+    .task-table td.status-cell { min-width: 175px; width: 175px; }
+    .task-table .status-switch-btn { gap: 4px; padding-inline: 5px; font-size: .64rem; }
+}
+@media (max-width: 820px) {
+    .task-table td.status-cell { min-width: 150px; width: 150px; }
+    .task-table .status-switch { width: 100%; }
+}

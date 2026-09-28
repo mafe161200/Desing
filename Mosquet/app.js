@@ -4514,9 +4514,10 @@ const App = {
 
             const openMyTask = (event) => {
                 if (event.target.closest('input, button')) return;
+                // El filtro reconstruye la lista; no manipular después el <li>
+                // anterior, porque queda desconectado y puede causar el parpadeo.
                 this.activateQuickFilter('mine');
                 window.setTimeout(() => this.focusTaskInBoard(t.id), 0);
-                handleExpand(event);
             };
 
             li.addEventListener('click', openMyTask);
