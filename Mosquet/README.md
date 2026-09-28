@@ -235,3 +235,9 @@
 - Cada resultado del Archivo abre la vista Archivo, conserva el término buscado y limpia filtros secundarios que podrían ocultar el resultado.
 - La solicitud seleccionada se desplaza al centro y recibe un resaltado temporal.
 - Cambios funcionales limitados a `app.js` y estilos aditivos en `style.css`; no se modifican SQL, esquema ni configuración de Supabase.
+
+## V37.6.6 — Selection polish
+- Reduce el resaltado de una solicitud seleccionada a un fondo negro sutil y un indicador cyan lateral.
+- Evita que la celda de fechas se vea como un bloque turquesa aislado.
+- Conserva la lógica de selección, los estados, los filtros y la persistencia.
+- Cambio visual en `style.css` y metadatos de versión; sin cambios en HTML, JavaScript ni SQL.

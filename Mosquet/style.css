@@ -8616,3 +8616,61 @@ textarea,
 @media (prefers-reduced-motion: reduce) {
     .history-table tbody tr.archive-search-target { animation: none !important; }
 }
+
+
+/* =========================================================
+   V37.6.6 — Selection polish
+   La selección de una tarea no debe pintar bloques/celdas
+   aisladas. Se mantiene un indicador lateral discreto.
+   ========================================================= */
+.task-table tbody tr.task-selected,
+.task-table tbody tr.task-selected:hover {
+    background: #080808 !important;
+    box-shadow: inset 2px 0 0 rgba(34, 211, 238, .78) !important;
+    outline: none !important;
+}
+
+/* Neutralizar fondos heredados en celdas de la fila seleccionada. */
+.task-table tbody tr.task-selected > td,
+.task-table tbody tr.task-selected > th {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* La celda de fechas no debe convertirse en un bloque turquesa. */
+.task-table tbody tr.task-selected .date-info,
+.task-table tbody tr.task-selected .date-cell,
+.task-table tbody tr.task-selected .date-column {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* Evitar que pseudo-elementos de selección creen una placa independiente. */
+.task-table tbody tr.task-selected::before,
+.task-table tbody tr.task-selected::after,
+.task-table tbody tr.task-selected > td::before,
+.task-table tbody tr.task-selected > td::after {
+    box-shadow: none;
+}
+
+/* La selección de la tarea en la barra lateral queda sobria y coherente. */
+.request-item.task-selected {
+    background: #0b0b0b !important;
+    border-color: rgba(34, 211, 238, .48) !important;
+    box-shadow: inset 2px 0 0 rgba(34, 211, 238, .78) !important;
+}
+
+/* Mantener una respuesta de interacción discreta, sin destellos ni escalado. */
+.task-table tbody tr.task-selected,
+.request-item.task-selected {
+    transition: background-color 160ms ease, border-color 160ms ease,
+                box-shadow 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .task-table tbody tr.task-selected,
+    .request-item.task-selected {
+        transition: none !important;
+    }
+}

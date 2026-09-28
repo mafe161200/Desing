@@ -1,8 +1,8 @@
 {
   "name": "design-hub",
-  "version": "37.6.5",
+  "version": "37.6.6",
   "private": true,
-  "description": "Design Hub V37.6.5 — Global search across Gestión and Archivo",
+  "description": "Design Hub V37.6.6 — Selection highlight polish",
   "engines": {
     "node": ">=18"
   }
