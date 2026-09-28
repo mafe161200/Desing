@@ -1,3 +1,11 @@
+## V37.6.9 — Color persistente de estrellas
+
+- Se corrige el color de las estrellas para que el color del responsable se vea también sin pasar el cursor.
+- El hover conserva el color asignado, sin cambiarlo a cyan/amarillo.
+- Se neutralizan reglas anteriores más específicas que sobrescribían el color en tareas destacadas.
+- Las estrellas activas conservan el relleno; las inactivas mantienen solo el contorno.
+- Cambio limitado a `style.css`; no modifica JavaScript, datos ni Supabase.
+
 
 ## V36.1 — Consolidación UX/UI
 

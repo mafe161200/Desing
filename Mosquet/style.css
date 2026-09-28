@@ -8808,3 +8808,46 @@ textarea,
         transition: none !important;
     }
 }
+
+
+/* =========================================================
+   V37.6.9 — Color de estrella persistente, también sin hover
+   ========================================================= */
+/* El color asignado al responsable debe verse siempre. El hover no debe ser
+   el único estado que revela el color. Se sobreescriben reglas antiguas más
+   específicas que forzaban cyan/amarillo en tareas destacadas. */
+.task-table tbody tr .btn-star,
+.task-table tbody tr.task-starred .btn-star.active,
+.sidebar-card .request-item .btn-star,
+.sidebar-card .request-item.task-starred .btn-star.active,
+.request-item .btn-star {
+    color: var(--star-color, #737373) !important;
+    background: transparent !important;
+    filter: none !important;
+}
+.task-table tbody tr .btn-star svg,
+.task-table tbody tr.task-starred .btn-star.active svg,
+.sidebar-card .request-item .btn-star svg,
+.sidebar-card .request-item.task-starred .btn-star.active svg,
+.request-item .btn-star svg {
+    color: var(--star-color, #737373) !important;
+    stroke: var(--star-color, #737373) !important;
+}
+.task-table tbody tr .btn-star.active svg,
+.task-table tbody tr.task-starred .btn-star.active svg,
+.sidebar-card .request-item .btn-star.active svg,
+.sidebar-card .request-item.task-starred .btn-star.active svg,
+.request-item .btn-star.active svg {
+    fill: var(--star-color, #737373) !important;
+}
+.task-table tbody tr .btn-star:not(.active) svg,
+.sidebar-card .request-item .btn-star:not(.active) svg,
+.request-item .btn-star:not(.active) svg {
+    fill: transparent !important;
+}
+.task-table tbody tr .btn-star:hover,
+.sidebar-card .request-item .btn-star:hover,
+.request-item .btn-star:hover {
+    color: var(--star-color, #737373) !important;
+    background: rgba(255,255,255,.04) !important;
+}
