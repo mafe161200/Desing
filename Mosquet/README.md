@@ -1,3 +1,13 @@
+# Design Hub — V37.8
+
+## Ajustes de esta versión
+- Se retiró el panel de chat del equipo y su botón de cabecera. Se conserva el visor de notas propias de cada solicitud.
+- Se corrigió el desbordamiento horizontal del workspace para que el contenido no quede cortado por los bordes de la ventana. La tabla conserva desplazamiento horizontal interno cuando el ancho disponible no alcanza.
+- Se reorganizaron los controles de estado en una distribución compacta y consistente: En cola, En curso y Realizada; la entrega sigue pasando por su confirmación.
+- No se modificó el comportamiento de las estrellas.
+
+---
+
 ## V37.6.9 — Color persistente de estrellas
 
 - Se corrige el color de las estrellas para que el color del responsable se vea también sin pasar el cursor.

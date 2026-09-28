@@ -415,25 +415,6 @@ html body .native-select-hidden { display: none; }
 .remove-member { cursor: pointer; color: var(--text-muted); background: transparent; border: none; display: flex; outline: none; }
 .remove-member:hover, .remove-member:focus-visible { color: var(--danger); }
 
-/* PANEL LATERAL DE NOTAS (Off-canvas Drawer y Chat Bubbles Seguros) */
-.notes-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.4); backdrop-filter: blur(2px); z-index: 9998; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
-.notes-overlay.active { opacity: 1; pointer-events: all; }
-.notes-panel { position: fixed; right: -400px; top: 0; width: 100%; max-width: 400px; height: 100vh; background: var(--bg-main); box-shadow: -4px 0 25px rgba(0,0,0,0.1); z-index: 9999; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
-.notes-panel.open { right: 0; }
-.notes-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-light); background: var(--card-bg); }
-.notes-header h2 { font-size: 1rem; font-weight: 600; color: var(--text-dark); display: flex; align-items: center; gap: 8px; margin:0;}
-.notes-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
-
-/* Burbujas de Chat Accesibles (Alto Contraste) */
-.chat-msg { display: flex; flex-direction: column; width: 100%; animation: popIn 0.2s ease-out; }
-.chat-msg.mine { align-items: flex-end; }
-.chat-msg.other { align-items: flex-start; }
-.chat-bubble { max-width: 85%; padding: 10px 14px; border-radius: 16px; font-size: 0.85rem; line-height: 1.4; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-.chat-msg.mine .chat-bubble { border-bottom-right-radius: 4px; background: var(--primary-cold); color: #ffffff; }
-.chat-msg.other .chat-bubble { border-bottom-left-radius: 4px; background: var(--card-bg); border: 1px solid var(--border-light); color: var(--text-dark); }
-.chat-meta { font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px; display: flex; gap: 6px; font-weight: 500; }
-.notes-footer { padding: 16px 20px 20px 20px; border-top: 1px solid var(--border-light); background: var(--card-bg); }
-
 /* UTILIDAD ALERTAS (Badge Notificaciones) */
 .position-relative { position: relative; }
 .notification-badge { position: absolute; top: 0px; right: 0px; width: 10px; height: 10px; background-color: var(--danger); border-radius: 50%; border: 2px solid var(--card-bg); display: none; }
@@ -1213,22 +1194,6 @@ select {
     background: #0b1220 !important;
     color: #f4f7ff !important;
     border: 1px solid var(--border-light);
-}
-
-/* Drawer/chat */
-.notes-header,
-.notes-footer {
-    background: #0b1220 !important;
-}
-
-.chat-msg.other .chat-bubble {
-    background: #0e1728 !important;
-    color: #f4f7ff;
-}
-
-.chat-msg.mine .chat-bubble {
-    background: #0ea5e9 !important;
-    color: #ffffff;
 }
 
 /* Evitar cualquier barra decorativa debajo de fechas */
@@ -3533,12 +3498,6 @@ html body div.flatpickr-calendar .flatpickr-day.startRange:hover,
 html body div.flatpickr-calendar .flatpickr-day.endRange:hover {
     background: var(--primary-hover);
     color: #06121d;
-}
-
-/* Filled cyan chat/send controls also use dark text/icons. */
-.btn-send-note,
-.chat-send-btn {
-    color: #03131d;
 }
 
 /* Cyan utility surfaces use dark foreground text/icons. */
@@ -8898,4 +8857,228 @@ textarea,
 @media (max-width: 820px) {
     .task-table td.status-cell { min-width: 150px; width: 150px; }
     .task-table .status-switch { width: 100%; }
+}
+
+/* V37.8 — reparación de desbordamiento del workspace y controles de estado */
+html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+}
+#appContainer.main-container {
+    width: 100%;
+    max-width: 1400px;
+    min-width: 0;
+    box-sizing: border-box;
+    margin-inline: auto;
+    overflow-x: clip;
+}
+#appContainer > *,
+#appContainer .workspace,
+#appContainer .workspace-main,
+#appContainer .workspace-panel,
+#appContainer .table-wrapper {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+#appContainer .table-wrapper {
+    width: 100%;
+    overflow-x: auto !important;
+    overscroll-behavior-inline: contain;
+}
+#appContainer .task-table {
+    width: 100%;
+    min-width: 1000px;
+    table-layout: fixed;
+}
+#appContainer .task-table td.status-cell {
+    width: 230px !important;
+    min-width: 230px !important;
+    padding-inline: 8px !important;
+}
+#appContainer .task-table .status-switch {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+}
+#appContainer .task-table .status-switch-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    min-height: 43px;
+    width: 100%;
+    padding: 5px 3px;
+    white-space: normal;
+    text-align: center;
+    border-radius: 7px;
+    font-size: .65rem;
+    line-height: 1.1;
+}
+#appContainer .task-table .status-switch-btn svg {
+    width: 13px;
+    height: 13px;
+    flex: 0 0 auto;
+}
+#appContainer .task-table .status-switch-btn span {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+#appContainer .task-table .status-switch-completed,
+#appContainer .task-table .status-switch-adjustment {
+    grid-template-columns: minmax(0, 1fr);
+}
+#appContainer .task-table .status-switch-completed .status-switch-btn,
+#appContainer .task-table .status-switch-adjustment .status-switch-btn {
+    flex-direction: row;
+    min-height: 36px;
+    gap: 7px;
+    padding: 7px 10px;
+    font-size: .72rem;
+}
+@media (max-width: 1100px) {
+    #appContainer .task-table { min-width: 1000px; }
+}
+
+
+/* V37.9 — layout real sin recortes + eliminación del chat de equipo.
+   Los estilos de estrellas y las notas propias de cada solicitud se conservan. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    overflow-x: clip !important;
+}
+#appContainer.main-container {
+    display: flex;
+    width: 100% !important;
+    max-width: 1480px !important;
+    min-width: 0 !important;
+    margin-inline: auto !important;
+    padding: 24px clamp(16px, 2vw, 28px) !important;
+    overflow: visible !important;
+}
+#appContainer .layout-grid {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 272px) minmax(0, 1fr) !important;
+    gap: 18px !important;
+}
+#appContainer .layout-grid:has(.sidebar-col.is-collapsed) {
+    grid-template-columns: 58px minmax(0, 1fr) !important;
+}
+#appContainer .main-board,
+#appContainer .board-section,
+#appContainer .workspace,
+#appContainer .workspace-main,
+#appContainer .workspace-panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0 !important;
+}
+#appContainer .table-wrapper {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto !important;
+    overflow-y: visible;
+    padding-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-inline: contain;
+}
+#appContainer .task-table {
+    width: 100% !important;
+    min-width: 1080px !important;
+    table-layout: fixed !important;
+}
+#appContainer .task-table th:nth-child(1),
+#appContainer .task-table td:nth-child(1) { width: 32% !important; }
+#appContainer .task-table th:nth-child(2),
+#appContainer .task-table td:nth-child(2) { width: 17% !important; }
+#appContainer .task-table th:nth-child(3),
+#appContainer .task-table td:nth-child(3) { width: 17% !important; }
+#appContainer .task-table th:nth-child(4),
+#appContainer .task-table td:nth-child(4) { width: 23% !important; }
+#appContainer .task-table th:nth-child(5),
+#appContainer .task-table td:nth-child(5) { width: 11% !important; }
+#appContainer .task-table td.status-cell {
+    width: 260px !important;
+    min-width: 260px !important;
+    padding-inline: 10px !important;
+}
+#appContainer .task-table .status-switch {
+    display: flex !important;
+    flex-flow: row nowrap;
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 5px;
+    width: 100%;
+    min-width: 0;
+}
+#appContainer .task-table .status-switch-btn {
+    display: inline-flex !important;
+    flex: 1 1 0;
+    flex-direction: row !important;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    min-width: 0 !important;
+    min-height: 38px;
+    width: auto;
+    padding: 7px 6px !important;
+    font-size: .72rem !important;
+    line-height: 1.15;
+    white-space: normal;
+    text-align: center;
+}
+#appContainer .task-table .status-switch-btn svg {
+    width: 13px;
+    height: 13px;
+    flex: 0 0 auto;
+}
+#appContainer .task-table .status-switch-btn span {
+    display: inline;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+#appContainer .task-table .status-switch-completed,
+#appContainer .task-table .status-switch-adjustment {
+    display: flex !important;
+    width: 100%;
+    min-width: 0;
+}
+#appContainer .task-table .status-switch-completed .status-switch-btn,
+#appContainer .task-table .status-switch-adjustment .status-switch-btn {
+    flex: 1 1 auto;
+    width: 100%;
+}
+/* El chat de equipo se retira; las notas de cada solicitud siguen disponibles. */
+
+@media (max-width: 980px) {
+    #appContainer .layout-grid,
+    #appContainer .layout-grid:has(.sidebar-col.is-collapsed) {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+    #appContainer .task-table { min-width: 1080px !important; }
+}
+@media (max-width: 768px) {
+    #appContainer.main-container { padding: 16px 12px !important; }
+    #appContainer .table-wrapper { overflow-x: auto !important; }
 }

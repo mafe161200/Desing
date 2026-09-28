@@ -802,50 +802,6 @@ const DataService = {
         }
     },
 
-    async getNotes() {
-        if (!supabaseClient) return [];
-
-        try {
-            const { data, error } = await supabaseClient
-                .from('notes')
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(100);
-
-            if (error) {
-                console.error('Supabase: no se pudieron cargar las notas.', error);
-                return [];
-            }
-
-            return Array.isArray(data) ? data.reverse() : [];
-        } catch (error) {
-            console.error('Supabase: error cargando notas.', error);
-            return [];
-        }
-    },
-
-    async saveNote(note) {
-        if (!supabaseClient) return { cloudSaved: false };
-
-        try {
-            const { data, error } = await supabaseClient
-                .from('notes')
-                .insert([note])
-                .select()
-                .single();
-
-            if (error) {
-                console.error('Supabase: no se pudo guardar la nota.', error);
-                return { cloudSaved: false, error };
-            }
-
-            return { cloudSaved: true, data };
-        } catch (error) {
-            console.error('Supabase: error guardando nota.', error);
-            return { cloudSaved: false, error };
-        }
-    },
-
     async getMembers() {
         if (!supabaseClient) return [];
 
@@ -1358,7 +1314,6 @@ const App = {
     members: [],
     requesters: [],
     usersList: [],
-    notes: [],
     filterDates: [],
     quickFilter: 'all',
     fpInstances: [],
@@ -1426,7 +1381,6 @@ const App = {
             });
             window.__designHubUnsavedGuardBound = true;
         }
-        this.setupNotesPanel();
         this.renderAll();
         this.applyViewFromHash();
         
@@ -1522,22 +1476,6 @@ const App = {
                 }
             });
 
-        supabaseClient
-            .channel('design-hub-notes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async () => {
-                const panel = document.getElementById('notesPanel');
-                if (panel && !panel.classList.contains('open')) {
-                    document.getElementById('btnToggleNotes')
-                        ?.querySelector('.notification-badge')?.classList.add('active');
-                }
-                this.notes = await DataService.getNotes();
-                this.renderNotes();
-            })
-            .subscribe((status) => {
-                if (status === 'CHANNEL_ERROR') {
-                    console.error('Realtime: no fue posible suscribirse a notas.');
-                }
-            });
 
         /*
          * PERFIL COMPARTIDO:
@@ -1597,7 +1535,6 @@ const App = {
         this.members = await DataService.getMembers();
         this.requesters = await DataService.getRequesters();
         this.usersList = await DataService.getUsers();
-        this.notes = await DataService.getNotes();
     },
 
     setupPlugins() {
@@ -2281,137 +2218,6 @@ const App = {
         });
     },
 
-    setupNotesPanel() {
-        const btnToggle = document.getElementById('btnToggleNotes');
-        const panel = document.getElementById('notesPanel');
-        const overlay = document.getElementById('notesPanelOverlay');
-        const btnClose = document.getElementById('btnCloseNotes');
-        const form = document.getElementById('noteForm');
-
-        if (!btnToggle.querySelector('.notification-badge')) {
-            btnToggle.insertAdjacentHTML('beforeend', '<div class="notification-badge"></div>');
-        }
-
-        const openPanel = () => {
-            panel.classList.add('open');
-            overlay.classList.add('active');
-            btnToggle.querySelector('.notification-badge').classList.remove('active');
-            this.renderNotes();
-        };
-
-        const closePanel = () => {
-            panel.classList.remove('open');
-            overlay.classList.remove('active');
-            const picker = document.getElementById('emojiPickerWrapper');
-            if(picker) picker.style.display = 'none';
-        };
-
-        btnToggle.addEventListener('click', openPanel);
-        btnClose.addEventListener('click', closePanel);
-        overlay.addEventListener('click', closePanel);
-
-        const emojiBtn = document.getElementById('btnToggleEmoji');
-        const pickerWrapper = document.getElementById('emojiPickerWrapper');
-        const picker = document.querySelector('emoji-picker');
-        const input = document.getElementById('noteInput');
-
-        if(emojiBtn && pickerWrapper) {
-            emojiBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                pickerWrapper.style.display = pickerWrapper.style.display === 'none' ? 'block' : 'none';
-            });
-        }
-
-        if (picker) {
-            picker.addEventListener('emoji-click', event => {
-                const unicode = event?.detail?.unicode;
-                if (!unicode || !input) return;
-                input.value += unicode;
-                input.focus();
-            });
-        }
-
-        document.addEventListener('click', (e) => {
-            if(pickerWrapper && pickerWrapper.style.display === 'block') {
-                if(!pickerWrapper.contains(e.target) && !emojiBtn.contains(e.target)) {
-                    pickerWrapper.style.display = 'none';
-                }
-            }
-        });
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = input.value.trim();
-            if(!text) return;
-
-            const newNote = {
-                id: createId(),
-                author: this.user.name,
-                content: text, 
-                created_at: new Date().toISOString()
-     };
-
-            const result = await DataService.saveNote(newNote);
-
-            if (!result.cloudSaved) {
-                UI.showToast("No se pudo guardar la nota en la nube.", "error");
-                return;
-            }
-
-            this.notes.push(result.data || newNote);
-            input.value = '';
-            if(pickerWrapper) pickerWrapper.style.display = 'none';
-            this.renderNotes();
-        });
-    },
-
-    renderNotes() {
-        const container = document.getElementById('notesList');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        if (this.notes.length === 0) {
-            container.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:20px;">No hay notas del equipo aún.</p>';
-            return;
-        }
-
-        const fragment = document.createDocumentFragment();
-        this.notes.forEach(n => {
-            const dateObj = new Date(n.created_at);
-            const dateStr = `${dateObj.getDate().toString().padStart(2,'0')}/${String(dateObj.getMonth()+1).padStart(2,'0')} ${dateObj.getHours().toString().padStart(2,'0')}:${dateObj.getMinutes().toString().padStart(2,'0')}`;
-            const isMine = n.author === this.user.name;
-            const authorColor = this.getColor(n.author);
-
-            const message = document.createElement('div');
-            message.className = `chat-msg ${isMine ? 'mine' : 'other'}`;
-
-            const meta = document.createElement('div');
-            meta.className = 'chat-meta';
-            const author = document.createElement('span');
-            author.textContent = isMine ? 'Tú' : normalizeText(n.author);
-            author.style.color = isMine ? 'var(--text-muted)' : authorColor;
-            author.style.fontWeight = '700';
-            const time = document.createElement('span');
-            time.textContent = dateStr;
-            meta.append(author, time);
-
-            const bubble = document.createElement('div');
-            bubble.className = `chat-bubble ${isMine ? '' : 'chat-bubble-other'}`;
-            bubble.textContent = normalizeText(n.content);
-            if (isMine) {
-                bubble.style.backgroundColor = 'var(--primary-cold)';
-                bubble.style.color = '#ffffff';
-            } else {
-                bubble.style.borderLeftColor = authorColor;
-            }
-            message.append(meta, bubble);
-            fragment.appendChild(message);
-        });
-        container.replaceChildren(fragment);
-        
-        container.scrollTop = container.scrollHeight;
-    },
-
     openEditModal(taskId) {
         const task = this.tasks.find(t => t.id === taskId);
         if (!task) return;
@@ -2801,7 +2607,6 @@ const App = {
             resetProfileModal();
             mProfile.classList.remove('active');
             this.renderAll(); 
-            this.renderNotes();
         };
 
         document.getElementById('userProfileBtn').addEventListener('click', () => {
@@ -4622,12 +4427,13 @@ const App = {
             const statusActions = {
                 'En cola': [
                     ['En cola', 'En cola', 'pause-circle'],
-                    ['En curso', 'En curso', 'play-circle']
+                    ['En curso', 'En curso', 'play-circle'],
+                    ['Entregado', 'Realizada', 'check-circle-2']
                 ],
                 'En curso': [
                     ['En cola', 'En cola', 'pause-circle'],
                     ['En curso', 'En curso', 'play-circle'],
-                    ['Entregado', 'Entregar', 'check-circle-2']
+                    ['Entregado', 'Realizada', 'check-circle-2']
                 ],
                 'Ajuste solicitado': [
                     ['Ajuste solicitado', 'Ajuste solicitado', 'message-square-warning'],
