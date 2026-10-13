@@ -9477,3 +9477,12 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
     .task-table tr.task-queued-attention .req-title-cell > strong { text-shadow: none; }
 }
+
+/* V39.0 — Evita la selección accidental de texto en la cabecera del tablero y sus pestañas. */
+.board-section > .card-header h2,
+.board-section > .card-header .subtitle,
+.board-section > .card-header .workspace-tabs,
+.board-section > .card-header .workspace-tab {
+    -webkit-user-select: none;
+    user-select: none;
+}

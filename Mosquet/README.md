@@ -313,3 +313,7 @@ Orden de tareas: estrellas primero, después En curso y luego En cola. Se conser
 
 ## V38.9 — Resalte sin línea lateral
 Se quitó la línea cian lateral de las tareas en cola y se conservó únicamente un resalte cian muy discreto en el título. El orden de prioridad de V38.8 permanece sin cambios.
+
+## V39.0 — Corrección de selección accidental
+- Se evita que el título, el subtítulo y las pestañas de la cabecera del tablero queden resaltados en azul al arrastrar accidentalmente el cursor.
+- Cambio limitado a CSS; se conservan los campos editables y la lógica de tareas.
