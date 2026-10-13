@@ -301,5 +301,6 @@ El formulario de nueva solicitud permite seleccionar varios responsables con Ctr
 El formulario de nueva solicitud permite seleccionar varios responsables con Ctrl + clic (Windows) o Cmd + clic (Mac). La asignación múltiple se conserva en el campo de texto existente, sin cambios SQL. Consulta `CHANGELOG_V38_5.md` para los detalles y las comprobaciones pendientes.
 
 
-## V38.6 — Orden y resaltado de tareas en cola
-Se mantiene la prioridad por estrellas y se da prioridad secundaria al estado «En cola». Las tareas en cola tienen un brillo cian pulsante para identificarlas visualmente.
+## V38.7 — Prioridad y brillo discreto
+
+Se mantienen las estrellas como prioridad principal; las tareas En cola suben dentro de cada grupo y reciben un indicador cian sutil en el borde izquierdo, sin tintar el fondo de la fila.
