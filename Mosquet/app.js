@@ -40,6 +40,18 @@ const clearLegacyLocalData = () => {
 };
 
 const normalizeText = (value) => String(value ?? '').trim();
+// Compatibilidad con asignaciones antiguas (una persona) y nuevas (varias personas).
+const getTaskAssignees = (value) => {
+    const raw = Array.isArray(value) ? value : String(value ?? '').split(',');
+    const names = [...new Set(raw.map(normalizeText).filter(name =>
+        name && !['no asignado', 'sin asignar', 'seleccionar responsable'].includes(name.toLocaleLowerCase('es'))
+    ))];
+    return names;
+};
+const formatTaskAssignees = (value) => {
+    const names = getTaskAssignees(value);
+    return names.length ? names.join(', ') : 'No asignado';
+};
 
 // Normaliza una tarea recibida desde Supabase/Realtime. Mantiene los campos
 // opcionales de control de concurrencia cuando la base de datos ya dispone
@@ -358,7 +370,7 @@ const NotificationService = {
             }, 100);
         };
 
-        const myPendingTasks = tasks.filter(t => t.assignee === userName && t.status !== 'Entregado' && getTaskDeadline(t));
+        const myPendingTasks = tasks.filter(t => getTaskAssignees(t.assignee).includes(userName) && t.status !== 'Entregado' && getTaskDeadline(t));
         if (myPendingTasks.length > 0) {
             myPendingTasks.sort((a, b) => new Date(getTaskDeadline(a) + 'T12:00:00').getTime() - new Date(getTaskDeadline(b) + 'T12:00:00').getTime());
             const nearest = myPendingTasks[0];
@@ -1748,14 +1760,14 @@ const App = {
             const assigneeSelect = document.getElementById('assignee');
 
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
-            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
+            if (assigneeSelect) { [...assigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); }
 
             // Recalcula los menús del formulario cada vez que se abre. Esto evita
             // que una renderización previa deje triggers sin opciones o referencias
             // antiguas, especialmente después de actualizar solicitantes/equipo.
             buildCustomSelects(document);
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
-            if (assigneeSelect) updateCustomSelectUI(assigneeSelect, 'No asignado');
+            if (assigneeSelect) { [...assigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); }
 
             const taskNotes = document.getElementById('taskNotes');
             if (taskNotes) taskNotes.value = '';
@@ -1898,6 +1910,14 @@ const App = {
             }
         });
 
+        const assigneeMultiSelect = document.getElementById('assignee');
+        assigneeMultiSelect?.addEventListener('change', () => {
+            const noneOption = [...assigneeMultiSelect.options].find(option => option.value === 'No asignado');
+            const selectedPeople = [...assigneeMultiSelect.selectedOptions].filter(option => option.value !== 'No asignado');
+            if (selectedPeople.length && noneOption) noneOption.selected = false;
+            if (!assigneeMultiSelect.selectedOptions.length && noneOption) noneOption.selected = true;
+        });
+
         taskForm?.addEventListener('submit', (e) => {
             const name = document.getElementById('taskName');
             const receivedInput = document.getElementById('dateReceived');
@@ -1952,7 +1972,7 @@ const App = {
                 id: createId(),
                 name: taskNameRaw,
                 requester: requesterRaw,
-                assignee: normalizeText(assigneeInput?.value),
+                assignee: (() => { const selected = [...(assigneeInput?.selectedOptions || [])].map(option => normalizeText(option.value)).filter(value => value && value !== 'No asignado'); return selected.length ? selected.join(', ') : 'No asignado'; })(),
                 status: 'En cola',
                 dateReceived: dateReceivedValue,
                 dateDelivered: delivered,
@@ -1970,7 +1990,7 @@ const App = {
             const newRequesterSelect = document.getElementById('requesterSelect');
             const newAssigneeSelect = document.getElementById('assignee');
             if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
-            if (newAssigneeSelect) updateCustomSelectUI(newAssigneeSelect, 'No asignado');
+            if (newAssigneeSelect) { [...newAssigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); }
 
             const receivedPicker = document.getElementById('dateReceived')?._flatpickr;
             const deliveredPicker = document.getElementById('dateDelivered')?._flatpickr;
@@ -2365,7 +2385,7 @@ const App = {
 
         if (title) title.textContent = normalizeText(task.name);
         if (date) date.textContent = 'Se registrará hoy como fecha real de entrega';
-        if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
+        if (assignee) assignee.textContent = formatTaskAssignees(task.assignee);
 
         modal.dataset.taskId = String(taskId);
         if (sourceButton instanceof HTMLElement && sourceButton.id) {
@@ -2380,9 +2400,7 @@ const App = {
 
     isTaskAssignedForDelivery(task) {
         if (!task) return false;
-        const assignee = normalizeText(task.assignee).toLocaleLowerCase('es');
-        const unassignedLabels = new Set(['', 'no asignado', 'sin asignar', 'seleccionar responsable']);
-        return Boolean(normalizeText(task.assignee_id) || (assignee && !unassignedLabels.has(assignee)));
+        return Boolean(normalizeText(task.assignee_id) || getTaskAssignees(task.assignee).length);
     },
 
     confirmTaskDelivery(taskId) {
@@ -2438,7 +2456,7 @@ const App = {
         const assignee = document.getElementById('reopenTaskAssignee');
         if (title) title.textContent = normalizeText(task.name);
         if (deadline) deadline.textContent = getTaskDeadline(task) ? this.formatBusinessDate(getTaskDeadline(task)) : 'Sin fecha límite';
-        if (assignee) assignee.textContent = normalizeText(task.assignee) || 'No asignado';
+        if (assignee) assignee.textContent = formatTaskAssignees(task.assignee);
 
         modal.dataset.taskId = String(taskId);
         if (sourceButton instanceof HTMLElement && sourceButton.id) {
@@ -3409,7 +3427,7 @@ const App = {
             const name = document.createElement('strong');
             name.textContent = normalizeText(task.name) || 'Solicitud sin nombre';
             const meta = document.createElement('span');
-            meta.textContent = `${normalizeText(task.requester) || 'Solicitante no indicado'} · ${normalizeText(task.assignee) || 'No asignado'} · ${normalizeText(task.status) || 'Entregado'}`;
+            meta.textContent = `${normalizeText(task.requester) || 'Solicitante no indicado'} · ${formatTaskAssignees(task.assignee)} · ${normalizeText(task.status) || 'Entregado'}`;
             info.append(name, meta);
 
             const openButton = document.createElement('button');
@@ -3482,7 +3500,7 @@ const App = {
             .filter(task => {
                 if (filters.month && monthOf(task.dateReceived) !== filters.month) return false;
                 if (filters.requester !== 'Todos' && normalizeText(task.requester) !== filters.requester) return false;
-                if (filters.assignee !== 'Todos' && normalizeText(task.assignee) !== filters.assignee) return false;
+                if (filters.assignee !== 'Todos' && !getTaskAssignees(task.assignee).includes(filters.assignee) && !(filters.assignee === 'No asignado' && !getTaskAssignees(task.assignee).length)) return false;
                 if (filters.status !== 'Todos' && normalizeText(task.status) !== filters.status) return false;
 
                 if (filters.search) {
@@ -3581,7 +3599,7 @@ const App = {
             requesterCell.textContent = normalizeText(task.requester) || 'No indicado';
 
             const assigneeCell = document.createElement('td');
-            assigneeCell.textContent = normalizeText(task.assignee) || 'No asignado';
+            assigneeCell.textContent = formatTaskAssignees(task.assignee);
 
             const receivedCell = document.createElement('td');
             receivedCell.textContent = formatTaskDate(task.dateReceived);
@@ -3822,7 +3840,7 @@ const App = {
         };
 
         fill(requester, unique(this.tasks.map(task => task.requester)), currentRequester);
-        fill(assignee, unique(this.tasks.map(task => task.assignee)), currentAssignee);
+        fill(assignee, unique(this.tasks.flatMap(task => getTaskAssignees(task.assignee)).concat(this.tasks.some(task => !getTaskAssignees(task.assignee).length) ? ['No asignado'] : [])), currentAssignee);
 
         this.historyFilters.requester = requester.value;
         this.historyFilters.assignee = assignee.value;
@@ -4221,7 +4239,7 @@ const App = {
         };
 
         const matchesCommonFilters = (t) => {
-            const mAsig = fAssignee === 'Todos' || t.assignee === fAssignee;
+            const mAsig = fAssignee === 'Todos' || getTaskAssignees(t.assignee).includes(fAssignee) || (!getTaskAssignees(t.assignee).length && fAssignee === 'No asignado');
             const mReq = fRequester === 'Todos' || t.requester === fRequester;
             const mStat = fStatus === 'Todos' || t.status === fStatus;
             const mSearch = !fSearch ||
@@ -4234,9 +4252,9 @@ const App = {
             if (this.quickFilter === 'starred') {
                 mQuick = !!t.isStarred;
             } else if (this.quickFilter === 'mine') {
-                mQuick = !!this.user && t.assignee === this.user.name;
+                mQuick = !!this.user && getTaskAssignees(t.assignee).includes(this.user.name);
             } else if (this.quickFilter === 'unassigned') {
-                mQuick = !t.assignee || t.assignee === 'No asignado';
+                mQuick = getTaskAssignees(t.assignee).length === 0;
             } else if (this.quickFilter === 'overdue') {
                 mQuick = t.status !== 'Entregado' && !!getTaskDeadline(t) && dateValue(getTaskDeadline(t)) < Date.now();
             } else if (this.quickFilter === 'today') {
@@ -4316,7 +4334,7 @@ const App = {
 
         const myTasks = this.tasks.filter(t => t.status !== TASK_STATUS.DELIVERED && (
                 (t.assignee_id && this.user?.id && String(t.assignee_id) === String(this.user.id)) ||
-                (!t.assignee_id && t.assignee === this.user.name)
+                (!t.assignee_id && getTaskAssignees(t.assignee).includes(this.user.name))
             )).sort(sortTasks);
         const myTasksBadge = document.querySelector('.sidebar-card:first-child .badge-count');
         if (myTasksBadge) myTasksBadge.textContent = String(myTasks.length);
@@ -4354,7 +4372,7 @@ const App = {
                 }
             });
             
-            const colorHex = this.getColor(t.assignee);
+            const colorHex = this.getColor(getTaskAssignees(t.assignee)[0] || 'No asignado');
             
             let dateClass = '';
             let dateAlertIcon = '';
@@ -4390,7 +4408,7 @@ const App = {
                 </div>
                 <div class="req-extra-info">
                     <div class="req-detail-row"><span>Solicitante:</span><strong>${escapeHTML(t.requester)}</strong></div>
-                    <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(t.assignee)}</span></div>
+                    <div class="req-detail-row"><span>A cargo:</span><span class="badge-count" style="color:${colorHex}; background-color:${colorHex}20; border: 1px solid ${colorHex}40;">${escapeHTML(formatTaskAssignees(t.assignee))}</span></div>
                 </div>
             `;
             sidebarFragment.appendChild(li);
@@ -4412,7 +4430,7 @@ const App = {
             tr.className = `${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
             tr.dataset.taskRow = String(t.id);
             
-            const colorHex = this.getColor(t.assignee);
+            const colorHex = this.getColor(getTaskAssignees(t.assignee)[0] || 'No asignado');
             
             tr.addEventListener('click', (e) => {
                 // Ignore clicks on buttons to prevent bubbling collision
@@ -4488,8 +4506,9 @@ const App = {
                     </div>
                 </td>
                 <td data-label="Asignación">
+                    <span class="assignee-list-label">${escapeHTML(formatTaskAssignees(t.assignee))}</span>
                     <select id="assignee-${escapeHTML(t.id)}" name="assignee-${escapeHTML(t.id)}" class="native-select-hidden table-select inline-assignee" aria-label="Cambiar asignación" data-color="${escapeHTML(colorHex)}" data-action="change-assignee" data-task-id="${escapeHTML(t.id)}">
-                        ${assigneeOpts.replace(`value="${t.assignee}"`, `value="${t.assignee}" selected`)}
+                        ${assigneeOpts.replace(`value="${getTaskAssignees(t.assignee)[0] || 'No asignado'}"`, `value="${getTaskAssignees(t.assignee)[0] || 'No asignado'}" selected`)}
                     </select>
                 </td>
                 <td class="date-info" data-label="Fechas">
@@ -4585,8 +4604,9 @@ const App = {
         workload['No asignado'] = 0;
 
         activasTasks.forEach(task => {
-            const assignee = task.assignee || 'No asignado';
-            workload[assignee] = (workload[assignee] || 0) + 1;
+            const assignees = getTaskAssignees(task.assignee);
+            if (!assignees.length) workload['No asignado'] = (workload['No asignado'] || 0) + 1;
+            assignees.forEach(assignee => { workload[assignee] = (workload[assignee] || 0) + 1; });
         });
 
         const sortedWorkload = Object.entries(workload)

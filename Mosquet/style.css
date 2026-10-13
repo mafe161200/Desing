@@ -9434,3 +9434,19 @@ html, body {
         padding-right: 0 !important;
     }
 }
+
+/* V38.5: selector nativo de responsables múltiples en el formulario de solicitud. */
+.assignee-multi-select {
+    min-height: 116px;
+    padding: 8px 10px;
+    cursor: pointer;
+}
+.assignee-multi-select option {
+    padding: 7px 9px;
+    border-radius: 4px;
+}
+.assignee-multi-select option:checked {
+    background: var(--primary-cold, #35C8F4) linear-gradient(0deg, var(--primary-cold, #35C8F4), var(--primary-cold, #35C8F4));
+    color: #081018;
+}
+.assignee-list-label { display:block; margin-bottom:5px; color:var(--dh-text-primary, var(--text-main)); font-size:.78rem; line-height:1.35; overflow-wrap:anywhere; }

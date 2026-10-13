@@ -293,3 +293,9 @@
 - Permite entregar directamente desde `En cola`.
 - Exige un responsable antes de abrir y confirmar la entrega.
 - No requiere cambios SQL.
+
+## V38.5 — Responsables múltiples
+El formulario de nueva solicitud permite seleccionar varios responsables con Ctrl + clic (Windows) o Cmd + clic (Mac). La asignación múltiple se conserva en el campo de texto existente, sin cambios SQL. Consulta `CHANGELOG_V38_5.md` para los detalles y las comprobaciones pendientes.
+
+## V38.5 — Responsables múltiples
+El formulario de nueva solicitud permite seleccionar varios responsables con Ctrl + clic (Windows) o Cmd + clic (Mac). La asignación múltiple se conserva en el campo de texto existente, sin cambios SQL. Consulta `CHANGELOG_V38_5.md` para los detalles y las comprobaciones pendientes.
