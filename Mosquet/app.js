@@ -4326,18 +4326,20 @@ const App = {
         };
 
         const filtered = this.tasks.filter(matchesCommonFilters);
-        // ORDEN POR DEFECTO: fecha de solicitud (recepción),
-        // de la más antigua a la más reciente.
-        // Las estrellas solo toman prioridad en órdenes alternativos.
+        // Prioridad de estados: 1) estrellas, 2) En curso, 3) En cola.
+        // Dentro de cada grupo se conserva el orden de fechas configurado.
         const sortTasks = (a, b) => {
-            // Orden: ⭐ las destacadas primero; después, las que están En cola;
-            // dentro de cada grupo se conserva el orden de fechas configurado.
-            if (a.isStarred && !b.isStarred) return -1;
-            if (!a.isStarred && b.isStarred) return 1;
-            const aQueued = normalizeText(a.status) === TASK_STATUS.QUEUED;
-            const bQueued = normalizeText(b.status) === TASK_STATUS.QUEUED;
-            if (aQueued && !bQueued) return -1;
-            if (!aQueued && bQueued) return 1;
+            if (Boolean(a.isStarred) !== Boolean(b.isStarred)) {
+                return a.isStarred ? -1 : 1;
+            }
+            const statusPriority = (task) => {
+                const status = normalizeText(task.status);
+                if (status === TASK_STATUS.IN_PROGRESS) return 0;
+                if (status === TASK_STATUS.QUEUED) return 1;
+                return 2;
+            };
+            const priorityDiff = statusPriority(a) - statusPriority(b);
+            if (priorityDiff !== 0) return priorityDiff;
 
             const receivedA = dateValue(a.dateReceived);
             const receivedB = dateValue(b.dateReceived);

@@ -304,3 +304,8 @@ El formulario de nueva solicitud permite seleccionar varios responsables con Ctr
 ## V38.7 — Prioridad y brillo discreto
 
 Se mantienen las estrellas como prioridad principal; las tareas En cola suben dentro de cada grupo y reciben un indicador cian sutil en el borde izquierdo, sin tintar el fondo de la fila.
+
+
+## V38.8 — Orden de prioridad corregido
+
+Orden de tareas: estrellas primero, después En curso y luego En cola. Se conserva el orden de fechas dentro de cada grupo y el indicador cian discreto de V38.7.
