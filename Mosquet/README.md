@@ -309,3 +309,7 @@ Se mantienen las estrellas como prioridad principal; las tareas En cola suben de
 ## V38.8 — Orden de prioridad corregido
 
 Orden de tareas: estrellas primero, después En curso y luego En cola. Se conserva el orden de fechas dentro de cada grupo y el indicador cian discreto de V38.7.
+
+
+## V38.9 — Resalte sin línea lateral
+Se quitó la línea cian lateral de las tareas en cola y se conservó únicamente un resalte cian muy discreto en el título. El orden de prioridad de V38.8 permanece sin cambios.
