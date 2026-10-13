@@ -4330,10 +4330,14 @@ const App = {
         // de la más antigua a la más reciente.
         // Las estrellas solo toman prioridad en órdenes alternativos.
         const sortTasks = (a, b) => {
-            // Regla por defecto: ⭐ prioridad primero y, dentro de cada grupo,
-            // fecha de solicitud (recepción) de más antigua a más reciente.
+            // Orden: ⭐ las destacadas primero; después, las que están En cola;
+            // dentro de cada grupo se conserva el orden de fechas configurado.
             if (a.isStarred && !b.isStarred) return -1;
             if (!a.isStarred && b.isStarred) return 1;
+            const aQueued = normalizeText(a.status) === TASK_STATUS.QUEUED;
+            const bQueued = normalizeText(b.status) === TASK_STATUS.QUEUED;
+            if (aQueued && !bQueued) return -1;
+            if (!aQueued && bQueued) return 1;
 
             const receivedA = dateValue(a.dateReceived);
             const receivedB = dateValue(b.dateReceived);
@@ -4380,7 +4384,7 @@ const App = {
         myTasks.forEach(t => {
             const li = document.createElement('li');
             // Añadir clase de estrella para estilar en el CSS
-            li.className = `request-item ${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`;
+            li.className = `request-item ${t.isStarred ? 'task-starred' : ''} ${t.status === TASK_STATUS.QUEUED ? 'task-queued-attention' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`;
             li.tabIndex = 0; 
             li.id = `li-${t.id}`;
             li.dataset.taskRow = String(t.id);
@@ -4465,7 +4469,7 @@ const App = {
         boardTasks.forEach(t => {
             const tr = document.createElement('tr');
             tr.id = `tr-${t.id}`;
-            tr.className = `${t.isStarred ? 'task-starred' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
+            tr.className = `${t.isStarred ? 'task-starred' : ''} ${t.status === TASK_STATUS.QUEUED ? 'task-queued-attention' : ''} ${this.selectedTaskId === String(t.id) ? 'task-selected' : ''}`.trim();
             tr.dataset.taskRow = String(t.id);
             
             const colorHex = this.getColor(getTaskAssignees(t.assignee)[0] || 'No asignado');
