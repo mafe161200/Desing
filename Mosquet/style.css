@@ -9450,3 +9450,13 @@ html, body {
     color: #081018;
 }
 .assignee-list-label { display:block; margin-bottom:5px; color:var(--dh-text-primary, var(--text-main)); font-size:.78rem; line-height:1.35; overflow-wrap:anywhere; }
+
+/* V38.5.1: lista de responsables seleccionable con clic normal, sin Ctrl/Cmd. */
+.assignee-data-select { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important; }
+.assignee-checklist { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; padding:9px; border:1px solid var(--dh-border-strong, var(--border-light)); border-radius:9px; background:var(--dh-control-bg, var(--card-bg)); min-height:46px; }
+.assignee-check-option { display:flex; align-items:center; gap:9px; min-width:0; padding:9px 10px; border:1px solid transparent; border-radius:7px; color:var(--dh-text-primary, var(--text-main)); font-size:.82rem; cursor:pointer; user-select:none; transition:background .15s ease,border-color .15s ease; }
+.assignee-check-option:hover { background:rgba(53,200,244,.08); border-color:rgba(53,200,244,.24); }
+.assignee-check-option.is-selected { background:rgba(53,200,244,.15); border-color:rgba(53,200,244,.6); }
+.assignee-check-option input { width:15px; height:15px; margin:0; accent-color:var(--primary-cold, #35C8F4); flex:0 0 auto; }
+.assignee-check-option span { overflow-wrap:anywhere; }
+@media(max-width:520px){.assignee-checklist{grid-template-columns:minmax(0,1fr)}}

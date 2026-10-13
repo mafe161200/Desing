@@ -1298,6 +1298,42 @@ function buildCustomSelects(container = document) {
     lucide.createIcons();
 }
 
+function renderAssigneeChecklist() {
+    const select = document.getElementById('assignee');
+    const list = document.getElementById('assigneeChecklist');
+    if (!select || !list) return;
+    const selected = new Set(Array.from(select.selectedOptions).map(option => option.value));
+    list.replaceChildren();
+    Array.from(select.options).forEach(option => {
+        const value = normalizeText(option.value);
+        if (!value) return;
+        const label = document.createElement('label');
+        label.className = 'assignee-check-option' + (selected.has(value) ? ' is-selected' : '');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = value;
+        checkbox.checked = selected.has(value);
+        checkbox.addEventListener('change', () => {
+            if (value === 'No asignado' && checkbox.checked) {
+                Array.from(select.options).forEach(item => { item.selected = item.value === 'No asignado'; });
+            } else {
+                const none = Array.from(select.options).find(item => item.value === 'No asignado');
+                if (none) none.selected = false;
+                const target = Array.from(select.options).find(item => item.value === value);
+                if (target) target.selected = checkbox.checked;
+                const hasPeople = Array.from(select.selectedOptions).some(item => item.value !== 'No asignado');
+                if (!hasPeople && none) none.selected = true;
+            }
+            renderAssigneeChecklist();
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        const text = document.createElement('span');
+        text.textContent = option.textContent;
+        label.append(checkbox, text);
+        list.appendChild(label);
+    });
+}
+
 function updateCustomSelectUI(selectElement, value) {
     selectElement.value = value;
     const wrapper = selectElement.closest('.select-wrapper');
@@ -1760,14 +1796,14 @@ const App = {
             const assigneeSelect = document.getElementById('assignee');
 
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
-            if (assigneeSelect) { [...assigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); }
+            if (assigneeSelect) { [...assigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); renderAssigneeChecklist(); }
 
             // Recalcula los menús del formulario cada vez que se abre. Esto evita
             // que una renderización previa deje triggers sin opciones o referencias
             // antiguas, especialmente después de actualizar solicitantes/equipo.
             buildCustomSelects(document);
             if (requesterSelect) updateCustomSelectUI(requesterSelect, '');
-            if (assigneeSelect) { [...assigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); }
+            if (assigneeSelect) { [...assigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); renderAssigneeChecklist(); }
 
             const taskNotes = document.getElementById('taskNotes');
             if (taskNotes) taskNotes.value = '';
@@ -1990,7 +2026,7 @@ const App = {
             const newRequesterSelect = document.getElementById('requesterSelect');
             const newAssigneeSelect = document.getElementById('assignee');
             if (newRequesterSelect) updateCustomSelectUI(newRequesterSelect, '');
-            if (newAssigneeSelect) { [...newAssigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); }
+            if (newAssigneeSelect) { [...newAssigneeSelect.options].forEach(option => { option.selected = option.value === 'No asignado'; }); renderAssigneeChecklist(); }
 
             const receivedPicker = document.getElementById('dateReceived')?._flatpickr;
             const deliveredPicker = document.getElementById('dateDelivered')?._flatpickr;
@@ -3729,6 +3765,8 @@ const App = {
                 id === 'filterAssignee' ? 'Responsable · Todos' : null
             );
         });
+
+        renderAssigneeChecklist();
 
         ['requesterSelect', 'filterRequester', 'editRequesterSelect'].forEach(id => {
             const el = document.getElementById(id);

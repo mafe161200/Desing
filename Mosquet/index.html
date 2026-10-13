@@ -485,8 +485,9 @@
                         </div>
                         <div class="field">
                             <label for="assignee">Asignar a <span class="required-mark" aria-hidden="true">*</span></label>
-                            <select id="assignee" name="assignee" class="custom-input assignee-multi-select" multiple size="4" required aria-describedby="assigneeHelp"></select>
-                            <div id="assigneeHelp" class="field-help">Puedes seleccionar varias personas con Ctrl (Windows) o Cmd (Mac). Las personas seleccionadas quedarán asignadas a esta solicitud.</div>
+                            <select id="assignee" name="assignee" multiple aria-hidden="true" tabindex="-1" class="assignee-data-select"></select>
+                            <div id="assigneeChecklist" class="assignee-checklist" role="group" aria-label="Responsables de la solicitud"></div>
+                            <div id="assigneeHelp" class="field-help">Haz clic en una o varias personas para asignarlas. Puedes volver a hacer clic para desmarcarlas.</div>
                         </div>
                         <div class="field">
                             <label id="dateReceived-label" for="dateReceived">Fecha de solicitud</label>
