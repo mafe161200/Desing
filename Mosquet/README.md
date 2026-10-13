@@ -286,3 +286,10 @@
 - Se uniforma ligeramente el espaciado vertical de filas y tarjetas laterales, sin fijar alturas.
 - Se conserva la distribución, los colores activos y la lógica de los botones de estado.
 - No se modificó `app.js`, la persistencia, los datos ni la lógica de las estrellas.
+
+
+## V38.4 — Correcciones de entrega
+
+- Permite entregar directamente desde `En cola`.
+- Exige un responsable antes de abrir y confirmar la entrega.
+- No requiere cambios SQL.

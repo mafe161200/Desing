@@ -402,7 +402,7 @@ const TASK_STATUS = Object.freeze({
 });
 
 const TASK_STATUS_TRANSITIONS = Object.freeze({
-    [TASK_STATUS.QUEUED]: Object.freeze([TASK_STATUS.IN_PROGRESS]),
+    [TASK_STATUS.QUEUED]: Object.freeze([TASK_STATUS.IN_PROGRESS, TASK_STATUS.DELIVERED]),
     [TASK_STATUS.IN_PROGRESS]: Object.freeze([TASK_STATUS.DELIVERED, TASK_STATUS.QUEUED]),
     [TASK_STATUS.ADJUSTMENT]: Object.freeze([TASK_STATUS.IN_PROGRESS]),
     [TASK_STATUS.DELIVERED]: Object.freeze([TASK_STATUS.ADJUSTMENT, TASK_STATUS.IN_PROGRESS, TASK_STATUS.QUEUED])
@@ -2353,6 +2353,10 @@ const App = {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         const modal = document.getElementById('modalDeliveryConfirm');
         if (!task || !modal) return;
+        if (!this.isTaskAssignedForDelivery(task)) {
+            UI.showToast('Antes de entregar, selecciona quién realizó la solicitud en el campo Responsable.', 'warning', 6000);
+            return;
+        }
 
         const title = document.getElementById('deliveryConfirmTaskTitle');
         const date = document.getElementById('deliveryConfirmDate');
@@ -2374,12 +2378,28 @@ const App = {
         lucide.createIcons();
     },
 
+    isTaskAssignedForDelivery(task) {
+        if (!task) return false;
+        const assignee = normalizeText(task.assignee).toLocaleLowerCase('es');
+        const unassignedLabels = new Set(['', 'no asignado', 'sin asignar', 'seleccionar responsable']);
+        return Boolean(normalizeText(task.assignee_id) || (assignee && !unassignedLabels.has(assignee)));
+    },
+
     confirmTaskDelivery(taskId) {
         const task = this.tasks.find(t => String(t.id) === String(taskId));
         const confirmButton = document.getElementById('confirmDeliveryBtn');
-        UI.buttonFeedback(confirmButton, 'success');
         const modal = document.getElementById('modalDeliveryConfirm');
         if (!task) return;
+        if (!this.isTaskAssignedForDelivery(task)) {
+            modal?.classList.remove('active');
+            UI.showToast('No se puede registrar la entrega sin un responsable. Selecciona quién realizó la solicitud y vuelve a intentarlo.', 'warning', 6500);
+            return;
+        }
+        if (!canTransitionTaskStatus(task.status, TASK_STATUS.DELIVERED)) {
+            UI.showToast(`No se puede entregar una solicitud en estado "${task.status}".`, 'warning');
+            return;
+        }
+        UI.buttonFeedback(confirmButton, 'success');
 
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
