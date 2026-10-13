@@ -317,3 +317,7 @@ Se quitó la línea cian lateral de las tareas en cola y se conservó únicament
 ## V39.0 — Corrección de selección accidental
 - Se evita que el título, el subtítulo y las pestañas de la cabecera del tablero queden resaltados en azul al arrastrar accidentalmente el cursor.
 - Cambio limitado a CSS; se conservan los campos editables y la lógica de tareas.
+
+
+## V39.1 — Bordes de selección
+Se ajustó únicamente el contorno de foco de pestañas y filtros para evitar marcos dobles, conservando el indicador activo y la accesibilidad por teclado.

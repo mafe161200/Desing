@@ -9486,3 +9486,25 @@ html, body {
     -webkit-user-select: none;
     user-select: none;
 }
+
+
+/* V39.1 — Evita bordes dobles en controles seleccionados.
+   El estado activo conserva su borde/indicador propio; el foco de teclado sigue visible,
+   pero queda contenido para no crear un segundo marco exterior. */
+.workspace-tabs .workspace-tab:focus-visible,
+.quick-filter:focus-visible,
+.filter-chip:focus-visible,
+.filter-button:focus-visible {
+    outline: 1px solid rgba(56, 189, 248, .72) !important;
+    outline-offset: -2px !important;
+    box-shadow: none;
+}
+.workspace-tabs .workspace-tab.is-active:focus-visible {
+    box-shadow: inset 0 -2px 0 var(--dh-focus) !important;
+}
+.workspace-tabs .workspace-tab:focus:not(:focus-visible),
+.quick-filter:focus:not(:focus-visible),
+.filter-chip:focus:not(:focus-visible),
+.filter-button:focus:not(:focus-visible) {
+    outline: none !important;
+}
