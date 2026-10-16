@@ -321,3 +321,8 @@ Se quitó la línea cian lateral de las tareas en cola y se conservó únicament
 
 ## V39.1 — Bordes de selección
 Se ajustó únicamente el contorno de foco de pestañas y filtros para evitar marcos dobles, conservando el indicador activo y la accesibilidad por teclado.
+
+
+## V39.2 — Formulario y comentarios fechados
+
+Se corrige la disposición responsiva del modal Nueva Solicitud y se agrega registro de comentarios con fecha/hora y autor en el campo de notas existente. No requiere SQL. La edición de la descripción conserva los comentarios previos.

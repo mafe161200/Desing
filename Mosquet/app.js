@@ -53,6 +53,39 @@ const formatTaskAssignees = (value) => {
     return names.length ? names.join(', ') : 'No asignado';
 };
 
+// Los comentarios se guardan dentro del campo notes existente para evitar migraciones.
+// Las notas antiguas sin marcadores se conservan como descripción original.
+const TASK_COMMENT_MARKER = /\n?\n?--- COMENTARIO \| (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) \| ([^\n]+) ---\n/g;
+const splitTaskNotes = (value) => {
+    const text = String(value ?? '');
+    const comments = [];
+    let match;
+    let lastIndex = 0;
+    let original = '';
+    TASK_COMMENT_MARKER.lastIndex = 0;
+    while ((match = TASK_COMMENT_MARKER.exec(text)) !== null) {
+        if (comments.length === 0) original = text.slice(0, match.index).trim();
+        else comments[comments.length - 1].text = text.slice(lastIndex, match.index).trim();
+        comments.push({ date: match[1], author: match[2].trim() || 'Usuario', text: '' });
+        lastIndex = TASK_COMMENT_MARKER.lastIndex;
+    }
+    if (!comments.length) return { original: text.trim(), comments: [] };
+    comments[comments.length - 1].text = text.slice(lastIndex).trim();
+    return { original, comments: comments.filter(comment => comment.text) };
+};
+const serializeTaskNotes = (original, comments) => {
+    const base = String(original ?? '').trim();
+    const entries = (comments || []).filter(comment => normalizeText(comment.text)).map(comment =>
+        `--- COMENTARIO | ${comment.date} | ${comment.author} ---\n${String(comment.text).trim()}`
+    );
+    return [base, ...entries].filter(Boolean).join('\n\n');
+};
+const formatCommentTimestamp = (date) => {
+    const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} · ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+};
+
 // Normaliza una tarea recibida desde Supabase/Realtime. Mantiene los campos
 // opcionales de control de concurrencia cuando la base de datos ya dispone
 // de ellos, sin romper instalaciones anteriores de Design Hub.
@@ -2074,7 +2107,8 @@ const App = {
                 task.name = nameRaw;
                 task.requester = requesterRaw;
                 task.dateReceived = newRecDate;
-                task.notes = normalizeText(document.getElementById('editTaskNotes')?.value);
+                const parsedNotes = splitTaskNotes(task.notes);
+                task.notes = serializeTaskNotes(normalizeText(document.getElementById('editTaskNotes')?.value), parsedNotes.comments);
                 
                 this.markAsUnsaved();
                 document.getElementById('modalEditTask').classList.remove('active');
@@ -2281,7 +2315,7 @@ const App = {
         document.getElementById('editTaskId').value = task.id;
         document.getElementById('editTaskName').value = task.name;
         const editNotes = document.getElementById('editTaskNotes');
-        if (editNotes) editNotes.value = task.notes || '';
+        if (editNotes) editNotes.value = splitTaskNotes(task.notes).original;
         
         const reqSelect = document.getElementById('editRequesterSelect');
         updateCustomSelectUI(reqSelect, task.requester);
@@ -4164,19 +4198,79 @@ const App = {
 
         const body = document.createElement('div');
         body.className = 'task-notes-viewer-body';
-
-        const noteText = document.createElement('p');
-        noteText.className = 'task-notes-viewer-text';
-
-        const notes = normalizeText(task.notes);
-        noteText.textContent = notes || 'Esta solicitud no tiene notas todavía.';
-        if (!notes) body.classList.add('is-empty');
-
-        body.appendChild(noteText);
+        const parsedNotes = splitTaskNotes(task.notes);
+        const thread = document.createElement('div');
+        thread.className = 'task-comment-thread';
+        if (parsedNotes.original) {
+            const original = document.createElement('article');
+            original.className = 'task-comment-entry task-comment-original';
+            const originalLabel = document.createElement('div');
+            originalLabel.className = 'task-comment-entry-meta';
+            originalLabel.textContent = 'Contexto original de la solicitud';
+            const originalText = document.createElement('p');
+            originalText.className = 'task-notes-viewer-text';
+            originalText.textContent = parsedNotes.original;
+            original.append(originalLabel, originalText);
+            thread.appendChild(original);
+        }
+        parsedNotes.comments.forEach(comment => {
+            const entry = document.createElement('article');
+            entry.className = 'task-comment-entry';
+            const entryMeta = document.createElement('div');
+            entryMeta.className = 'task-comment-entry-meta';
+            entryMeta.textContent = `${comment.author} · ${formatCommentTimestamp(comment.date.replace(' ', 'T'))}`;
+            const entryText = document.createElement('p');
+            entryText.className = 'task-notes-viewer-text';
+            entryText.textContent = comment.text;
+            entry.append(entryMeta, entryText);
+            thread.appendChild(entry);
+        });
+        if (!parsedNotes.original && !parsedNotes.comments.length) {
+            const empty = document.createElement('div');
+            empty.className = 'task-notes-viewer-empty';
+            empty.textContent = 'Todavía no hay notas ni comentarios. Añade el primer comentario abajo.';
+            thread.appendChild(empty);
+        }
+        const composer = document.createElement('form');
+        composer.className = 'task-comment-composer';
+        const commentLabel = document.createElement('label');
+        commentLabel.htmlFor = 'taskCommentInput';
+        commentLabel.textContent = 'Añadir comentario';
+        const commentInput = document.createElement('textarea');
+        commentInput.id = 'taskCommentInput';
+        commentInput.className = 'custom-input task-comment-input';
+        commentInput.rows = 3;
+        commentInput.maxLength = 2000;
+        commentInput.placeholder = 'Escribe una actualización o comentario...';
+        commentInput.required = true;
+        const composerActions = document.createElement('div');
+        composerActions.className = 'task-comment-actions';
+        const submitComment = document.createElement('button');
+        submitComment.type = 'submit';
+        submitComment.className = 'btn btn-primary';
+        submitComment.innerHTML = '<i data-lucide="message-square-plus" aria-hidden="true"></i> Guardar comentario';
+        composerActions.appendChild(submitComment);
+        composer.append(commentLabel, commentInput, composerActions);
+        body.append(thread, composer);
         card.append(header, taskName, meta, body);
         overlay.appendChild(card);
         document.body.appendChild(overlay);
         lucide.createIcons();
+        composer.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const text = normalizeText(commentInput.value);
+            if (!text) { commentInput.focus(); return; }
+            const now = new Date();
+            const date = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            const author = normalizeText(this.user?.name) || 'Usuario';
+            const updated = splitTaskNotes(task.notes);
+            updated.comments.push({ date, author, text });
+            task.notes = serializeTaskNotes(updated.original, updated.comments);
+            this.markAsUnsaved();
+            this.renderBoard();
+            UI.showToast('Comentario guardado con fecha y autor.', 'success');
+            this.openTaskNotes(taskId);
+        });
 
         const closeViewer = () => {
             overlay.remove();
