@@ -326,3 +326,7 @@ Se ajustó únicamente el contorno de foco de pestañas y filtros para evitar ma
 ## V39.2 — Formulario y comentarios fechados
 
 Se corrige la disposición responsiva del modal Nueva Solicitud y se agrega registro de comentarios con fecha/hora y autor en el campo de notas existente. No requiere SQL. La edición de la descripción conserva los comentarios previos.
+
+## V39.3 — Selector de responsables
+
+Se ajustó únicamente el aspecto del selector múltiple de responsables: casillas personalizadas compatibles con el tema oscuro, alineación, espaciado y comportamiento en móvil. La lógica existente de selección se conserva.

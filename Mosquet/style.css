@@ -9582,3 +9582,81 @@ html, body {
 .task-comment-actions { display:flex; justify-content:flex-end; gap:8px; }
 .task-comment-actions .btn { min-height:38px; }
 @media (max-width:520px) { .task-comment-actions .btn { width:100%; justify-content:center; } }
+
+/* V39.3 — Pulido visual del selector de responsables en Nueva Solicitud. */
+#modalTask .assignee-checklist {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+    min-height: 0 !important;
+    align-items: stretch !important;
+}
+#modalTask .assignee-check-option {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 9px !important;
+    min-width: 0 !important;
+    min-height: 38px !important;
+    box-sizing: border-box !important;
+    padding: 8px 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    line-height: 1.25 !important;
+    overflow-wrap: anywhere !important;
+}
+#modalTask .assignee-check-option input[type="checkbox"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    display: inline-grid !important;
+    place-content: center !important;
+    flex: 0 0 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-width: 16px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid #6f849b !important;
+    border-radius: 4px !important;
+    background: #080d14 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+}
+#modalTask .assignee-check-option input[type="checkbox"]::before {
+    content: "";
+    width: 8px;
+    height: 5px;
+    border-left: 2px solid #061018;
+    border-bottom: 2px solid #061018;
+    transform: rotate(-45deg) scale(0);
+    transform-origin: center;
+    transition: transform .12s ease-in-out;
+}
+#modalTask .assignee-check-option input[type="checkbox"]:checked {
+    background: #35c8f4 !important;
+    border-color: #35c8f4 !important;
+}
+#modalTask .assignee-check-option input[type="checkbox"]:checked::before {
+    transform: rotate(-45deg) scale(1);
+}
+#modalTask .assignee-check-option span {
+    min-width: 0 !important;
+    color: #dce8f5 !important;
+    font-size: .82rem !important;
+    line-height: 1.3 !important;
+}
+#modalTask .assignee-check-option.is-selected {
+    background: rgba(53, 200, 244, .10) !important;
+    border-color: rgba(53, 200, 244, .48) !important;
+}
+#modalTask .assignee-check-option:focus-within {
+    outline: 2px solid rgba(53, 200, 244, .55) !important;
+    outline-offset: 1px !important;
+}
+@media (max-width: 640px) {
+    #modalTask .assignee-checklist { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #modalTask .assignee-check-option input[type="checkbox"]::before { transition: none; }
+}
